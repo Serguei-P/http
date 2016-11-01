@@ -31,20 +31,6 @@ public class HttpRequest extends HttpHeaders {
         }
     }
 
-    private void parseCommandLine(String commandLine) throws HttpException {
-        String[] parts = commandLine.split(" ");
-        if (parts.length != 3) {
-            throw new HttpException("Wrong number of elements in command line: " + commandLine);
-        }
-        method = parts[0];
-        try {
-            url = new URL(parts[1]);
-        } catch (MalformedURLException e) {
-            throw new HttpException("Malformed URL element: " + parts[1]);
-        }
-        version = parts[2];
-    }
-
     public String getMethod() {
         return method;
     }
@@ -69,6 +55,20 @@ public class HttpRequest extends HttpHeaders {
     @Override
     public String toString() {
         return method + " " + url + " " + version + LINE_SEPARATOR + super.toString();
+    }
+
+    private void parseCommandLine(String commandLine) throws HttpException {
+        String[] parts = commandLine.split(" ");
+        if (parts.length != 3) {
+            throw new HttpException("Wrong number of elements in command line: " + commandLine);
+        }
+        method = parts[0];
+        try {
+            url = new URL(parts[1]);
+        } catch (MalformedURLException e) {
+            throw new HttpException("Malformed URL element: " + parts[1]);
+        }
+        version = parts[2];
     }
 
 }
