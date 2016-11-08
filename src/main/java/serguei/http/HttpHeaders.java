@@ -1,6 +1,8 @@
 package serguei.http;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -10,6 +12,9 @@ import java.util.Map.Entry;
 public abstract class HttpHeaders {
     
     private static final String LINE_SEPARATOR = System.getProperty("line.separator");
+    static final byte[] LINE_SEPARATOR_BYTES = LINE_SEPARATOR.getBytes();
+    protected static final byte[] SPACE = " ".getBytes();
+    private static final byte[] KEY_VALUE_SEPARATOR = ": ".getBytes();
 
     private Map<String, HeaderValues> headers = new HashMap<>();
     
@@ -61,35 +66,38 @@ public abstract class HttpHeaders {
         }
     }
 
+    protected void write(OutputStream output) throws IOException {
+        for (Entry<String, HeaderValues> headerEntry : headers.entrySet()) {
+            if (headerEntry.getValue().getValue() != null) {
+                for (String header : headerEntry.getValue().getValues()) {
+                    output.write(headerEntry.getKey().getBytes());
+                    output.write(KEY_VALUE_SEPARATOR);
+                    output.write(header.getBytes());
+                    output.write(LINE_SEPARATOR_BYTES);
+                }
+            } else {
+                output.write(headerEntry.getKey().getBytes());
+                output.write(KEY_VALUE_SEPARATOR);
+                output.write(LINE_SEPARATOR_BYTES);
+            }
+        }
+        output.write(LINE_SEPARATOR_BYTES);
+        output.flush();
+    }
+
     private static String normalize(String name) {
         return name.trim().toLowerCase();
     }
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        boolean isFirst = true;
-        for (Entry<String, HeaderValues> headerEntry : headers.entrySet()) {
-            if (headerEntry.getValue().getValue() != null) {
-                for (String header : headerEntry.getValue().getValues()) {
-                    if (!isFirst) {
-                        sb.append(LINE_SEPARATOR);
-                    }
-                    sb.append(headerEntry.getKey());
-                    sb.append(": ");
-                    sb.append(header);
-                    isFirst = false;
-                }
-            } else {
-                if (!isFirst) {
-                    sb.append(LINE_SEPARATOR);
-                }
-                sb.append(headerEntry.getKey());
-                sb.append(": null");
-                isFirst = false;
-            }
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try {
+            write(output);
+        } catch (IOException e) {
+            // nothing
         }
-        return sb.toString();
+        return output.toString();
     }
 
     private static class HeaderValues {

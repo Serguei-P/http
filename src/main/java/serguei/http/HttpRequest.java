@@ -2,6 +2,7 @@ package serguei.http;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 
@@ -29,6 +30,17 @@ public class HttpRequest extends HttpHeaders {
         for (String header : headers) {
             addHeader(header);
         }
+    }
+
+    @Override
+    public void write(OutputStream output) throws IOException {
+        output.write(method.getBytes());
+        output.write(SPACE);
+        output.write(url.toString().getBytes());
+        output.write(SPACE);
+        output.write(version.getBytes());
+        output.write(LINE_SEPARATOR_BYTES);
+        super.write(output);
     }
 
     public String getMethod() {

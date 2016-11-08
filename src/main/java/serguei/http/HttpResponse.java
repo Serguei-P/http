@@ -2,6 +2,7 @@ package serguei.http;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 
 public class HttpResponse extends HttpHeaders {
 
@@ -25,6 +26,17 @@ public class HttpResponse extends HttpHeaders {
         for (String header : headers) {
             addHeader(header);
         }
+    }
+
+    @Override
+    public void write(OutputStream output) throws IOException {
+        output.write(version.getBytes());
+        output.write(SPACE);
+        output.write(Integer.toString(statusCode).getBytes());
+        output.write(SPACE);
+        output.write(reason.getBytes());
+        output.write(LINE_SEPARATOR_BYTES);
+        super.write(output);
     }
 
     public String getVersion() {
