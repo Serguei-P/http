@@ -30,6 +30,7 @@ public class HttpClient {
     private final InetSocketAddress proxyAddress;
     private Socket socket;
     private InputStream inputStream;
+    private InputStream responseBodyInputStream;
     private OutputStream outputStream;
     private X509Certificate[] sslCertificates;
     private long contentLength;
@@ -76,6 +77,11 @@ public class HttpClient {
         HttpResponse result = new HttpResponse(inputStream);
         contentLength = getContentLength(result);
         chunked = contentLength < 0 && hasChunkedBody(result);
+        if (chunked) {
+            responseBodyInputStream = new ChunkedInputStream(inputStream);
+        } else {
+            responseBodyInputStream = inputStream;
+        }
         return result;
     }
 
@@ -107,9 +113,9 @@ public class HttpClient {
         sendConnectRequest(host);
         startHandshake(host);
     }
-
+    
     public InputStream getInputStream() {
-        return inputStream;
+        return responseBodyInputStream;
     }
 
     public OutputStream getOutputStream() {

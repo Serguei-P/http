@@ -1,5 +1,7 @@
 package serguei.http;
 
+import static org.junit.Assert.*;
+
 import java.net.InetSocketAddress;
 
 import org.junit.Test;
@@ -15,7 +17,12 @@ public class HttpClientTest {
 
         HttpResponse response = client.request(HttpClient.getRequest("http://" + hostName + "/"));
 
-        System.out.println(response);
+        assertEquals(200, response.getStatusCode());
+        
+        String body = client.readResponseBodyAsString();
+        System.out.println(body);
+        assertTrue(client.getInputStream() instanceof ChunkedInputStream);
+        assertTrue(body.length() > 0);
     }
 
     @Test
@@ -27,7 +34,11 @@ public class HttpClientTest {
         client.startHandshake(hostName);
         HttpResponse response = client.request(HttpClient.getRequest("http://" + hostName + "/"));
 
-        System.out.println(response);
+        assertEquals(200, response.getStatusCode());
+        
+        String body = client.readResponseBodyAsString();
+        assertTrue(client.getInputStream() instanceof ChunkedInputStream);
+        assertTrue(body.length() > 0);
     }
 
 }
