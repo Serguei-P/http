@@ -159,20 +159,20 @@ public class HttpClient {
         if (contentLength >= 0) {
             return readResponseBodyAsBytes((int)contentLength);
         } else if (chunked) {
-            return readStream(inputStream);
+            return readStream(responseBodyInputStream);
         } else {
             return new byte[0];
         }
     }
 
     public byte[] readResponseBodyAsBytes(int len) throws IOException {
-        return readStream(inputStream, len);
+        return readStream(responseBodyInputStream, len);
     }
 
     public String readResponseBodyAndUnzip() throws IOException {
         byte[] buffer = readResponseBodyAsBytes();
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(buffer);
-        GZIPInputStream stream = new GZIPInputStream(inputStream);
+        ByteArrayInputStream zippedInputStream = new ByteArrayInputStream(buffer);
+        GZIPInputStream stream = new GZIPInputStream(zippedInputStream);
         byte[] result = readStream(stream);
         return new String(result, BODY_CODEPAGE);
     }

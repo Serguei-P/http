@@ -23,7 +23,6 @@ class ChunkedInputStream extends InputStream {
 
     @Override
     public int read() throws IOException {
-        System.out.println("eof=" + eof + " leftInChunk=" + leftInChunk);
         if (eof) {
             return -1;
         }
@@ -41,24 +40,14 @@ class ChunkedInputStream extends InputStream {
         inputStream.close();
     }
 
-    private void readNextBuffer() throws IOException {
-        bytesInBuffer = inputStream.read(buffer);
-        if (bytesInBuffer <= 0) {
-            eof = true;
-        }
-    }
-
     private void findChunk() throws IOException {
-        System.out.println("looking for chunk after " + chunkCount);
         if (chunkCount > 0) {
             readCrLf();
         }
         int value;
         while ((value = nextByte()) >= 0) {
-            System.out.println("value=" + value);
             int digit = getDigit(value);
             if (digit >= 0) {
-                System.out.println("digit=" + digit);
                 if (leftInChunk > 0xfffffff) {
                     throw new IOException("Chunk size is too large");
                 }
@@ -71,10 +60,28 @@ class ChunkedInputStream extends InputStream {
             // TODO: for now ignoring chunk extensions
             value = nextByte();
         }
-        System.out.println("In chunk " + leftInChunk);
         chunkCount++;
         if (leftInChunk == 0) {
             processEndOfStream();
+        }
+    }
+
+    private int nextByte() throws IOException {
+        if (!eof && bufferPos >= bytesInBuffer) {
+            readNextBuffer();
+        }
+        if (!eof && bufferPos < bytesInBuffer) {
+            return buffer[bufferPos++];
+        } else {
+            return -1;
+        }
+    }
+
+    private void readNextBuffer() throws IOException {
+        bytesInBuffer = inputStream.read(buffer);
+        bufferPos = 0;
+        if (bytesInBuffer <= 0) {
+            eof = true;
         }
     }
 
@@ -92,20 +99,9 @@ class ChunkedInputStream extends InputStream {
     }
 
     private void processEndOfStream() throws IOException {
-        // TODO: ignoring trailer for now
+        // TODO: for now ignoring trailer
         while (!eof) {
             nextByte();
-        }
-    }
-
-    private int nextByte() throws IOException {
-        if (!eof && bufferPos >= bytesInBuffer) {
-            readNextBuffer();
-        }
-        if (!eof && bufferPos < bytesInBuffer) {
-            return buffer[bufferPos++];
-        } else {
-            return -1;
         }
     }
 
