@@ -27,7 +27,7 @@ public class HttpClient {
     private static final String BODY_CODEPAGE = "UTF-8";
     private static final int BUFFER_SIZE = 1024 * 4;
 
-    private final InetSocketAddress proxyAddress;
+    private final InetSocketAddress serverAddress;
     private Socket socket;
     private InputStream inputStream;
     private InputStream responseBodyInputStream;
@@ -40,12 +40,20 @@ public class HttpClient {
     private TlsVersion negotiatedSslProtocol;
     private String negotiatedCipher;
 
-    public HttpClient(InetSocketAddress proxyAddress) {
-        this.proxyAddress = proxyAddress;
+    public HttpClient(String host) {
+        this(host, 80);
     }
 
-    public InetSocketAddress getProxyAddress() {
-        return proxyAddress;
+    public HttpClient(String host, int port) {
+        this.serverAddress = new InetSocketAddress(host, port);
+    }
+
+    public HttpClient(InetSocketAddress address) {
+        this.serverAddress = address;
+    }
+
+    public InetSocketAddress getServerAddress() {
+        return serverAddress;
     }
 
     public HttpResponse request(String... lines) throws IOException {
@@ -109,12 +117,12 @@ public class HttpClient {
         }
     }
 
-    public void setupSslConnectionToProxy(String host) throws IOException {
+    public void setupTlsConnectionToProxy(String host) throws IOException {
         sendConnectRequest(host);
         startHandshake(host);
     }
     
-    public InputStream getInputStream() {
+    public InputStream getResponseInputStream() {
         return responseBodyInputStream;
     }
 
@@ -123,14 +131,14 @@ public class HttpClient {
     }
 
     public void startHandshake() throws IOException {
-        startHandshake(proxyAddress.getHostString());
+        startHandshake(serverAddress.getHostString());
     }
 
     public void startHandshake(String hostName) throws IOException {
         connectIfNecessary();
         SSLContext sslContext = trustAllSslContext();
         SSLSocketFactory socketFactory = sslContext.getSocketFactory();
-        SSLSocket sslSocket = (SSLSocket)socketFactory.createSocket(socket, hostName, proxyAddress.getPort(), true);
+        SSLSocket sslSocket = (SSLSocket)socketFactory.createSocket(socket, hostName, serverAddress.getPort(), true);
         if (enabledSslProtocols != null) {
             sslSocket.setEnabledProtocols(TlsVersion.toJdkStrings(enabledSslProtocols));
         }
@@ -175,6 +183,14 @@ public class HttpClient {
         GZIPInputStream stream = new GZIPInputStream(zippedInputStream);
         byte[] result = readStream(stream);
         return new String(result, BODY_CODEPAGE);
+    }
+
+    public long getResponseContentLength() {
+        return contentLength;
+    }
+
+    public boolean isResponseChunked() {
+        return chunked;
     }
 
     public void close() {
@@ -227,20 +243,37 @@ public class HttpClient {
         return negotiatedCipher;
     }
 
-    private Socket connectSocket() throws IOException {
-        Socket newSocket = new Socket();
-        newSocket.setReuseAddress(true);
-        newSocket.setSoLinger(false, 1);
-        newSocket.connect(proxyAddress);
-        return newSocket;
-    }
-
     private void closeQuietly(Closeable closable) {
         try {
             closable.close();
         } catch (IOException e) {
             // quietly
         }
+    }
+
+    private long getContentLength(HttpResponse response) {
+        String contentLengthString = response.getHeader("Content-Length");
+        if (contentLengthString != null) {
+            try {
+                return Long.parseLong(contentLengthString.trim());
+            } catch (NumberFormatException e) {
+                // nothing
+            }
+        }
+        return -1;
+    }
+
+    private boolean hasChunkedBody(HttpResponse response) {
+        if (contentLength >= 0) {
+            return false;
+        }
+        List<String> transferEncodings = response.getHeaders("Transfer-Encoding");
+        int numberOfEncodings = transferEncodings.size();
+        if (numberOfEncodings > 0) {
+            String lastEncoding = transferEncodings.get(numberOfEncodings - 1);
+            return lastEncoding.equals("chunked");
+        }
+        return false;
     }
 
     private SSLContext trustAllSslContext() {
@@ -260,6 +293,14 @@ public class HttpClient {
             inputStream = socket.getInputStream();
             outputStream = socket.getOutputStream();
         }
+    }
+
+    private Socket connectSocket() throws IOException {
+        Socket newSocket = new Socket();
+        newSocket.setReuseAddress(true);
+        newSocket.setSoLinger(false, 1);
+        newSocket.connect(serverAddress);
+        return newSocket;
     }
 
     private class TrustAllTrustManager implements X509TrustManager {
@@ -311,31 +352,6 @@ public class HttpClient {
             read = stream.read(buffer, 0, bytesLeft >= BUFFER_SIZE ? BUFFER_SIZE : bytesLeft);
         }
         return outputStream.toByteArray();
-    }
-
-    public long getContentLength(HttpResponse response) {
-        String contentLengthString = response.getHeader("Content-Length");
-        if (contentLengthString != null) {
-            try {
-                return Long.parseLong(contentLengthString.trim());
-            } catch (NumberFormatException e) {
-                // nothing
-            }
-        }
-        return -1;
-    }
-
-    public boolean hasChunkedBody(HttpResponse response) {
-        if (contentLength >= 0) {
-            return false;
-        }
-        List<String> transferEncodings = response.getHeaders("Transfer-Encoding");
-        int numberOfEncodings = transferEncodings.size();
-        if (numberOfEncodings > 0) {
-            String lastEncoding = transferEncodings.get(numberOfEncodings - 1);
-            return lastEncoding.equals("chunked");
-        }
-        return false;
     }
 
 }
