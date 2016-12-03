@@ -10,6 +10,8 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URL;
 import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
@@ -20,6 +22,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 
 public class HttpClient {
@@ -40,10 +43,6 @@ public class HttpClient {
     private TlsVersion negotiatedSslProtocol;
     private String negotiatedCipher;
 
-    public HttpClient(String host) {
-        this(host, 80);
-    }
-
     public HttpClient(String host, int port) {
         this.serverAddress = new InetSocketAddress(host, port);
     }
@@ -56,9 +55,9 @@ public class HttpClient {
         return serverAddress;
     }
 
-    public HttpResponse request(String... lines) throws IOException {
+    public HttpResponse sendRequest(String requestLine, String... headers) throws IOException {
         connectIfNecessary();
-        for (String line : lines) {
+        for (String line : headers) {
             outputStream.write(line.getBytes());
             outputStream.write(HttpHeaders.LINE_SEPARATOR_BYTES);
         }
@@ -67,11 +66,11 @@ public class HttpClient {
         return readResult();
     }
 
-    public HttpResponse request(HttpRequest request) throws IOException {
-        return request(request, null);
+    public HttpResponse send(HttpRequest request) throws IOException {
+        return send(request, null);
     }
 
-    public HttpResponse request(HttpRequest request, String body) throws IOException {
+    public HttpResponse send(HttpRequest request, String body) throws IOException {
         connectIfNecessary();
         request.write(outputStream);
         if (body != null) {
@@ -108,20 +107,20 @@ public class HttpClient {
     }
 
     public void sendConnectRequest(String host) throws IOException {
-        HttpResponse response = request(connectRequest(host));
+        HttpResponse response = send(connectRequest(host));
         if (response == null) {
             throw new IOException("No response returned from Proxy after sending CONNECT");
         } else if (response.getStatusCode() != 200) {
-            throw new IOException("Response to CONNECT " + response.getStatusCode() + " " + response.getReason()
-                    + " is not 200");
+            throw new IOException(
+                    "Response to CONNECT " + response.getStatusCode() + " " + response.getReason() + " is not 200");
         }
     }
 
-    public void setupTlsConnectionToProxy(String host) throws IOException {
+    public void setupTlsConnectionViaProxy(String host) throws IOException {
         sendConnectRequest(host);
         startHandshake(host);
     }
-    
+
     public InputStream getResponseInputStream() {
         return responseBodyInputStream;
     }
@@ -135,8 +134,16 @@ public class HttpClient {
     }
 
     public void startHandshake(String hostName) throws IOException {
+        startHandshake(hostName, false);
+    }
+
+    public void startHandshakeAndValidate(String hostName) throws IOException {
+        startHandshake(hostName, true);
+    }
+
+    private void startHandshake(String hostName, boolean validateCertificates) throws IOException {
         connectIfNecessary();
-        SSLContext sslContext = trustAllSslContext();
+        SSLContext sslContext = createSslContext(validateCertificates);
         SSLSocketFactory socketFactory = sslContext.getSocketFactory();
         SSLSocket sslSocket = (SSLSocket)socketFactory.createSocket(socket, hostName, serverAddress.getPort(), true);
         if (enabledSslProtocols != null) {
@@ -158,23 +165,14 @@ public class HttpClient {
         return new String(buffer, BODY_CODEPAGE);
     }
 
-    public String readResponseBodyAsString(int len) throws IOException {
-        byte[] buffer = readResponseBodyAsBytes(len);
-        return new String(buffer, BODY_CODEPAGE);
-    }
-
     public byte[] readResponseBodyAsBytes() throws IOException {
         if (contentLength >= 0) {
-            return readResponseBodyAsBytes((int)contentLength);
+            return readStream(responseBodyInputStream, (int)contentLength);
         } else if (chunked) {
             return readStream(responseBodyInputStream);
         } else {
             return new byte[0];
         }
-    }
-
-    public byte[] readResponseBodyAsBytes(int len) throws IOException {
-        return readStream(responseBodyInputStream, len);
     }
 
     public String readResponseBodyAndUnzip() throws IOException {
@@ -276,15 +274,16 @@ public class HttpClient {
         return false;
     }
 
-    private SSLContext trustAllSslContext() {
-        SSLContext trustAllSslContext;
+    private SSLContext createSslContext(boolean validateCertificates) {
+        SSLContext sslContext;
         try {
-            trustAllSslContext = SSLContext.getInstance("TLS");
-            trustAllSslContext.init(null, new TrustManager[]{new TrustAllTrustManager()}, null);
-        } catch (NoSuchAlgorithmException | KeyManagementException e) {
+            X509TrustManager trustManager = new TrustManagerWrapper(validateCertificates ? getDefaultTrustManager() : null);
+            sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, new TrustManager[]{trustManager}, null);
+        } catch (NoSuchAlgorithmException | KeyManagementException | KeyStoreException e) {
             throw new RuntimeException(e);
         }
-        return trustAllSslContext;
+        return sslContext;
     }
 
     private void connectIfNecessary() throws IOException {
@@ -303,21 +302,43 @@ public class HttpClient {
         return newSocket;
     }
 
-    private class TrustAllTrustManager implements X509TrustManager {
+    private X509TrustManager getDefaultTrustManager() throws KeyStoreException, NoSuchAlgorithmException {
+        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        trustManagerFactory.init((KeyStore)null);
+        for (TrustManager trustManager : trustManagerFactory.getTrustManagers()) {
+            if (trustManager instanceof X509TrustManager) {
+                return (X509TrustManager)trustManager;
+            }
+        }
+        return null;
+    }
+
+    private class TrustManagerWrapper implements X509TrustManager {
+
+        private final X509TrustManager trustManager;
+
+        private TrustManagerWrapper(X509TrustManager trustManager) {
+            this.trustManager = trustManager;
+        }
 
         @Override
         public X509Certificate[] getAcceptedIssuers() {
-            return null;
+            return trustManager != null ? trustManager.getAcceptedIssuers() : null;
         }
 
         @Override
-        public void checkServerTrusted(X509Certificate[] arg0, String arg1) throws CertificateException {
-            // Do Nothing...
+        public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+            if (trustManager != null) {
+                trustManager.checkClientTrusted(chain, authType);
+            }
         }
 
         @Override
-        public void checkClientTrusted(X509Certificate[] arg0, String arg1) throws CertificateException {
-            sslCertificates = arg0;
+        public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+            sslCertificates = chain;
+            if (trustManager != null) {
+                trustManager.checkClientTrusted(chain, authType);
+            }
         }
     }
 
