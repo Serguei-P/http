@@ -84,10 +84,15 @@ public class HttpClient {
         HttpResponse result = new HttpResponse(inputStream);
         contentLength = getContentLength(result);
         chunked = contentLength < 0 && hasChunkedBody(result);
+        String encoding = result.getHeader("content-encoding");
+        responseBodyInputStream = inputStream;
         if (chunked) {
-            responseBodyInputStream = new ChunkedInputStream(inputStream);
-        } else {
-            responseBodyInputStream = inputStream;
+            responseBodyInputStream = new ChunkedInputStream(responseBodyInputStream);
+        } else if (contentLength > 0) {
+            responseBodyInputStream = new LimitedLengthInputStream(responseBodyInputStream, contentLength);
+        }
+        if (encoding != null && encoding.equals("gzip")) {
+            responseBodyInputStream = new GZIPInputStream(responseBodyInputStream);
         }
         return result;
     }
@@ -166,9 +171,7 @@ public class HttpClient {
     }
 
     public byte[] readResponseBodyAsBytes() throws IOException {
-        if (contentLength >= 0) {
-            return readStream(responseBodyInputStream, (int)contentLength);
-        } else if (chunked) {
+        if (contentLength > 0 || chunked) {
             return readStream(responseBodyInputStream);
         } else {
             return new byte[0];
@@ -348,29 +351,7 @@ public class HttpClient {
         int read = stream.read(buffer);
         while (read > 0) {
             outputStream.write(buffer, 0, read);
-            if (read < buffer.length) {
-                break;
-            }
             read = stream.read(buffer);
-        }
-        return outputStream.toByteArray();
-    }
-
-    private byte[] readStream(InputStream stream, int len) throws IOException {
-        if (len <= 0) {
-            return new byte[0];
-        }
-        int bytesLeft = len;
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(len);
-        byte[] buffer = new byte[len >= BUFFER_SIZE ? BUFFER_SIZE : len];
-        int read = stream.read(buffer);
-        while (read > 0) {
-            outputStream.write(buffer, 0, read);
-            bytesLeft -= read;
-            if (bytesLeft <= 0) {
-                break;
-            }
-            read = stream.read(buffer, 0, bytesLeft >= BUFFER_SIZE ? BUFFER_SIZE : bytesLeft);
         }
         return outputStream.toByteArray();
     }

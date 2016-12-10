@@ -10,32 +10,32 @@ public class HttpClientTest {
 
     @Test
     public void testHttp() throws Exception {
-        String hostName = "www.httpvshttps.com";
+        String hostName = "www.cisco.com";
         HttpClient client = new HttpClient(hostName, 80);
 
-        HttpResponse response = client.send(HttpClient.getRequest("http://" + hostName + "/"));
+        HttpRequest request = HttpClient.getRequest("http://" + hostName + "/");
+        HttpResponse response = client.send(request);
 
         assertEquals(200, response.getStatusCode());
-        
+
         String body = client.readResponseBodyAsString();
-        System.out.println(body);
-        assertTrue(client.getResponseInputStream() instanceof ChunkedInputStream);
         assertTrue(body.length() > 0);
+        assertTrue(body.toUpperCase().contains("</HTML>"));
     }
 
     @Test
-    public void testHttps() throws Exception {
-        String hostName = "www.httpvshttps.com";
-        HttpClient client = new HttpClient(hostName, 443);
-        
-        client.startHandshake(hostName);
-        HttpResponse response = client.send(HttpClient.getRequest("http://" + hostName + "/"));
+    public void testHttpWithGzip() throws Exception {
+        String hostName = "www.cisco.com";
+        HttpClient client = new HttpClient(hostName, 80);
+
+        HttpRequest request = HttpClient.getRequest("http://" + hostName + "/");
+        request.addHeader("Accept-Encoding", "gzip");
+        HttpResponse response = client.send(request);
 
         assertEquals(200, response.getStatusCode());
         
         String body = client.readResponseBodyAsString();
-        assertTrue(client.getResponseInputStream() instanceof ChunkedInputStream);
-        assertTrue(body.length() > 0);
+        assertTrue(body.toUpperCase().contains("</HTML>"));
     }
 
     @Test
@@ -49,7 +49,7 @@ public class HttpClientTest {
         assertEquals(200, response.getStatusCode());
 
         String body = client.readResponseBodyAsString();
-        assertTrue(body.length() > 0);
+        assertTrue(body.toUpperCase().contains("</HTML>"));
     }
 
     @Test(expected = SSLHandshakeException.class)

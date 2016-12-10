@@ -28,7 +28,7 @@ class ChunkedInputStream extends InputStream {
         }
         if (leftInChunk <= 0) {
             findChunk();
-            if (eof) {
+            if (leftInChunk <= 0) {
                 return -1;
             }
         }
@@ -36,6 +36,23 @@ class ChunkedInputStream extends InputStream {
         return nextByte();
     }
 
+    @Override
+    public int read(byte b[], int off, int len) throws IOException {
+        // TODO: to write own implementation for performance
+        return super.read(b, off, len);
+    }
+
+    @Override
+    public int available() throws IOException {
+        return 0;
+    }
+
+    @Override
+    public boolean markSupported() {
+        return false;
+    }
+
+    @Override
     public void close() throws IOException {
         inputStream.close();
     }
@@ -44,6 +61,7 @@ class ChunkedInputStream extends InputStream {
         if (chunkCount > 0) {
             readCrLf();
         }
+        leftInChunk = 0;
         int value;
         while ((value = nextByte()) >= 0) {
             int digit = getDigit(value);
@@ -71,7 +89,7 @@ class ChunkedInputStream extends InputStream {
             readNextBuffer();
         }
         if (!eof && bufferPos < bytesInBuffer) {
-            return buffer[bufferPos++];
+            return buffer[bufferPos++] & 0xff;
         } else {
             return -1;
         }
@@ -100,8 +118,20 @@ class ChunkedInputStream extends InputStream {
 
     private void processEndOfStream() throws IOException {
         // TODO: for now ignoring trailer
+        boolean lineStarted = false;
         while (!eof) {
-            nextByte();
+            int value = nextByte();
+            if (value == 13) {
+
+            } else if (value == 10) {
+                if (!lineStarted) {
+                    eof = true;
+                    return;
+                }
+                lineStarted = false;
+            } else {
+                lineStarted = true;
+            }
         }
     }
 
