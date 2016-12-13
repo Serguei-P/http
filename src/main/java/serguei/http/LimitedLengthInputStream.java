@@ -16,7 +16,6 @@ public class LimitedLengthInputStream extends InputStream {
 
     @Override
     public int read() throws IOException {
-        System.out.println("total=" + totalRead + "  max=" + maxLength);
         if (totalRead >= maxLength) {
             return -1;
         }
