@@ -44,6 +44,33 @@ public class ChunkedInputStreamTest {
         assertEquals(line1 + line2, result);
     }
 
+    @Test
+    public void shouldReadDataByByte() throws Exception {
+        String line1 = "This is the first chunk\r\n";
+        String line2 = "And another chunk\r\n";
+        byte[] data = mergeBuffers(makeChunk(line1, ";extName1=extValue1;extName2=extValue2"), makeChunk(line2, ""),
+                makeLastChunk(""), makeTrailer("trailerName1=trailerValue2", "trailerName1=trailerValue2"));
+        ByteArrayInputStream input = new ByteArrayInputStream(data);
+
+        ChunkedInputStream stream = new ChunkedInputStream(input);
+        String result = readToStringByByte(stream);
+
+        assertEquals(line1 + line2, result);
+    }
+
+    @Test
+    public void shouldReadLargeDataByByte() throws Exception {
+        String line1 = "This is small chunk ";
+        String line2 = makeLongString(10000);
+        byte[] data = mergeBuffers(makeChunk(line1, ""), makeChunk(line2, ""), makeLastChunk(""), makeTrailer());
+        ByteArrayInputStream input = new ByteArrayInputStream(data);
+
+        ChunkedInputStream stream = new ChunkedInputStream(input);
+        String result = readToStringByByte(stream);
+
+        assertEquals(line1 + line2, result);
+    }
+
     private byte[] makeChunk(String chunkBody, String extension) throws UnsupportedEncodingException {
         byte[] bodyBuffer = chunkBody.getBytes(DATA_CODEPAGE);
         String header = Integer.toHexString(bodyBuffer.length) + extension;
@@ -100,10 +127,28 @@ public class ChunkedInputStreamTest {
         return result.toString(DATA_CODEPAGE);
     }
     
+    private String readToStringByByte(InputStream inputStream) throws IOException {
+        ByteArrayOutputStream result = new ByteArrayOutputStream();
+        byte[] buffer = new byte[1024];
+        int pos = 0;
+        int ch;
+        while ((ch = inputStream.read()) != -1) {
+            if (pos >= buffer.length) {
+                result.write(buffer, 0, pos);
+                pos = 0;
+            }
+            buffer[pos++] = (byte)ch;
+        }
+        if (pos > 0) {
+            result.write(buffer, 0, pos);
+        }
+        return result.toString(DATA_CODEPAGE);
+    }
+
     private String makeLongString(int len) {
         StringBuilder result = new StringBuilder();
         for (int i = 0; i < len; i++) {
-            result.append((char)(i % 32 + 'a'));
+            result.append((char)(i % 26 + 'a'));
         }
         return result.toString();
     }

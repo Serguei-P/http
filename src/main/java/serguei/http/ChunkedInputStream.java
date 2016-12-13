@@ -38,8 +38,45 @@ class ChunkedInputStream extends InputStream {
 
     @Override
     public int read(byte b[], int off, int len) throws IOException {
-        // TODO: to write own implementation for performance
-        return super.read(b, off, len);
+        if (b == null) {
+            throw new NullPointerException();
+        } else if (off < 0 || len < 0 || len > b.length - off) {
+            throw new IndexOutOfBoundsException();
+        } else if (len == 0) {
+            return 0;
+        }
+        if (eof) {
+            return -1;
+        }
+        int result = 0;
+        int leftToRead = len;
+        while (leftToRead > 0) {
+            if (leftInChunk == 0) {
+                findChunk();
+                if (leftInChunk <= 0) {
+                    if (result > 0) {
+                        return result;
+                    } else {
+                        return -1;
+                    }
+                }
+            }
+            while (leftInChunk > 0 && leftToRead > 0) {
+                if (bufferPos >= bytesInBuffer) {
+                    readNextBuffer();
+                    if (bytesInBuffer == 0) {
+                        return result;
+                    }
+                }
+                int toCopy = Math.min(Math.min(leftInChunk, leftToRead), bytesInBuffer - bufferPos);
+                System.arraycopy(buffer, bufferPos, b, result, toCopy);
+                bufferPos += toCopy;
+                leftToRead -= toCopy;
+                leftInChunk -= toCopy;
+                result += toCopy;
+            }
+        }
+        return result;
     }
 
     @Override
