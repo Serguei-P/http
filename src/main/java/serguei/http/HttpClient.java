@@ -67,14 +67,27 @@ public class HttpClient {
     }
 
     public HttpResponse send(HttpRequest request) throws IOException {
-        return send(request, null);
+        return send(request, (byte[])null);
     }
 
     public HttpResponse send(HttpRequest request, String body) throws IOException {
+        byte[] bodyAsBytes;
+        if (body != null) {
+            bodyAsBytes = body.getBytes(BODY_CODEPAGE);
+        } else {
+            bodyAsBytes = null;
+        }
+        return send(request, bodyAsBytes);
+    }
+
+    public HttpResponse send(HttpRequest request, byte[] body) throws IOException {
         connectIfNecessary();
+        if (body != null) {
+            request.addHeader("Content-Length: " + body.length);
+        }
         request.write(outputStream);
         if (body != null) {
-            outputStream.write(body.getBytes(BODY_CODEPAGE));
+            outputStream.write(body);
         }
         outputStream.flush();
         return readResult();

@@ -28,6 +28,33 @@ public class HttpResponse extends HttpHeaders {
         }
     }
 
+    public static HttpResponse ok() {
+        try {
+            return new HttpResponse("HTTP/1.1 200 OK");
+        } catch (HttpException e) {
+            // can never happen
+            return null;
+        }
+    }
+
+    public static HttpResponse redirect(String location) {
+        try {
+            return new HttpResponse("HTTP/1.1 302 Found", "Location: " + location);
+        } catch (HttpException e) {
+            // can never happen
+            return null;
+        }
+    }
+
+    public static HttpResponse serverError() {
+        try {
+            return new HttpResponse("HTTP/1.1 500 Server Error");
+        } catch (HttpException e) {
+            // can never happen
+            return null;
+        }
+    }
+
     @Override
     public void write(OutputStream output) throws IOException {
         output.write(version.getBytes());
@@ -52,17 +79,28 @@ public class HttpResponse extends HttpHeaders {
     }
 
     private void parseResponseLine(String line) throws HttpException {
-        String[] parts = line.split(" ");
-        if (parts.length != 3) {
-            throw new HttpException("Wrong number of elements in response line: " + line);
+        int versionPos = line.indexOf(' ');
+        if (versionPos > 0) {
+            version = line.substring(0, versionPos);
+        } else {
+            throwWrongNumberOfElementsException(line);
         }
-        version = parts[0];
-        try {
-            statusCode = Integer.parseInt(parts[1]);
-        } catch (NumberFormatException e) {
-            throw new HttpException("Cannot parse status code " + parts[1]);
+        int statusPos = line.indexOf(' ', versionPos + 1);
+        if (statusPos > 0) {
+            String statusCodeAsString = line.substring(versionPos + 1, statusPos);
+            try {
+                statusCode = Integer.parseInt(statusCodeAsString);
+            } catch (NumberFormatException e) {
+                throw new HttpException("Cannot parse status code " + statusCodeAsString);
+            }
+        } else {
+            throwWrongNumberOfElementsException(line);
         }
-        reason = parts[2];
+        reason = line.substring(statusPos + 1);
+    }
+
+    private void throwWrongNumberOfElementsException(String line) throws HttpException {
+        throw new HttpException("Wrong number of elements in response line: " + line);
     }
 
 }

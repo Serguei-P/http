@@ -41,4 +41,33 @@ public class HttpResponseTest {
         assertNull(response.getHeader("random"));
     }
 
+    @Test
+    public void shouldReturnOkResponse() {
+        HttpResponse response = HttpResponse.ok();
+
+        assertEquals("HTTP/1.1", response.getVersion());
+        assertEquals(200, response.getStatusCode());
+        assertEquals("OK", response.getReason());
+    }
+
+    @Test
+    public void shouldReturnRedirectResponse() {
+        String url = "http://www.google.com/";
+        HttpResponse response = HttpResponse.redirect(url);
+
+        assertEquals("HTTP/1.1", response.getVersion());
+        assertEquals(302, response.getStatusCode());
+        assertEquals("Found", response.getReason());
+        assertEquals(url, response.getHeader("location"));
+    }
+
+    @Test
+    public void shouldReturnServerError() {
+        HttpResponse response = HttpResponse.serverError();
+
+        assertEquals("HTTP/1.1", response.getVersion());
+        assertEquals(500, response.getStatusCode());
+        assertEquals("Server Error", response.getReason());
+    }
+
 }
