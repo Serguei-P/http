@@ -268,11 +268,13 @@ public class HttpClient {
         if (contentLength >= 0) {
             return false;
         }
-        List<String> transferEncodings = response.getHeaders("Transfer-Encoding");
-        int numberOfEncodings = transferEncodings.size();
-        if (numberOfEncodings > 0) {
-            String lastEncoding = transferEncodings.get(numberOfEncodings - 1);
-            return lastEncoding.equals("chunked");
+        List<String> transferEncoding = response.getHeaders("Transfer-Encoding");
+        if (transferEncoding != null) {
+            int numberOfEncodings = transferEncoding.size();
+            if (numberOfEncodings > 0) {
+                String lastEncoding = transferEncoding.get(numberOfEncodings - 1);
+                return lastEncoding.equals("chunked");
+            }
         }
         return false;
     }
