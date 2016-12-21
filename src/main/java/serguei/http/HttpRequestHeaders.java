@@ -6,7 +6,7 @@ import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 
-public class HttpRequest extends HttpHeaders {
+public class HttpRequestHeaders extends HttpHeaders {
 
     private static final String LINE_SEPARATOR = System.getProperty("line.separator");
 
@@ -14,7 +14,7 @@ public class HttpRequest extends HttpHeaders {
     private String version;
     private URL url;
 
-    public HttpRequest(InputStream inputStream) throws IOException {
+    public HttpRequestHeaders(InputStream inputStream) throws IOException {
         HeaderLineReader reader = new HeaderLineReader(inputStream);
         String line = reader.readLine();
         if (line != null) {
@@ -25,7 +25,7 @@ public class HttpRequest extends HttpHeaders {
         readHeaders(reader);
     }
 
-    public HttpRequest(String commandLine, String... headers) throws HttpException {
+    public HttpRequestHeaders(String commandLine, String... headers) throws HttpException {
         parseCommandLine(commandLine);
         for (String header : headers) {
             addHeader(header);

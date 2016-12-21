@@ -47,6 +47,33 @@ public abstract class HttpHeaders {
         headers.remove(headerName);
     }
 
+    public long getContentLength() {
+        String contentLengthString = getHeader("Content-Length");
+        if (contentLengthString != null) {
+            try {
+                return Long.parseLong(contentLengthString.trim());
+            } catch (NumberFormatException e) {
+                // nothing
+            }
+        }
+        return -1;
+    }
+
+    public boolean hasChunkedBody() {
+        if (getContentLength() >= 0) {
+            return false;
+        }
+        List<String> transferEncoding = getHeaders("Transfer-Encoding");
+        if (transferEncoding != null) {
+            int numberOfEncodings = transferEncoding.size();
+            if (numberOfEncodings > 0) {
+                String lastEncoding = transferEncoding.get(numberOfEncodings - 1);
+                return lastEncoding.equals("chunked");
+            }
+        }
+        return false;
+    }
+
     protected void addHeader(String line) throws HttpException {
         int index = line.indexOf(':');
         if (index > 0) {

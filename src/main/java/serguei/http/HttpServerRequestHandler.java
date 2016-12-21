@@ -5,6 +5,6 @@ import java.io.OutputStream;
 
 public interface HttpServerRequestHandler {
 
-    public void process(HttpRequest request, InputStream inputStream, OutputStream outputStream);
+    public void process(HttpRequestHeaders request, InputStream inputStream, OutputStream outputStream);
 
 }

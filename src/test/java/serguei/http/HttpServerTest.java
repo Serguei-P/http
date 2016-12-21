@@ -20,10 +20,10 @@ public class HttpServerTest {
     private static final int PORT = 8080;
     private static final String REQUEST_BODY = "This is a body of the request";
 
-    private ExecutorService threadPool = Executors.newCachedThreadPool();
+    private final ExecutorService threadPool = Executors.newCachedThreadPool();
 
-    private AtomicInteger started = new AtomicInteger(0);
-    private AtomicInteger stopped = new AtomicInteger(0);
+    private final AtomicInteger started = new AtomicInteger(0);
+    private final AtomicInteger stopped = new AtomicInteger(0);
 
     @Test(timeout = 60000)
     public void shouldStartAndStopServer() throws Exception {
@@ -59,18 +59,18 @@ public class HttpServerTest {
         }
 
         @Override
-        public void process(HttpRequest request, InputStream inputStream, OutputStream outputStream) {
+        public void process(HttpRequestHeaders request, InputStream inputStream, OutputStream outputStream) {
             latch.countDown();
             try {
                 latch.await();
                 started.incrementAndGet();
                 int bodyLen = Integer.parseInt(request.getHeader("Content-Length"));
                 String body = readToString(inputStream, bodyLen);
-                HttpResponse response;
+                HttpResponseHeaders response;
                 if (body.equals(REQUEST_BODY)) {
-                    response = HttpResponse.ok();
+                    response = HttpResponseHeaders.ok();
                 } else {
-                    response = HttpResponse.serverError();
+                    response = HttpResponseHeaders.serverError();
                 }
                 response.write(outputStream);
                 outputStream.flush();

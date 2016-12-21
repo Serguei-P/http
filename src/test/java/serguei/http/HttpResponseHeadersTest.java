@@ -7,13 +7,13 @@ import java.io.InputStream;
 
 import org.junit.Test;
 
-public class HttpResponseTest {
+public class HttpResponseHeadersTest {
 
     private static final String LINE_BREAK = "\r\n";
 
     @Test
     public void shouldCreateResponse() throws Exception {
-        HttpResponse response = new HttpResponse("HTTP/1.1 200 OK", "Content-Length: 100");
+        HttpResponseHeaders response = new HttpResponseHeaders("HTTP/1.1 200 OK", "Content-Length: 100");
 
         assertEquals("HTTP/1.1", response.getVersion());
         assertEquals(200, response.getStatusCode());
@@ -24,7 +24,7 @@ public class HttpResponseTest {
 
     @Test(expected = HttpException.class)
     public void shouldThrowExceptionWhenWrongStatus() throws Exception {
-        new HttpResponse("HTTP/1.1 WRONG OK", "Content-Length: 100");
+        new HttpResponseHeaders("HTTP/1.1 WRONG OK", "Content-Length: 100");
     }
 
     @Test
@@ -32,7 +32,7 @@ public class HttpResponseTest {
         String data = "HTTP/1.1 200 OK" + LINE_BREAK + "Content-Length: 100" + LINE_BREAK + LINE_BREAK;
         InputStream inputStream = new ByteArrayInputStream(data.getBytes("UTF-8"));
 
-        HttpResponse response = new HttpResponse(inputStream);
+        HttpResponseHeaders response = new HttpResponseHeaders(inputStream);
 
         assertEquals("HTTP/1.1", response.getVersion());
         assertEquals(200, response.getStatusCode());
@@ -43,7 +43,7 @@ public class HttpResponseTest {
 
     @Test
     public void shouldReturnOkResponse() {
-        HttpResponse response = HttpResponse.ok();
+        HttpResponseHeaders response = HttpResponseHeaders.ok();
 
         assertEquals("HTTP/1.1", response.getVersion());
         assertEquals(200, response.getStatusCode());
@@ -53,7 +53,7 @@ public class HttpResponseTest {
     @Test
     public void shouldReturnRedirectResponse() {
         String url = "http://www.google.com/";
-        HttpResponse response = HttpResponse.redirect(url);
+        HttpResponseHeaders response = HttpResponseHeaders.redirect(url);
 
         assertEquals("HTTP/1.1", response.getVersion());
         assertEquals(302, response.getStatusCode());
@@ -63,11 +63,27 @@ public class HttpResponseTest {
 
     @Test
     public void shouldReturnServerError() {
-        HttpResponse response = HttpResponse.serverError();
+        HttpResponseHeaders response = HttpResponseHeaders.serverError();
 
         assertEquals("HTTP/1.1", response.getVersion());
         assertEquals(500, response.getStatusCode());
         assertEquals("Server Error", response.getReason());
+    }
+
+    @Test
+    public void shouldReturnChunkedBody() throws Exception {
+        HttpResponseHeaders response = new HttpResponseHeaders("HTTP/1.1 200 OK", "Transfer-Encoding: chunked");
+
+        assertTrue(response.hasChunkedBody());
+        assertEquals(-1, response.getContentLength());
+    }
+
+    @Test
+    public void shouldReturnContentLength() throws Exception {
+        HttpResponseHeaders response = new HttpResponseHeaders("HTTP/1.1 200 OK", "Content-Length: 100");
+
+        assertFalse(response.hasChunkedBody());
+        assertEquals(100, response.getContentLength());
     }
 
 }

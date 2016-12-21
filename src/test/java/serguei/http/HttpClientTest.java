@@ -13,12 +13,12 @@ public class HttpClientTest {
         String hostName = "www.cisco.com";
         HttpClient client = new HttpClient(hostName, 80);
 
-        HttpRequest request = HttpClient.getRequest("http://" + hostName + "/");
+        HttpRequestHeaders request = HttpClient.getRequest("http://" + hostName + "/");
         HttpResponse response = client.send(request);
 
         assertEquals(200, response.getStatusCode());
 
-        String body = client.readResponseBodyAsString();
+        String body = response.readResponseBodyAsString();
         assertTrue(body.length() > 0);
         assertTrue(body.toUpperCase().contains("</HTML>"));
     }
@@ -28,13 +28,13 @@ public class HttpClientTest {
         String hostName = "www.cisco.com";
         HttpClient client = new HttpClient(hostName, 80);
 
-        HttpRequest request = HttpClient.getRequest("http://" + hostName + "/");
+        HttpRequestHeaders request = HttpClient.getRequest("http://" + hostName + "/");
         request.addHeader("Accept-Encoding", "gzip");
         HttpResponse response = client.send(request);
 
         assertEquals(200, response.getStatusCode());
         
-        String body = client.readResponseBodyAsString();
+        String body = response.readResponseBodyAsString();
         assertTrue(body.toUpperCase().contains("</HTML>"));
     }
 
@@ -48,7 +48,7 @@ public class HttpClientTest {
 
         assertEquals(200, response.getStatusCode());
 
-        String body = client.readResponseBodyAsString();
+        String body = response.readResponseBodyAsString();
         assertTrue(body.toUpperCase().contains("</HTML>"));
     }
 
