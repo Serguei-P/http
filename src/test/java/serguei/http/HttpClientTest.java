@@ -18,7 +18,7 @@ public class HttpClientTest {
 
         assertEquals(200, response.getStatusCode());
 
-        String body = response.readResponseBodyAsString();
+        String body = response.readBodyAsString();
         assertTrue(body.length() > 0);
         assertTrue(body.toUpperCase().contains("</HTML>"));
     }
@@ -34,7 +34,7 @@ public class HttpClientTest {
 
         assertEquals(200, response.getStatusCode());
         
-        String body = response.readResponseBodyAsString();
+        String body = response.readBodyAsString();
         assertTrue(body.toUpperCase().contains("</HTML>"));
     }
 
@@ -48,7 +48,7 @@ public class HttpClientTest {
 
         assertEquals(200, response.getStatusCode());
 
-        String body = response.readResponseBodyAsString();
+        String body = response.readBodyAsString();
         assertTrue(body.toUpperCase().contains("</HTML>"));
     }
 

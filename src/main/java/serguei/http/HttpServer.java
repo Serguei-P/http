@@ -110,8 +110,8 @@ public class HttpServer {
             try {
                 connections.put(connectionNo, this);
                 while (!finished) {
-                    HttpRequestHeaders request = new HttpRequestHeaders(socket.getInputStream());
-                    requestHandler.process(request, socket.getInputStream(), socket.getOutputStream());
+                    HttpRequest request = new HttpRequest(socket.getInputStream());
+                    requestHandler.process(request, socket.getOutputStream());
                 }
             } catch (Exception e) {
                 e.printStackTrace();

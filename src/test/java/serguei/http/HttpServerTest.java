@@ -2,9 +2,7 @@ package serguei.http;
 
 import static org.junit.Assert.*;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -59,13 +57,12 @@ public class HttpServerTest {
         }
 
         @Override
-        public void process(HttpRequestHeaders request, InputStream inputStream, OutputStream outputStream) {
+        public void process(HttpRequest request, OutputStream outputStream) {
             latch.countDown();
             try {
                 latch.await();
                 started.incrementAndGet();
-                int bodyLen = Integer.parseInt(request.getHeader("Content-Length"));
-                String body = readToString(inputStream, bodyLen);
+                String body = request.readBodyAsString();
                 HttpResponseHeaders response;
                 if (body.equals(REQUEST_BODY)) {
                     response = HttpResponseHeaders.ok();
@@ -91,16 +88,6 @@ public class HttpServerTest {
             HttpClient client = new HttpClient("localhost", PORT);
             return client.send(HttpClient.getRequest("http://localhost:" + PORT + "/"), REQUEST_BODY);
         }
-    }
-
-    private String readToString(InputStream inputStream, int len) throws IOException {
-        ByteArrayOutputStream result = new ByteArrayOutputStream();
-        byte[] buffer = new byte[1024];
-        int length;
-        while (result.size() < len && (length = inputStream.read(buffer)) != -1) {
-            result.write(buffer, 0, length);
-        }
-        return result.toString("UTF-8");
     }
 
 }

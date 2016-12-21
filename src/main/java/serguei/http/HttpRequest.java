@@ -2,34 +2,40 @@ package serguei.http;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
-public class HttpResponse {
+public class HttpRequest {
 
-    private final HttpResponseHeaders headers;
+    private final HttpRequestHeaders headers;
+
     private final HttpBody body;
     private final long contentLength;
     private final boolean chunked;
 
-    HttpResponse(InputStream inputStream) throws IOException {
-        this.headers = new HttpResponseHeaders(inputStream);
+    HttpRequest(InputStream inputStream) throws IOException {
+        this.headers = new HttpRequestHeaders(inputStream);
         contentLength = headers.getContentLength();
         chunked = contentLength < 0 && headers.hasChunkedBody();
         String encoding = headers.getHeader("content-encoding");
         body = new HttpBody(inputStream, contentLength, chunked, encoding);
     }
 
+    public String getMethod() {
+        return headers.getMethod();
+    }
+
+    public URL getUrl() {
+        return headers.getUrl();
+    }
+
     public String getVersion() {
         return headers.getVersion();
     }
 
-    public int getStatusCode() {
-        return headers.getStatusCode();
-    }
-
-    public String getReason() {
-        return headers.getReason();
+    public String getHost() {
+        return headers.getHost();
     }
 
     public long getContentLength() {
