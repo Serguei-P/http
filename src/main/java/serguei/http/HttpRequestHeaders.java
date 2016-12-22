@@ -9,10 +9,11 @@ import java.net.URL;
 public class HttpRequestHeaders extends HttpHeaders {
 
     private static final String LINE_SEPARATOR = System.getProperty("line.separator");
+    private static final String PROTOCOL_SEPARATOR = "://";
 
     private String method;
     private String version;
-    private URL url;
+    private String path;
 
     public HttpRequestHeaders(InputStream inputStream) throws IOException {
         HeaderLineReader reader = new HeaderLineReader(inputStream);
@@ -32,11 +33,25 @@ public class HttpRequestHeaders extends HttpHeaders {
         }
     }
 
+    public URL getUrl() throws HttpException {
+        String host = getHeader("Host");
+        return parseUrl(path, host);
+    }
+
+    public String getHost() throws HttpException {
+        String host = getHeader("Host");
+        if (host != null) {
+            return host;
+        } else {
+            return parseUrl(path, null).getHost();
+        }
+    }
+
     @Override
     public void write(OutputStream output) throws IOException {
         output.write(method.getBytes());
         output.write(SPACE);
-        output.write(url.toString().getBytes());
+        output.write(path.getBytes());
         output.write(SPACE);
         output.write(version.getBytes());
         output.write(LINE_SEPARATOR_BYTES);
@@ -47,26 +62,13 @@ public class HttpRequestHeaders extends HttpHeaders {
         return method;
     }
 
-    public URL getUrl() {
-        return url;
-    }
-
     public String getVersion() {
         return version;
     }
 
-    public String getHost() {
-        String host = getHeader("host");
-        if (host != null) {
-            return host;
-        } else {
-            return url.getHost();
-        }
-    }
-
     @Override
     public String toString() {
-        return method + " " + url + " " + version + LINE_SEPARATOR + super.toString();
+        return method + " " + path + " " + version + LINE_SEPARATOR + super.toString();
     }
 
     private void parseCommandLine(String commandLine) throws HttpException {
@@ -75,12 +77,42 @@ public class HttpRequestHeaders extends HttpHeaders {
             throw new HttpException("Wrong number of elements in command line: " + commandLine);
         }
         method = parts[0];
-        try {
-            url = new URL(parts[1]);
-        } catch (MalformedURLException e) {
-            throw new HttpException("Malformed URL element: " + parts[1]);
-        }
+        path = parts[1];
         version = parts[2];
+    }
+
+    private URL parseUrl(String line, String host) throws HttpException {
+        String protocol;
+        String fullPath;
+        int pos = line.indexOf(PROTOCOL_SEPARATOR);
+        if (pos > 0) {
+            protocol = line.substring(0, pos);
+            fullPath = line.substring(pos + PROTOCOL_SEPARATOR.length());
+        } else {
+            protocol = "http";
+            fullPath = line;
+        }
+        String path;
+        if (fullPath.startsWith("/")) {
+            path = fullPath;
+        } else {
+            pos = fullPath.indexOf('/');
+            if (pos > 0) {
+                host = fullPath.substring(0, pos);
+                path = fullPath.substring(pos);
+            } else {
+                host = fullPath;
+                path = "";
+            }
+        }
+        if (host == null || host.length() == 0) {
+            throw new HttpException("No host found in request headers");
+        }
+        try {
+            return new URL(protocol, host, path);
+        } catch (MalformedURLException e) {
+            throw new HttpException("Cannot create url for protocol: " + protocol + ", host: " + host + ", path: " + path);
+        }
     }
 
 }

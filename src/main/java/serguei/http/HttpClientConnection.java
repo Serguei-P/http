@@ -21,7 +21,7 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 
-public class HttpClient {
+public class HttpClientConnection {
 
     private static final String BODY_CODEPAGE = "UTF-8";
 
@@ -35,11 +35,11 @@ public class HttpClient {
     private TlsVersion negotiatedSslProtocol;
     private String negotiatedCipher;
 
-    public HttpClient(String host, int port) {
+    public HttpClientConnection(String host, int port) {
         this.serverAddress = new InetSocketAddress(host, port);
     }
 
-    public HttpClient(InetSocketAddress address) {
+    public HttpClientConnection(InetSocketAddress address) {
         this.serverAddress = address;
     }
 

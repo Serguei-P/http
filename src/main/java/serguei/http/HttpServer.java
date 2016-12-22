@@ -66,19 +66,33 @@ public class HttpServer {
         }
     }
 
+    public int getConnectionNo() {
+        return connections.size();
+    }
+
+    public boolean isRunning() {
+        return serverSocketRunner.isRunning();
+    }
+
     public boolean isStopped() {
         return isStopped;
+    }
+
+    protected HttpServerRequestHandler getRequestHandler() {
+        return requestHandler;
     }
 
     private class ServerSocketRunner implements Runnable {
 
         private Long connectionNo = 0l;
         private volatile boolean finished;
+        private volatile boolean started;
 
         @Override
         public void run() {
             while (!finished) {
                 try {
+                    started = true;
                     Socket socket = serverSocket.accept();
                     SocketRunner socketRunner = new SocketRunner(socket, connectionNo++);
                     threadPool.execute(socketRunner);
@@ -91,6 +105,10 @@ public class HttpServer {
         public void stop() throws IOException {
             finished = true;
             serverSocket.close();
+        }
+
+        public boolean isRunning() {
+            return started && !finished;
         }
     }
 
@@ -110,7 +128,13 @@ public class HttpServer {
             try {
                 connections.put(connectionNo, this);
                 while (!finished) {
-                    HttpRequest request = new HttpRequest(socket.getInputStream());
+                    HttpRequest request;
+                    try {
+                        request = new HttpRequest(socket.getInputStream());
+                    } catch (HttpException e) {
+                        System.out.println(e.getMessage());
+                        break;
+                    }
                     requestHandler.process(request, socket.getOutputStream());
                 }
             } catch (Exception e) {

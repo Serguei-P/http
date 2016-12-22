@@ -13,9 +13,11 @@ public class HttpRequest {
     private final HttpBody body;
     private final long contentLength;
     private final boolean chunked;
+    private URL url;
 
     HttpRequest(InputStream inputStream) throws IOException {
         this.headers = new HttpRequestHeaders(inputStream);
+        this.url = headers.getUrl();
         contentLength = headers.getContentLength();
         chunked = contentLength < 0 && headers.hasChunkedBody();
         String encoding = headers.getHeader("content-encoding");
@@ -27,7 +29,7 @@ public class HttpRequest {
     }
 
     public URL getUrl() {
-        return headers.getUrl();
+        return url;
     }
 
     public String getVersion() {
@@ -35,7 +37,12 @@ public class HttpRequest {
     }
 
     public String getHost() {
-        return headers.getHost();
+        String host = headers.getHeader("Host");
+        if (host != null) {
+            return host;
+        } else {
+            return url.getHost();
+        }
     }
 
     public long getContentLength() {
@@ -64,6 +71,10 @@ public class HttpRequest {
 
     public String readBodyAndUnzip() throws IOException {
         return body.readAndUnzipAsString();
+    }
+
+    HttpRequestHeaders getHeaders() {
+        return headers;
     }
 
 }

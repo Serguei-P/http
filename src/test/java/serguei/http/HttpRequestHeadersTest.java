@@ -26,6 +26,19 @@ public class HttpRequestHeadersTest {
     }
 
     @Test
+    public void shouldCreateRequestWithRelativePath() throws Exception {
+        HttpRequestHeaders request = new HttpRequestHeaders("GET /test.jsp HTTP/1.1", "Host: www.fitltd.com",
+                "Content-Length: 100");
+
+        assertEquals("GET", request.getMethod());
+        assertEquals(new URL("http://www.fitltd.com/test.jsp"), request.getUrl());
+        assertEquals("HTTP/1.1", request.getVersion());
+        assertEquals("www.fitltd.com", request.getHeader("Host"));
+        assertEquals("100", request.getHeader("Content-Length"));
+        assertEquals("www.fitltd.com", request.getHost());
+    }
+
+    @Test
     public void shouldCreateRequestWithoutHostHeader() throws Exception {
         HttpRequestHeaders request = new HttpRequestHeaders("GET http://www.fitltd.com/test.jsp HTTP/1.0", "content-length: 100");
 
@@ -39,11 +52,12 @@ public class HttpRequestHeadersTest {
 
     @Test
     public void shouldCreateRequestWithDiddrenttHostInUrlAndHeader() throws Exception {
-        HttpRequestHeaders request = new HttpRequestHeaders("GET http://www.fitltd.com/test.jsp HTTP/1.1", "host: www.microsoft.com",
+        String url = "http://www.fitltd.com/test.jsp";
+        HttpRequestHeaders request = new HttpRequestHeaders("GET " + url + " HTTP/1.1", "host: www.microsoft.com",
                 "content-length: 100");
 
         assertEquals("GET", request.getMethod());
-        assertEquals(new URL("http://www.fitltd.com/test.jsp"), request.getUrl());
+        assertEquals(new URL(url), request.getUrl());
         assertEquals("HTTP/1.1", request.getVersion());
         assertEquals("www.microsoft.com", request.getHeader("Host"));
         assertEquals("100", request.getHeader("Content-Length"));

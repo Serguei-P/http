@@ -4,16 +4,26 @@ import static org.junit.Assert.*;
 
 import javax.net.ssl.SSLHandshakeException;
 
+import org.junit.After;
 import org.junit.Test;
 
 public class HttpClientTest {
 
+    private HttpClientConnection client;
+
+    @After
+    public void clearUp() {
+        if (client != null) {
+            client.close();
+        }
+    }
+
     @Test
     public void testHttp() throws Exception {
         String hostName = "www.cisco.com";
-        HttpClient client = new HttpClient(hostName, 80);
+        client = new HttpClientConnection(hostName, 80);
 
-        HttpRequestHeaders request = HttpClient.getRequest("http://" + hostName + "/");
+        HttpRequestHeaders request = HttpClientConnection.getRequest("http://" + hostName + "/");
         HttpResponse response = client.send(request);
 
         assertEquals(200, response.getStatusCode());
@@ -26,9 +36,9 @@ public class HttpClientTest {
     @Test
     public void testHttpWithGzip() throws Exception {
         String hostName = "www.cisco.com";
-        HttpClient client = new HttpClient(hostName, 80);
+        client = new HttpClientConnection(hostName, 80);
 
-        HttpRequestHeaders request = HttpClient.getRequest("http://" + hostName + "/");
+        HttpRequestHeaders request = HttpClientConnection.getRequest("http://" + hostName + "/");
         request.addHeader("Accept-Encoding", "gzip");
         HttpResponse response = client.send(request);
 
@@ -41,10 +51,10 @@ public class HttpClientTest {
     @Test
     public void shouldAllowSelfSignedCertificate() throws Exception {
         String hostName = "self-signed.badssl.com";
-        HttpClient client = new HttpClient(hostName, 443);
+        client = new HttpClientConnection(hostName, 443);
 
         client.startHandshake(hostName);
-        HttpResponse response = client.send(HttpClient.getRequest("http://" + hostName + "/"));
+        HttpResponse response = client.send(HttpClientConnection.getRequest("http://" + hostName + "/"));
 
         assertEquals(200, response.getStatusCode());
 
@@ -55,7 +65,7 @@ public class HttpClientTest {
     @Test(expected = SSLHandshakeException.class)
     public void shouldFailOnSelfSignedCertificate() throws Exception {
         String hostName = "self-signed.badssl.com";
-        HttpClient client = new HttpClient(hostName, 443);
+        client = new HttpClientConnection(hostName, 443);
 
         client.startHandshakeAndValidate(hostName);
     }
