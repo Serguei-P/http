@@ -66,6 +66,11 @@ public class HttpResponseHeaders extends HttpHeaders {
         super.write(output);
     }
 
+    @Override
+    public String toString() {
+        return version + " " + statusCode + " " + reason + System.lineSeparator() + super.toString();
+    }
+
     public String getVersion() {
         return version;
     }

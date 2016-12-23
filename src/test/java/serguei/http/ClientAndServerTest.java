@@ -31,19 +31,36 @@ public class ClientAndServerTest {
         String path = "/test/file.txt";
         String requestBody = makeBody("client");
         String responseBody = makeBody("server");
-        HttpResponseHeaders responseHeaders = HttpResponseHeaders.ok();
-        responseHeaders.addHeader("Content-Length: " + responseBody.getBytes(BODY_CHARSET).length);
-        server.setRespose(responseHeaders, responseBody.getBytes(BODY_CHARSET));
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
         HttpRequestHeaders headers = new HttpRequestHeaders("GET " + path + " HTTP/1.1", "Host: localhost");
 
         HttpResponse response = client.send(headers, requestBody);
 
-        assertEquals("http://localhost/test/file.txt", server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals("http://localhost" + path, server.getLatestRequestHeaders().getUrl().toString());
         assertEquals(requestBody, server.getLatestRequestBodyAsString());
         assertEquals(200, response.getStatusCode());
-        assertEquals(responseBody, response.readBodyAsString());
         assertNull(response.getHeader("Content-Encoding"));
         assertEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
+        assertEquals(responseBody, response.readBodyAsString());
+    }
+
+    @Test
+    public void shouldSendAndReceiveGZippedDataFromServer() throws Exception {
+        String path = "/test/file.txt";
+        String requestBody = makeBody("client");
+        String responseBody = makeBody("server");
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.GZIP);
+        HttpRequestHeaders headers = new HttpRequestHeaders("GET " + path + " HTTP/1.1", "Host: localhost");
+
+        HttpResponse response = client.send(headers, requestBody, BodyCompression.GZIP);
+
+        assertEquals("http://localhost" + path, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertEquals("gzip", response.getHeader("Content-Encoding"));
+        assertNotNull(responseBody.getBytes(BODY_CHARSET));
+        assertNotEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
+        assertEquals(responseBody, response.readBodyAsString());
     }
 
     private String makeBody(String msg) {

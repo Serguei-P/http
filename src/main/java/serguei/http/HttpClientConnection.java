@@ -1,5 +1,6 @@
 package serguei.http;
 
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,6 +14,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.zip.GZIPOutputStream;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
@@ -59,23 +61,35 @@ public class HttpClientConnection {
     }
 
     public HttpResponse send(HttpRequestHeaders request) throws IOException {
-        return send(request, (byte[])null);
+        return send(request, (byte[])null, BodyCompression.NONE);
     }
 
     public HttpResponse send(HttpRequestHeaders request, String body) throws IOException {
+        return send(request, body, BodyCompression.NONE);
+    }
+
+    public HttpResponse send(HttpRequestHeaders request, String body, BodyCompression compression) throws IOException {
         byte[] bodyAsBytes;
         if (body != null) {
             bodyAsBytes = body.getBytes(BODY_CODEPAGE);
         } else {
             bodyAsBytes = null;
         }
-        return send(request, bodyAsBytes);
+        return send(request, bodyAsBytes, compression);
     }
 
     public HttpResponse send(HttpRequestHeaders request, byte[] body) throws IOException {
+        return send(request, body, BodyCompression.NONE);
+    }
+
+    public HttpResponse send(HttpRequestHeaders request, byte[] body, BodyCompression compression) throws IOException {
         connectIfNecessary();
         if (body != null) {
-            request.addHeader("Content-Length: " + body.length);
+            if (compression == BodyCompression.GZIP) {
+                body = gzip(body);
+                request.addHeader("Content-Encoding", "gzip");
+            }
+            request.addHeader("Content-Length", Integer.toString(body.length));
         }
         request.write(outputStream);
         if (body != null) {
@@ -273,6 +287,14 @@ public class HttpClientConnection {
                 trustManager.checkClientTrusted(chain, authType);
             }
         }
+    }
+
+    private byte[] gzip(byte[] data) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        GZIPOutputStream gzipOutput = new GZIPOutputStream(output);
+        gzipOutput.write(data);
+        gzipOutput.close();
+        return output.toByteArray();
     }
 
 }

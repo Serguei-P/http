@@ -3,6 +3,7 @@ package serguei.http;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.net.URL;
 import java.util.Arrays;
 
@@ -103,6 +104,29 @@ public class HttpRequestHeadersTest {
         assertEquals("www.fitltd.com", request.getHeader("Host"));
         assertEquals("12", request.getHeader("Content-Length"));
         assertEquals("www.fitltd.com", request.getHost());
+    }
+
+    @Test
+    public void shouldReturnToString() throws Exception {
+        String[] lines = {"GET /test.js HTTP/1.1", "Host: localhost"};
+        String expectedValue = lines[0] + System.lineSeparator() + lines[1];
+
+        HttpRequestHeaders request = new HttpRequestHeaders(lines[0], lines[1]);
+
+        assertEquals(expectedValue, request.toString());
+    }
+
+    @Test
+    public void shouldWriteToStream() throws Exception {
+        String[] lines = {"GET /test.js HTTP/1.1", "Host: localhost"};
+        byte[] expectedValue = (lines[0] + "\r\n" + lines[1] + "\r\n\r\n").getBytes("ASCII");
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        HttpRequestHeaders request = new HttpRequestHeaders(lines[0], lines[1]);
+
+        request.write(output);
+
+        assertArrayEquals(expectedValue, output.toByteArray());
     }
 
 }

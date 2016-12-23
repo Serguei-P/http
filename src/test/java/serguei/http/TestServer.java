@@ -1,8 +1,10 @@
 package serguei.http;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.util.zip.GZIPOutputStream;
 
 public class TestServer extends HttpServer {
 
@@ -32,9 +34,29 @@ public class TestServer extends HttpServer {
         return PORT;
     }
 
-    public void setRespose(HttpResponseHeaders headers, byte[] body) {
+    public void setResponse(HttpResponseHeaders headers, byte[] body) {
+        setResponse(headers, body, BodyCompression.NONE);
+    }
+
+    public void setResponse(HttpResponseHeaders headers, byte[] body, BodyCompression compression) {
         requestHandler.responseHeaders = headers;
-        requestHandler.responseBody = body;
+        if (compression == BodyCompression.GZIP) {
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            try {
+                OutputStream gzipStream = new GZIPOutputStream(output);
+                gzipStream.write(body);
+                gzipStream.close();
+            } catch (IOException e) {
+                // this is used for tests only
+                throw new RuntimeException("Error compressing body", e);
+            }
+            requestHandler.responseBody = output.toByteArray();
+            headers.setHeader("Content-Length", Integer.toString(requestHandler.responseBody.length));
+            headers.setHeader("Content-Encoding", "gzip");
+        } else {
+            requestHandler.responseBody = body;
+            headers.setHeader("Content-Length", Integer.toString(body.length));
+        }
     }
 
     public HttpRequestHeaders getLatestRequestHeaders() {
@@ -65,13 +87,14 @@ public class TestServer extends HttpServer {
         @Override
         public void process(HttpRequest request, OutputStream outputStream) {
             latestRequestHeaders = request.getHeaders();
+            System.out.println(latestRequestHeaders);
             try {
                 latestRequestBody = request.readBodyAsBytes();
                 responseHeaders.write(outputStream);
                 outputStream.write(responseBody);
                 outputStream.flush();
             } catch (IOException e) {
-                e.printStackTrace();
+                throw new RuntimeException("Error", e);
             }
         }
 

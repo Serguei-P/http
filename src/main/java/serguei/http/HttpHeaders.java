@@ -1,6 +1,5 @@
 package serguei.http;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -10,14 +9,15 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 public abstract class HttpHeaders {
-    
-    private static final String LINE_SEPARATOR = System.getProperty("line.separator");
+
+    private static final String LINE_SEPARATOR = "\r\n";
     static final byte[] LINE_SEPARATOR_BYTES = LINE_SEPARATOR.getBytes();
     protected static final byte[] SPACE = " ".getBytes();
-    private static final byte[] KEY_VALUE_SEPARATOR = ": ".getBytes();
+    private static final String KEY_VALUE_SEPARATOR = ": ";
+    private static final byte[] KEY_VALUE_SEPARATOR_BYTES = KEY_VALUE_SEPARATOR.getBytes();
 
-    private Map<String, HeaderValues> headers = new HashMap<>();
-    
+    private final Map<String, HeaderValues> headers = new HashMap<>();
+
     protected void readHeaders(HeaderLineReader reader) throws IOException {
         String line;
         while ((line = reader.readLine()) != null && line.length() > 0) {
@@ -35,16 +35,6 @@ public abstract class HttpHeaders {
         headerName = normalize(headerName);
         HeaderValues values = headers.get(headerName);
         return values != null ? values.getValues() : null;
-    }
-
-    public void setHeader(String headerName, String value) {
-        headerName = normalize(headerName);
-        headers.put(headerName, new HeaderValues(value));
-    }
-
-    public void removeHeader(String headerName) {
-        headerName = normalize(headerName);
-        headers.remove(headerName);
     }
 
     public long getContentLength() {
@@ -83,11 +73,19 @@ public abstract class HttpHeaders {
         }
     }
 
-    protected void addHeader(String headerName, String headerValue) {
-        headerName = normalize(headerName);
-        HeaderValues values = headers.get(headerName);
+    public void setHeader(String headerName, String value) {
+        headers.put(normalize(headerName), new HeaderValues(headerName, value));
+    }
+
+    public void removeHeader(String headerName) {
+        headers.remove(normalize(headerName));
+    }
+
+    public void addHeader(String headerName, String headerValue) {
+        String normilizedHeaderName = normalize(headerName);
+        HeaderValues values = headers.get(normilizedHeaderName);
         if (values == null) {
-            headers.put(headerName, new HeaderValues(headerValue));
+            headers.put(normilizedHeaderName, new HeaderValues(headerName, headerValue));
         } else {
             values.add(headerValue);
         }
@@ -97,14 +95,14 @@ public abstract class HttpHeaders {
         for (Entry<String, HeaderValues> headerEntry : headers.entrySet()) {
             if (headerEntry.getValue().getValue() != null) {
                 for (String header : headerEntry.getValue().getValues()) {
-                    output.write(headerEntry.getKey().getBytes());
-                    output.write(KEY_VALUE_SEPARATOR);
+                    output.write(headerEntry.getValue().getName().getBytes());
+                    output.write(KEY_VALUE_SEPARATOR_BYTES);
                     output.write(header.getBytes());
                     output.write(LINE_SEPARATOR_BYTES);
                 }
             } else {
                 output.write(headerEntry.getKey().getBytes());
-                output.write(KEY_VALUE_SEPARATOR);
+                output.write(KEY_VALUE_SEPARATOR_BYTES);
                 output.write(LINE_SEPARATOR_BYTES);
             }
         }
@@ -118,21 +116,46 @@ public abstract class HttpHeaders {
 
     @Override
     public String toString() {
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-        try {
-            write(output);
-        } catch (IOException e) {
-            // nothing
+        boolean firstLine = true;
+        StringBuilder builder = new StringBuilder();
+        for (Entry<String, HeaderValues> headerEntry : headers.entrySet()) {
+            if (headerEntry.getValue().getValue() != null) {
+                for (String header : headerEntry.getValue().getValues()) {
+                    if (!firstLine) {
+                        builder.append(System.lineSeparator());
+                    } else {
+                        firstLine = false;
+                    }
+                    builder.append(headerEntry.getValue().getName());
+                    builder.append(KEY_VALUE_SEPARATOR);
+                    builder.append(header);
+                }
+            } else {
+                if (!firstLine) {
+                    builder.append(System.lineSeparator());
+                } else {
+                    firstLine = false;
+                }
+                builder.append(headerEntry.getKey());
+                builder.append(KEY_VALUE_SEPARATOR);
+            }
         }
-        return output.toString();
+        return builder.toString();
     }
 
     private static class HeaderValues {
+
+        private final String name;
         private String value;
         private List<String> values;
 
-        public HeaderValues(String value) {
+        public HeaderValues(String name, String value) {
+            this.name = name;
             this.value = value;
+        }
+
+        public String getName() {
+            return name;
         }
 
         public void add(String value) {

@@ -8,7 +8,6 @@ import java.net.URL;
 
 public class HttpRequestHeaders extends HttpHeaders {
 
-    private static final String LINE_SEPARATOR = System.getProperty("line.separator");
     private static final String PROTOCOL_SEPARATOR = "://";
 
     private String method;
@@ -68,7 +67,7 @@ public class HttpRequestHeaders extends HttpHeaders {
 
     @Override
     public String toString() {
-        return method + " " + path + " " + version + LINE_SEPARATOR + super.toString();
+        return method + " " + path + " " + version + System.lineSeparator() + super.toString();
     }
 
     private void parseCommandLine(String commandLine) throws HttpException {

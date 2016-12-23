@@ -3,6 +3,7 @@ package serguei.http;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 
 import org.junit.Test;
@@ -84,6 +85,29 @@ public class HttpResponseHeadersTest {
 
         assertFalse(response.hasChunkedBody());
         assertEquals(100, response.getContentLength());
+    }
+
+    @Test
+    public void shouldReturnToString() throws Exception {
+        String[] lines = {"HTTP/1.1 200 OK", "Host: localhost"};
+        String expectedValue = lines[0] + System.lineSeparator() + lines[1];
+
+        HttpResponseHeaders response = new HttpResponseHeaders(lines[0], lines[1]);
+
+        assertEquals(expectedValue, response.toString());
+    }
+
+    @Test
+    public void shouldWriteToStream() throws Exception {
+        String[] lines = {"HTTP/1.1 200 OK", "Host: localhost"};
+        byte[] expectedValue = (lines[0] + "\r\n" + lines[1] + "\r\n\r\n").getBytes("ASCII");
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        HttpResponseHeaders response = new HttpResponseHeaders(lines[0], lines[1]);
+
+        response.write(output);
+
+        assertArrayEquals(expectedValue, output.toByteArray());
     }
 
 }
