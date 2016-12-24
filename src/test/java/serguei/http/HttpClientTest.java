@@ -39,7 +39,7 @@ public class HttpClientTest {
         client = new HttpClientConnection(hostName, 80);
 
         HttpRequestHeaders request = HttpClientConnection.getRequest("http://" + hostName + "/");
-        request.addHeader("Accept-Encoding", "gzip");
+        request.setHeader("Accept-Encoding", "gzip");
         HttpResponse response = client.send(request);
 
         assertEquals(200, response.getStatusCode());

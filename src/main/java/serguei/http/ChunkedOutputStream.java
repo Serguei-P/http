@@ -12,15 +12,17 @@ public class ChunkedOutputStream extends OutputStream {
 
     private final OutputStream outputStream;
     private final byte[] chunkBuffer;
+    private final boolean leaveUnderlyingStreamOpen;
     private int bytesInChunk = 0;
 
-    public ChunkedOutputStream(OutputStream outputStream) {
-        this(outputStream, DEFAULT_CHUNK_SIZE);
+    public ChunkedOutputStream(OutputStream outputStream, boolean leaveUnderlyingStreamOpen) {
+        this(outputStream, leaveUnderlyingStreamOpen, DEFAULT_CHUNK_SIZE);
     }
 
-    public ChunkedOutputStream(OutputStream outputStream, int chunkSize) {
+    public ChunkedOutputStream(OutputStream outputStream, boolean leaveUnderlyingStreamOpen, int chunkSize) {
         this.outputStream = outputStream;
         this.chunkBuffer = new byte[chunkSize];
+        this.leaveUnderlyingStreamOpen = leaveUnderlyingStreamOpen;
     }
 
     @Override
@@ -49,7 +51,7 @@ public class ChunkedOutputStream extends OutputStream {
         }
         if (left > 0) {
             System.arraycopy(b, off + len - left, chunkBuffer, bytesInChunk, left);
-            bytesInChunk = left;
+            bytesInChunk += left;
         }
     }
 
@@ -64,7 +66,9 @@ public class ChunkedOutputStream extends OutputStream {
             writeChunk();
         }
         outputStream.write(LAST_CHUNK);
-        outputStream.close();
+        if (!leaveUnderlyingStreamOpen) {
+            outputStream.close();
+        }
     }
 
     private void writeChunk() throws IOException {

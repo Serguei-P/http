@@ -3,7 +3,6 @@ package serguei.http;
 import java.io.IOException;
 import java.io.InputStream;
 
-// TODO: read buffer functionality as optimisation
 class ChunkedInputStream extends InputStream {
 
     private static int DEFAULT_BUFFER_SIZE = 8192;

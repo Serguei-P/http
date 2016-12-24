@@ -89,13 +89,35 @@ public class HttpClientConnection {
                 body = gzip(body);
                 request.addHeader("Content-Encoding", "gzip");
             }
-            request.addHeader("Content-Length", Integer.toString(body.length));
+            request.setHeader("Content-Length", Integer.toString(body.length));
         }
         request.write(outputStream);
         if (body != null) {
             outputStream.write(body);
         }
         outputStream.flush();
+        return new HttpResponse(inputStream);
+    }
+
+    public HttpResponse send(HttpRequestHeaders request, InputStream body) throws IOException {
+        return send(request, body, BodyCompression.NONE);
+    }
+
+    public HttpResponse send(HttpRequestHeaders request, InputStream body, BodyCompression compression) throws IOException {
+        connectIfNecessary();
+        OutputStream bodyStream = new ChunkedOutputStream(outputStream, true);
+        if (compression == BodyCompression.GZIP) {
+            request.addHeader("Content-Encoding", "gzip");
+            bodyStream = new GZIPOutputStream(bodyStream);
+        }
+        request.addHeader("Transfer-Encoding", "chunked");
+        request.write(outputStream);
+        byte[] buffer = new byte[8192];
+        int read;
+        while ((read = body.read(buffer)) != -1) {
+            bodyStream.write(buffer, 0, read);
+        }
+        bodyStream.close();
         return new HttpResponse(inputStream);
     }
 

@@ -39,24 +39,47 @@ public class TestServer extends HttpServer {
     }
 
     public void setResponse(HttpResponseHeaders headers, byte[] body, BodyCompression compression) {
-        requestHandler.responseHeaders = headers;
+        byte[] responseBody;
         if (compression == BodyCompression.GZIP) {
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             try {
-                OutputStream gzipStream = new GZIPOutputStream(output);
+                GZIPOutputStream gzipStream = new GZIPOutputStream(output);
                 gzipStream.write(body);
                 gzipStream.close();
             } catch (IOException e) {
                 // this is used for tests only
                 throw new RuntimeException("Error compressing body", e);
             }
-            requestHandler.responseBody = output.toByteArray();
-            headers.setHeader("Content-Length", Integer.toString(requestHandler.responseBody.length));
+            responseBody = output.toByteArray();
+            headers.setHeader("Content-Length", Integer.toString(responseBody.length));
             headers.setHeader("Content-Encoding", "gzip");
         } else {
-            requestHandler.responseBody = body;
+            responseBody = body;
             headers.setHeader("Content-Length", Integer.toString(body.length));
         }
+        requestHandler.setResponse(new Response(headers, responseBody));
+    }
+
+    public void setChunkedResponse(HttpResponseHeaders headers, byte[] body) {
+        setChunkedResponse(headers, body, BodyCompression.NONE);
+    }
+
+    public void setChunkedResponse(HttpResponseHeaders headers, byte[] body, BodyCompression compression) {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        OutputStream stream = new ChunkedOutputStream(output, true);
+        try {
+            if (compression == BodyCompression.GZIP) {
+                stream = new GZIPOutputStream(stream);
+                headers.setHeader("Content-Encoding", "gzip");
+            }
+            stream.write(body);
+            stream.close();
+        } catch (IOException e) {
+            // this is used for tests only
+            throw new RuntimeException("Error compressing body", e);
+        }
+        headers.addHeader("Transfer-Encoding", "chunked");
+        requestHandler.setResponse(new Response(headers, output.toByteArray()));
     }
 
     public HttpRequestHeaders getLatestRequestHeaders() {
@@ -79,19 +102,17 @@ public class TestServer extends HttpServer {
 
     private static class TestRequestHandler implements HttpServerRequestHandler {
 
-        private volatile HttpResponseHeaders responseHeaders;
-        private volatile byte[] responseBody;
+        private Response response;
         private volatile HttpRequestHeaders latestRequestHeaders;
         private volatile byte[] latestRequestBody;
 
         @Override
         public void process(HttpRequest request, OutputStream outputStream) {
             latestRequestHeaders = request.getHeaders();
-            System.out.println(latestRequestHeaders);
             try {
                 latestRequestBody = request.readBodyAsBytes();
-                responseHeaders.write(outputStream);
-                outputStream.write(responseBody);
+                response.getHeaders().write(outputStream);
+                outputStream.write(response.getBody());
                 outputStream.flush();
             } catch (IOException e) {
                 throw new RuntimeException("Error", e);
@@ -105,5 +126,29 @@ public class TestServer extends HttpServer {
         public byte[] getLatestRequestBody() {
             return latestRequestBody;
         }
+
+        public void setResponse(Response response) {
+            this.response = response;
+        }
+    }
+
+    private static class Response {
+
+        private final HttpResponseHeaders headers;
+        private final byte[] body;
+
+        public Response(HttpResponseHeaders headers, byte[] body) {
+            this.headers = headers;
+            this.body = body;
+        }
+
+        public HttpResponseHeaders getHeaders() {
+            return headers;
+        }
+
+        public byte[] getBody() {
+            return body;
+        }
+
     }
 }

@@ -13,11 +13,13 @@ public class ChunkedOutputStreamTest {
     private byte[] OUTPUT_DATA = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10};
     private byte[] EXPECTED = {'a', '\r', '\n', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, '\r', '\n', 'a', '\r', '\n', -1, -2,
             -3, -4, -5, -6, -7, -8, -9, -10, '\r', '\n', '0', '\r', '\n', '\r', '\n'};
+    private byte[] EXPECTED_ONE_CHUNK = {'1', '4', '\r', '\n', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -1, -2,
+            -3, -4, -5, -6, -7, -8, -9, -10, '\r', '\n', '0', '\r', '\n', '\r', '\n'};
 
     @Test
     public void shouldWriteChunk() throws Exception {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        ChunkedOutputStream outputStream = new ChunkedOutputStream(output, 10);
+        ChunkedOutputStream outputStream = new ChunkedOutputStream(output, false, 10);
 
         outputStream.write(OUTPUT_DATA);
         outputStream.close();
@@ -28,7 +30,7 @@ public class ChunkedOutputStreamTest {
     @Test
     public void shouldWriteChunkByByte() throws Exception {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        ChunkedOutputStream outputStream = new ChunkedOutputStream(output, 10);
+        ChunkedOutputStream outputStream = new ChunkedOutputStream(output, false, 10);
 
         for (byte ch : OUTPUT_DATA) {
             outputStream.write((int)ch);
@@ -39,9 +41,20 @@ public class ChunkedOutputStreamTest {
     }
 
     @Test
+    public void shouldWriteChunkDefaultBuffer() throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        ChunkedOutputStream outputStream = new ChunkedOutputStream(output, false);
+
+        outputStream.write(OUTPUT_DATA);
+        outputStream.close();
+
+        assertArrayEquals(EXPECTED_ONE_CHUNK, output.toByteArray());
+    }
+
+    @Test
     public void shouldBeReadByChunkedInputStream() throws Exception {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        ChunkedOutputStream outputStream = new ChunkedOutputStream(output, 12);
+        ChunkedOutputStream outputStream = new ChunkedOutputStream(output, false, 12);
 
         outputStream.write(OUTPUT_DATA);
         outputStream.close();
