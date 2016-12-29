@@ -53,6 +53,15 @@ public class HttpRequest {
         return chunked;
     }
 
+    public boolean hasMultipartBody() {
+        String contentType = headers.getHeader("Content-Type");
+        if (contentType != null) {
+            return contentType.startsWith("multipart/");
+        } else {
+            return false;
+        }
+    }
+
     public String getHeader(String headerName) {
         return headers.getHeader(headerName);
     }
@@ -71,6 +80,10 @@ public class HttpRequest {
 
     public String readBodyAndUnzip() throws IOException {
         return body.readAndUnzipAsString();
+    }
+
+    public BodyPart readNextBodyPart() throws IOException {
+        return null;
     }
 
     HttpRequestHeaders getHeaders() {
