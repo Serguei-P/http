@@ -46,6 +46,15 @@ public class HttpResponseHeaders extends HttpHeaders {
         }
     }
 
+    public static HttpResponseHeaders notFound() {
+        try {
+            return new HttpResponseHeaders("HTTP/1.1 404 Not Found");
+        } catch (HttpException e) {
+            // can never happen
+            return null;
+        }
+    }
+
     public static HttpResponseHeaders serverError() {
         try {
             return new HttpResponseHeaders("HTTP/1.1 500 Server Error");

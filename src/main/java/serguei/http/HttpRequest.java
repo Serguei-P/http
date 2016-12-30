@@ -102,4 +102,9 @@ public class HttpRequest {
         return headers;
     }
 
+    @Override
+    public String toString() {
+        return headers.toString();
+    }
+
 }

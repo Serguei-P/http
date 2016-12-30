@@ -71,7 +71,11 @@ public class HttpServer {
     }
 
     public boolean isRunning() {
-        return serverSocketRunner.isRunning();
+        if (serverSocketRunner != null) {
+            return serverSocketRunner.isRunning();
+        } else {
+            return false;
+        }
     }
 
     public boolean isStopped() {
@@ -135,7 +139,12 @@ public class HttpServer {
                         System.out.println(e.getMessage());
                         break;
                     }
-                    requestHandler.process(request, socket.getOutputStream());
+                    try {
+                        requestHandler.process(request, socket.getOutputStream());
+                    } catch (IOException e) {
+                        System.out.println("Error while processing request: " + e.getMessage());
+                        finished = true;
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
