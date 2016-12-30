@@ -8,7 +8,7 @@ import java.util.zip.GZIPInputStream;
 
 public class HttpBody {
 
-    private static final String BODY_CODEPAGE = "UTF-8";
+    static final String BODY_CODEPAGE = "UTF-8";
     private static final int BUFFER_SIZE = 1024 * 4;
 
     private final InputStream bodyInputStream;
@@ -39,6 +39,10 @@ public class HttpBody {
         } else {
             return new byte[0];
         }
+    }
+
+    InputStream getBodyInputStream() {
+        return bodyInputStream;
     }
 
     String readAndUnzipAsString() throws IOException {

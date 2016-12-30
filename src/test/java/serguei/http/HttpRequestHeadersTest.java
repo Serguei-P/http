@@ -6,6 +6,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.List;
 
 import org.junit.Test;
 
@@ -127,6 +128,28 @@ public class HttpRequestHeadersTest {
         request.write(output);
 
         assertArrayEquals(expectedValue, output.toByteArray());
+    }
+
+    @Test
+    public void shouldParseHeaderValue() throws Exception {
+        List<String> expected = Arrays.asList("multipart/form-data", "boundary=------------------------943603c96ae956d6");
+        HttpRequestHeaders headers = new HttpRequestHeaders("GET / HTTP/1.1", "Host: localhost",
+                "Content-Type: multipart/form-data; boundary=------------------------943603c96ae956d6");
+
+        List<String> result = headers.headerValues("Content-Type");
+
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void shouldParseHeaderValueWithQuotes() throws Exception {
+        List<String> expected = Arrays.asList("multipart/form-data", "boundary=------------------------943603c96ae956d;6");
+        HttpRequestHeaders headers = new HttpRequestHeaders("GET / HTTP/1.1", "Host: localhost",
+                "Content-Type: multipart/form-data; boundary=\"------------------------943603c96ae956d;6\"");
+
+        List<String> result = headers.headerValues("Content-Type");
+
+        assertEquals(expected, result);
     }
 
 }

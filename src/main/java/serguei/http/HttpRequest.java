@@ -13,7 +13,9 @@ public class HttpRequest {
     private final HttpBody body;
     private final long contentLength;
     private final boolean chunked;
-    private URL url;
+    private final URL url;
+
+    private MultipartBodyParser multipartBodyParser;
 
     HttpRequest(InputStream inputStream) throws IOException {
         this.headers = new HttpRequestHeaders(inputStream);
@@ -83,7 +85,17 @@ public class HttpRequest {
     }
 
     public BodyPart readNextBodyPart() throws IOException {
-        return null;
+        if (multipartBodyParser == null) {
+            if (!hasMultipartBody()) {
+                return null;
+            }
+            String boundary = headers.getHeaderValue("Content-Type", "boundary");
+            if (boundary == null) {
+                return null;
+            }
+            multipartBodyParser = new MultipartBodyParser(body.getBodyInputStream(), boundary);
+        }
+        return multipartBodyParser.readNextBodyPart();
     }
 
     HttpRequestHeaders getHeaders() {

@@ -25,8 +25,6 @@ import javax.net.ssl.X509TrustManager;
 
 public class HttpClientConnection {
 
-    private static final String BODY_CODEPAGE = "UTF-8";
-
     private final InetSocketAddress serverAddress;
     private Socket socket;
     private InputStream inputStream;
@@ -71,7 +69,7 @@ public class HttpClientConnection {
     public HttpResponse send(HttpRequestHeaders request, String body, BodyCompression compression) throws IOException {
         byte[] bodyAsBytes;
         if (body != null) {
-            bodyAsBytes = body.getBytes(BODY_CODEPAGE);
+            bodyAsBytes = body.getBytes(HttpBody.BODY_CODEPAGE);
         } else {
             bodyAsBytes = null;
         }

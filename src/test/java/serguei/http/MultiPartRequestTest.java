@@ -50,19 +50,22 @@ public class MultiPartRequestTest {
         assertNotNull(part);
         assertEquals("text", part.getName());
         assertNull(part.getFilename());
-        assertEquals("text/plain", part.getContentType());
+        assertNull(part.getContentType());
+        assertEquals("TheText", part.getContentAsString());
 
         part = request.readNextBodyPart();
         assertNotNull(part);
         assertEquals("file1", part.getName());
         assertEquals("t1.txt", part.getFilename());
         assertEquals("text/plain", part.getContentType());
+        assertEquals("This is line 1 from file 1\r\nThis is line 2 from file 1\r\n", part.getContentAsString());
 
         part = request.readNextBodyPart();
         assertNotNull(part);
         assertEquals("file2", part.getName());
         assertEquals("t2.txt", part.getFilename());
         assertEquals("text/plain", part.getContentType());
+        assertEquals("This is line 1 from file 2\r\nThis is line 2 from file 2\r\n", part.getContentAsString());
 
         part = request.readNextBodyPart();
         assertNull(part);

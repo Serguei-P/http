@@ -187,4 +187,53 @@ public abstract class HttpHeaders {
         }
     }
 
+    List<String> headerValues(String headerName) {
+        List<String> result = new ArrayList<>();
+        String headerValue = getHeader(headerName);
+        if (headerValue == null) {
+            return result;
+        }
+        char quote = ' ';
+        boolean newValue = true;
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < headerValue.length(); i++) {
+            char ch = headerValue.charAt(i);
+            if (quote != ' ') {
+                if (ch == quote) {
+                    quote = ' ';
+                } else {
+                    builder.append(ch);
+                }
+            } else {
+                if (ch == ';') {
+                    if (builder.length() > 0) {
+                        result.add(builder.toString());
+                        builder.setLength(0);
+                        newValue = true;
+                    }
+                } else if (ch == '"') {
+                    quote = ch;
+                } else if (ch == ' ' && newValue) {
+                } else {
+                    newValue = false;
+                    builder.append(ch);
+                }
+            }
+        }
+        if (builder.length() > 0) {
+            result.add(builder.toString());
+        }
+        return result;
+    }
+
+    String getHeaderValue(String headerName, String valueName) {
+        valueName += "=";
+        List<String> result = headerValues(headerName);
+        for (String value : result) {
+            if (value.startsWith(valueName)) {
+                return value.substring(valueName.length());
+            }
+        }
+        return null;
+    }
 }
