@@ -23,6 +23,7 @@ public class MultipartBodyParser {
             reader = new UpToBorderStreamReader(inputStream, ("\r\n--" + border).getBytes());
         }
         if (readToCheckIfFinalBorder()) {
+            inputStream.skip(2); // final CRLF
             return null;
         }
         partCount++;

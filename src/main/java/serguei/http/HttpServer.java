@@ -136,7 +136,9 @@ public class HttpServer {
                     try {
                         request = new HttpRequest(socket.getInputStream());
                     } catch (HttpException e) {
-                        System.out.println(e.getMessage());
+                        // this happens when connection is closed by the client or
+                        // client sends non-HTTP data
+                        finished = true;
                         break;
                     }
                     try {

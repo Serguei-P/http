@@ -27,7 +27,6 @@ class UpToBorderStreamReader {
             if (b == border[matchedBytes]) {
                 matchedBytes++;
                 if (matchedBytes == border.length) {
-                    System.out.println("matched");
                     return outputStream.toByteArray();
                 }
             } else {

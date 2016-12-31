@@ -12,6 +12,14 @@ import serguei.http.HttpResponseHeaders;
 import serguei.http.HttpServer;
 import serguei.http.HttpServerRequestHandler;
 
+/**
+ * This is an example of a very simple web server that shows a screen allowing to create a multi-part POST request
+ * 
+ * After running point your browser to http://localhost:8080/
+ * 
+ * @author Serguei
+ *
+ */
 public class ServerWithPostForm implements Runnable {
 
     private static final int PORT = 8080;
@@ -74,36 +82,49 @@ public class ServerWithPostForm implements Runnable {
 
         @Override
         public void process(HttpRequest request, OutputStream outputStream) throws IOException {
+            System.out.println(request.getMethod() + " " + request.getUrl());
             if (request.getUrl().getPath().equals("/favicon.ico")) {
-                HttpResponseHeaders.notFound().write(outputStream);
-                outputStream.flush();
-                return;
+                respondNotFound(outputStream);
             } else if (request.getUrl().getPath().equals("/upload") && request.hasMultipartBody()) {
-                BodyPart bodyPart;
-                while ((bodyPart = request.readNextBodyPart()) != null) {
-                    if (bodyPart.getName().equals("text")) {
-                        text = bodyPart.getContentAsString();
-                    } else if (bodyPart.getName().equals("image")) {
-                        image = bodyPart.getContentAsBytes();
-                    }
-                }
+                extractValues(request);
+                respondWithForm(outputStream);
             } else if (request.getUrl().getPath().equals("/image.jpg")) {
-                HttpResponseHeaders headers = HttpResponseHeaders.ok();
-                headers.setHeader("Content-Length", Integer.toString(image.length));
-                headers.write(outputStream);
-                outputStream.write(image);
-                outputStream.flush();
-                return;
+                respondWithImage(outputStream);
+            } else {
+                respondWithForm(outputStream);
             }
-            System.out.println();
-            System.out.println(request);
+            outputStream.flush();
+        }
+
+        private void respondNotFound(OutputStream outputStream) throws IOException {
+            HttpResponseHeaders.notFound().write(outputStream);
+        }
+
+        private void extractValues(HttpRequest request) throws IOException {
+            BodyPart bodyPart;
+            while ((bodyPart = request.readNextBodyPart()) != null) {
+                if (bodyPart.getName().equals("text")) {
+                    text = bodyPart.getContentAsString();
+                } else if (bodyPart.getName().equals("image")) {
+                    image = bodyPart.getContentAsBytes();
+                }
+            }
+        }
+
+        private void respondWithImage(OutputStream outputStream) throws IOException {
+            HttpResponseHeaders headers = HttpResponseHeaders.ok();
+            headers.setHeader("Content-Length", Integer.toString(image.length));
+            headers.write(outputStream);
+            outputStream.write(image);
+        }
+
+        private void respondWithForm(OutputStream outputStream) throws IOException {
             String page = buildPage();
             byte[] pageBytes = page.getBytes("UTF-8");
             HttpResponseHeaders headers = HttpResponseHeaders.ok();
             headers.setHeader("Content-Length", Integer.toString(pageBytes.length));
             headers.write(outputStream);
             outputStream.write(pageBytes);
-            outputStream.flush();
         }
 
     }

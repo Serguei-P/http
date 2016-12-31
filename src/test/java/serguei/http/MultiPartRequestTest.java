@@ -42,7 +42,8 @@ public class MultiPartRequestTest {
 
     @Test
     public void serverShouldProcessMultipartRequest() throws Exception {
-        HttpRequest request = new HttpRequest(getRequestAsStream());
+        InputStream inputStream = getRequestAsStream();
+        HttpRequest request = new HttpRequest(inputStream);
 
         assertTrue(request.hasMultipartBody());
 
@@ -69,6 +70,7 @@ public class MultiPartRequestTest {
 
         part = request.readNextBodyPart();
         assertNull(part);
+        assertEquals(0, inputStream.available());
     }
 
     private InputStream getRequestAsStream() throws UnsupportedEncodingException {
