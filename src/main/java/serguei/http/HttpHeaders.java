@@ -8,6 +8,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+/**
+ * HTTP headers
+ * 
+ * @author Serguei Poliakov
+ *
+ */
 public abstract class HttpHeaders {
 
     private static final String LINE_SEPARATOR = "\r\n";
@@ -18,6 +24,9 @@ public abstract class HttpHeaders {
 
     private final Map<String, HeaderValues> headers = new HashMap<>();
 
+    /**
+     * Read headers into the stream
+     */
     protected void readHeaders(HeaderLineReader reader) throws IOException {
         String line;
         while ((line = reader.readLine()) != null && line.length() > 0) {
@@ -25,18 +34,27 @@ public abstract class HttpHeaders {
         }
     }
 
+    /**
+     * This returns a header by name, if there are more then one header with this name, the first one will be returned
+     */
     public String getHeader(String headerName) {
         headerName = normalize(headerName);
         HeaderValues values = headers.get(headerName);
         return values != null ? values.getValue() : null;
     }
 
+    /**
+     * This returns a headers by name, if there are more then one header with this name, all of them will be returned
+     */
     public List<String> getHeaders(String headerName) {
         headerName = normalize(headerName);
         HeaderValues values = headers.get(headerName);
         return values != null ? values.getValues() : null;
     }
 
+    /**
+     * @return content length or -1 if content length is not defined
+     */
     public long getContentLength() {
         String contentLengthString = getHeader("Content-Length");
         if (contentLengthString != null) {
@@ -49,6 +67,9 @@ public abstract class HttpHeaders {
         return -1;
     }
 
+    /**
+     * @return true if the body is chunked or false if not
+     */
     public boolean hasChunkedBody() {
         if (getContentLength() >= 0) {
             return false;
@@ -64,6 +85,9 @@ public abstract class HttpHeaders {
         return false;
     }
 
+    /**
+     * Adds a header, if header header with this name already exists, it adds a new entry without deleting existing
+     */
     protected void addHeader(String line) throws HttpException {
         int index = line.indexOf(':');
         if (index > 0) {
@@ -73,14 +97,16 @@ public abstract class HttpHeaders {
         }
     }
 
+    /**
+     * Sets header If headers with this name already exists, replaces it
+     */
     public void setHeader(String headerName, String value) {
         headers.put(normalize(headerName), new HeaderValues(headerName, value));
     }
 
-    public void removeHeader(String headerName) {
-        headers.remove(normalize(headerName));
-    }
-
+    /**
+     * Adds a header, if header header with this name already exists, it adds a new entry without deleting existing
+     */
     public void addHeader(String headerName, String headerValue) {
         String normilizedHeaderName = normalize(headerName);
         HeaderValues values = headers.get(normilizedHeaderName);
@@ -91,6 +117,16 @@ public abstract class HttpHeaders {
         }
     }
 
+    /**
+     * Removes header with a specified name
+     */
+    public void removeHeader(String headerName) {
+        headers.remove(normalize(headerName));
+    }
+
+    /**
+     * Write headers into the stream
+     */
     protected void write(OutputStream output) throws IOException {
         for (Entry<String, HeaderValues> headerEntry : headers.entrySet()) {
             if (headerEntry.getValue().getValue() != null) {

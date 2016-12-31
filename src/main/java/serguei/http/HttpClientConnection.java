@@ -85,7 +85,7 @@ public class HttpClientConnection {
         if (body != null) {
             if (compression == BodyCompression.GZIP) {
                 body = gzip(body);
-                request.addHeader("Content-Encoding", "gzip");
+                request.setHeader("Content-Encoding", "gzip");
             }
             request.setHeader("Content-Length", Integer.toString(body.length));
         }
@@ -105,10 +105,10 @@ public class HttpClientConnection {
         connectIfNecessary();
         OutputStream bodyStream = new ChunkedOutputStream(outputStream, true);
         if (compression == BodyCompression.GZIP) {
-            request.addHeader("Content-Encoding", "gzip");
+            request.setHeader("Content-Encoding", "gzip");
             bodyStream = new GZIPOutputStream(bodyStream);
         }
-        request.addHeader("Transfer-Encoding", "chunked");
+        request.setHeader("Transfer-Encoding", "chunked");
         request.write(outputStream);
         byte[] buffer = new byte[8192];
         int read;
