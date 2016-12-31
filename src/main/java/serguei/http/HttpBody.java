@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.zip.GZIPInputStream;
 
-public class HttpBody {
+class HttpBody {
 
     static final String BODY_CODEPAGE = "UTF-8";
     private static final int BUFFER_SIZE = 1024 * 4;

@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 
-public class HeaderLineReader {
+class HeaderLineReader {
 
     private static final int MAX_LINE_LENGTH = 4096;
     private static final int BUFFER_SIZE = 128;
@@ -14,7 +14,7 @@ public class HeaderLineReader {
     private final byte[] buffer;
     private StringBuilder sb = null;
 
-    public HeaderLineReader(InputStream in) {
+    HeaderLineReader(InputStream in) {
         this.in = in;
         this.buffer = new byte[BUFFER_SIZE];
     }

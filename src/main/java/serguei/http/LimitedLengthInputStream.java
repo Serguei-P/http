@@ -3,7 +3,7 @@ package serguei.http;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class LimitedLengthInputStream extends InputStream {
+class LimitedLengthInputStream extends InputStream {
 
     private final InputStream inputStream;
     private final long maxLength;

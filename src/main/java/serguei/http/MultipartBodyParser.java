@@ -3,7 +3,7 @@ package serguei.http;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class MultipartBodyParser {
+class MultipartBodyParser {
 
     private final InputStream inputStream;
     private final String border;
