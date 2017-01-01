@@ -10,8 +10,6 @@ import org.junit.Test;
 
 public class MultiPartRequestTest {
 
-    private static final String CRLF = "\r\n";
-
  // @formatter:off
     private String[] REQUEST_DATA = {
         "POST /test HTTP/1.1",
@@ -74,12 +72,7 @@ public class MultiPartRequestTest {
     }
 
     private InputStream getRequestAsStream() throws UnsupportedEncodingException {
-        StringBuilder builder = new StringBuilder();
-        for (String line : REQUEST_DATA) {
-            builder.append(line);
-            builder.append(CRLF);
-        }
-        return new ByteArrayInputStream(builder.toString().getBytes("ASCII"));
+        return new ByteArrayInputStream(Utils.concatWithDelimiter(REQUEST_DATA, "\r\n").getBytes("ASCII"));
     }
 
 }

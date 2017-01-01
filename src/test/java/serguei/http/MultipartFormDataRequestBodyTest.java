@@ -32,19 +32,7 @@ public class MultipartFormDataRequestBodyTest {
 
         byte[] result = body.getBody();
 
-        System.out.println(new String(result, "UTF-8"));
-        System.out.println("---");
-        System.out.println(getRequestBody());
-        assertEquals(getRequestBody(), new String(result, "UTF-8"));
-    }
-
-    private String getRequestBody() {
-        StringBuilder builder = new StringBuilder();
-        for (String line : REQUEST_DATA) {
-            builder.append(line);
-            builder.append("\r\n");
-        }
-        return builder.toString();
+        assertEquals(Utils.concatWithDelimiter(REQUEST_DATA, "\r\n"), new String(result, "UTF-8"));
     }
 
 }

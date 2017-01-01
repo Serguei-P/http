@@ -13,6 +13,7 @@ import serguei.http.HttpClientConnection;
 import serguei.http.HttpRequestHeaders;
 import serguei.http.HttpResponse;
 import serguei.http.MultipartFormDataRequestBody;
+import serguei.http.Utils;
 
 public class ServerWithPostFormTest {
 
@@ -107,12 +108,8 @@ public class ServerWithPostFormTest {
         }
 
         private synchronized void push(String line) throws IOException {
-            byte[] data = line.getBytes("UTF-8");
-            byte[] newBuffer = new byte[buf.length + data.length];
-            System.arraycopy(buf, 0, newBuffer, 0, buf.length);
-            System.arraycopy(data, 0, newBuffer, buf.length, data.length);
-            buf = newBuffer;
-            count += data.length;
+            buf = Utils.concat(buf, line.getBytes("UTF-8"));
+            count = buf.length;
             this.notifyAll();
         }
 
