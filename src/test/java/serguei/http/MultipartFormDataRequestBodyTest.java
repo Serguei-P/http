@@ -21,7 +21,8 @@ public class MultipartFormDataRequestBodyTest {
         "Content-Type: text/plain",
         "",
         fileContent,
-        "--" + border + "--"};
+        "--" + border + "--",
+        ""};
  // @formatter:on  
 
     @Test
