@@ -7,7 +7,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.URL;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -41,10 +40,6 @@ public class HttpClientConnection {
 
     public HttpClientConnection(InetSocketAddress address) {
         this.serverAddress = address;
-    }
-
-    public InetSocketAddress getServerAddress() {
-        return serverAddress;
     }
 
     public HttpResponse sendRequest(String requestLine, String... headers) throws IOException {
@@ -119,22 +114,8 @@ public class HttpClientConnection {
         return new HttpResponse(inputStream);
     }
 
-    public static HttpRequestHeaders connectRequest(String host) {
-        try {
-            return new HttpRequestHeaders("CONNECT " + host + " HTTP/1.1", "Host: " + host);
-        } catch (HttpException e) {
-            // should never happen
-            return null;
-        }
-    }
-
-    public static HttpRequestHeaders getRequest(String url) throws IOException {
-        String host = (new URL(url)).getHost();
-        return new HttpRequestHeaders("GET " + url + " HTTP/1.1", "Host: " + host);
-    }
-
     public void sendConnectRequest(String host) throws IOException {
-        HttpResponse response = send(connectRequest(host));
+        HttpResponse response = send(HttpRequestHeaders.connectRequest(host));
         if (response == null) {
             throw new IOException("No response returned from Proxy after sending CONNECT");
         } else if (response.getStatusCode() != 200) {
@@ -146,10 +127,6 @@ public class HttpClientConnection {
     public void setupTlsConnectionViaProxy(String host) throws IOException {
         sendConnectRequest(host);
         startHandshake(host);
-    }
-
-    public OutputStream getOutputStream() {
-        return outputStream;
     }
 
     public void startHandshake() throws IOException {
@@ -234,10 +211,12 @@ public class HttpClientConnection {
     }
 
     private void closeQuietly(Closeable closable) {
-        try {
-            closable.close();
-        } catch (IOException e) {
-            // quietly
+        if (closable != null) {
+            try {
+                closable.close();
+            } catch (IOException e) {
+                // quietly
+            }
         }
     }
 

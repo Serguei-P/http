@@ -6,6 +6,13 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * 
+ * This represents a request as received by a server
+ * 
+ * @author Serguei Poliakov
+ *
+ */
 public class HttpRequest {
 
     private final HttpRequestHeaders headers;

@@ -16,7 +16,7 @@ import java.util.Map.Entry;
  */
 abstract class HttpHeaders {
 
-    private static final String LINE_SEPARATOR = "\r\n";
+    static final String LINE_SEPARATOR = "\r\n";
     static final byte[] LINE_SEPARATOR_BYTES = LINE_SEPARATOR.getBytes();
     protected static final byte[] SPACE = " ".getBytes();
     private static final String KEY_VALUE_SEPARATOR = ": ";

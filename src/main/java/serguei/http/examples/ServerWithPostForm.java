@@ -34,6 +34,10 @@ public class ServerWithPostForm implements Runnable {
         reader = new BufferedReader(new InputStreamReader(inputStream));
     }
 
+    public int getPort() {
+        return PORT;
+    }
+
     @Override
     public void run() {
         try {

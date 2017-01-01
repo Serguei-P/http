@@ -23,7 +23,7 @@ public class HttpClientTest {
         String hostName = "www.cisco.com";
         client = new HttpClientConnection(hostName, 80);
 
-        HttpRequestHeaders request = HttpClientConnection.getRequest("http://" + hostName + "/");
+        HttpRequestHeaders request = HttpRequestHeaders.getRequest("http://" + hostName + "/");
         HttpResponse response = client.send(request);
 
         assertEquals(200, response.getStatusCode());
@@ -38,7 +38,7 @@ public class HttpClientTest {
         String hostName = "www.cisco.com";
         client = new HttpClientConnection(hostName, 80);
 
-        HttpRequestHeaders request = HttpClientConnection.getRequest("http://" + hostName + "/");
+        HttpRequestHeaders request = HttpRequestHeaders.getRequest("http://" + hostName + "/");
         request.setHeader("Accept-Encoding", "gzip");
         HttpResponse response = client.send(request);
 
@@ -54,7 +54,7 @@ public class HttpClientTest {
         client = new HttpClientConnection(hostName, 443);
 
         client.startHandshake(hostName);
-        HttpResponse response = client.send(HttpClientConnection.getRequest("http://" + hostName + "/"));
+        HttpResponse response = client.send(HttpRequestHeaders.getRequest("http://" + hostName + "/"));
 
         assertEquals(200, response.getStatusCode());
 

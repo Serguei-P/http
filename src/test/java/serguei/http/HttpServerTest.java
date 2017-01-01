@@ -86,7 +86,7 @@ public class HttpServerTest {
         @Override
         public HttpResponse call() throws Exception {
             HttpClientConnection client = new HttpClientConnection("localhost", PORT);
-            return client.send(HttpClientConnection.getRequest("http://localhost:" + PORT + "/"), REQUEST_BODY);
+            return client.send(HttpRequestHeaders.postRequest("http://localhost:" + PORT + "/"), REQUEST_BODY);
         }
     }
 
