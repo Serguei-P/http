@@ -15,9 +15,9 @@ import serguei.http.HttpServerRequestHandler;
 /**
  * This is an example of a very simple web server that shows a screen allowing to create a multi-part POST request
  * 
- * After running point your browser to http://localhost:8080/
+ * Just run it and, after running, point your browser to http://localhost:8080/
  * 
- * @author Serguei
+ * @author Serguei Poliakov
  *
  */
 public class ServerWithPostForm implements Runnable {
@@ -32,6 +32,12 @@ public class ServerWithPostForm implements Runnable {
 
     public ServerWithPostForm(InputStream inputStream) {
         reader = new BufferedReader(new InputStreamReader(inputStream));
+    }
+
+    public static void main(String[] args) {
+        ServerWithPostForm process = new ServerWithPostForm(System.in);
+        process.run();
+        System.out.println("Exit");
     }
 
     public int getPort() {
@@ -59,29 +65,6 @@ public class ServerWithPostForm implements Runnable {
         return server.isRunning();
     }
 
-    public static void main(String[] args) {
-        ServerWithPostForm process = new ServerWithPostForm(System.in);
-        process.run();
-        System.out.println("Exit");
-    }
-
-    private String buildPage() {
-        StringBuilder builder = new StringBuilder();
-        builder.append("<HTML><HEAD><TITLE>Form Test</TITLE></HEAD><BODY>");
-        builder.append("<FORM action=\"/upload\" method=\"POST\" enctype=\"multipart/form-data\">");
-        builder.append(text).append("<p>");
-        if (image != null) {
-            builder.append("<img src=\"/image.jpg\">");
-        }
-        builder.append("<TABLE>");
-        builder.append("<TR><TH>Text</TH>").append("<TD><INPUT NAME=\"text\" value=\"").append(text).append("\"></TD></TR>");
-        builder.append("<TR><TH>Image</TH><TD><INPUT TYPE=\"File\" NAME=\"image\"></TD></TR>");
-        builder.append("<TR><TD COLSPAN=2><INPUT TYPE=\"Submit\" VALUE=\"Submit\"></TD></TR>");
-        builder.append("</TABLE>");
-        builder.append("</FORM></BODY></HTML>");
-        return builder.toString();
-    }
-
     private class RequestHandler implements HttpServerRequestHandler {
 
         @Override
@@ -100,10 +83,6 @@ public class ServerWithPostForm implements Runnable {
             outputStream.flush();
         }
 
-        private void respondNotFound(OutputStream outputStream) throws IOException {
-            HttpResponseHeaders.notFound().write(outputStream);
-        }
-
         private void extractValues(HttpRequest request) throws IOException {
             BodyPart bodyPart;
             while ((bodyPart = request.readNextBodyPart()) != null) {
@@ -113,6 +92,10 @@ public class ServerWithPostForm implements Runnable {
                     image = bodyPart.getContentAsBytes();
                 }
             }
+        }
+
+        private void respondNotFound(OutputStream outputStream) throws IOException {
+            HttpResponseHeaders.notFound().write(outputStream);
         }
 
         private void respondWithImage(OutputStream outputStream) throws IOException {
@@ -129,6 +112,24 @@ public class ServerWithPostForm implements Runnable {
             headers.setHeader("Content-Length", Integer.toString(pageBytes.length));
             headers.write(outputStream);
             outputStream.write(pageBytes);
+        }
+
+        private String buildPage() {
+            StringBuilder builder = new StringBuilder();
+            builder.append("<HTML><HEAD><TITLE>Form Test</TITLE></HEAD><BODY>");
+            builder.append("<FORM action=\"/upload\" method=\"POST\" enctype=\"multipart/form-data\">");
+            builder.append(text).append("<p>");
+            if (image != null) {
+                builder.append("<img src=\"/image.jpg\">");
+            }
+            builder.append("<TABLE>");
+            builder.append("<TR><TH>Text</TH>").append("<TD><INPUT NAME=\"text\" value=\"").append(text)
+                    .append("\"></TD></TR>");
+            builder.append("<TR><TH>Image</TH><TD><INPUT TYPE=\"File\" NAME=\"image\"></TD></TR>");
+            builder.append("<TR><TD COLSPAN=2><INPUT TYPE=\"Submit\" VALUE=\"Submit\"></TD></TR>");
+            builder.append("</TABLE>");
+            builder.append("</FORM></BODY></HTML>");
+            return builder.toString();
         }
 
     }

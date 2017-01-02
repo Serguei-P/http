@@ -4,13 +4,47 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+/**
+ * This represents response headers - combination of the the status line and the following headers as specified in
+ * RFC-2616: https://tools.ietf.org/html/rfc2616
+ * 
+ * This class is mutable and it is not thread safe. One would directly create and manipulate instance of this class to
+ * prepare response headers in the server
+ * 
+ * @author Serguei Poliakov
+ * 
+ */
 public class HttpResponseHeaders extends HttpHeaders {
 
     private String version;
     private int statusCode;
     private String reason;
 
-    public HttpResponseHeaders(InputStream inputStream) throws IOException {
+    /**
+     * This creates an instance of HttpResponseHeaders
+     * 
+     * @param statusLine
+     *            - status line, e.g. "GET / HTTP/1."
+     * @param headers
+     *            - headers in the form "Content-Length: 100"
+     * @throws HttpException
+     *             - can be thrown when status line or headers do not follow HTTP standards
+     */
+    public HttpResponseHeaders(String statusLine, String... headers) throws HttpException {
+        parseResponseLine(statusLine);
+        for (String header : headers) {
+            addHeader(header);
+        }
+    }
+
+    /**
+     * This creates an instance of this class by reading status line and headers from a stream
+     * 
+     * @param inputStream
+     * @throws IOException
+     *             - thrown when the data is not HTTP or IO errors
+     */
+    HttpResponseHeaders(InputStream inputStream) throws IOException {
         HeaderLineReader reader = new HeaderLineReader(inputStream);
         String line = reader.readLine();
         if (line != null) {
@@ -19,13 +53,6 @@ public class HttpResponseHeaders extends HttpHeaders {
             throw new HttpException("Unexpected EOF when reading HTTP message");
         }
         readHeaders(reader);
-    }
-
-    public HttpResponseHeaders(String responseLine, String... headers) throws HttpException {
-        parseResponseLine(responseLine);
-        for (String header : headers) {
-            addHeader(header);
-        }
     }
 
     public static HttpResponseHeaders ok() {
@@ -37,7 +64,7 @@ public class HttpResponseHeaders extends HttpHeaders {
         }
     }
 
-    public static HttpResponseHeaders redirect(String location) {
+    public static HttpResponseHeaders redirectTo(String location) {
         try {
             return new HttpResponseHeaders("HTTP/1.1 302 Found", "Location: " + location);
         } catch (HttpException e) {

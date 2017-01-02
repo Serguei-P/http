@@ -5,6 +5,13 @@ import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * 
+ * This represents a response as received by a client
+ * 
+ * @author Serguei Poliakov
+ *
+ */
 public class HttpResponse {
 
     private final HttpResponseHeaders headers;

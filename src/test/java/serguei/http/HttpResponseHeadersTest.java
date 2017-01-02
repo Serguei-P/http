@@ -54,7 +54,7 @@ public class HttpResponseHeadersTest {
     @Test
     public void shouldReturnRedirectResponse() {
         String url = "http://www.google.com/";
-        HttpResponseHeaders response = HttpResponseHeaders.redirect(url);
+        HttpResponseHeaders response = HttpResponseHeaders.redirectTo(url);
 
         assertEquals("HTTP/1.1", response.getVersion());
         assertEquals(302, response.getStatusCode());
