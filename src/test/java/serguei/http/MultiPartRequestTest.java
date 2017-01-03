@@ -10,32 +10,32 @@ import org.junit.Test;
 
 public class MultiPartRequestTest {
 
+    private static final String BOUNDARY = "------------------------943603c96ae951d6";
+    private static final String TEXT = "TheText";
+    private static final String FILE1 = "This is line 1 from file 1\r\nThis is line 2 from file 1\r\n";
+    private static final String FILE2 = "This is line 1 from file 2\r\nThis is line 2 from file 2\r\n";
  // @formatter:off
     private String[] REQUEST_DATA = {
         "POST /test HTTP/1.1",
         "Host: www.google.co.uk",
-        "Content-Length: 536",
-        "Content-Type: multipart/form-data; boundary=------------------------943603c96ae956d6",
+        "Content-Length: 542",
+        "Content-Type: multipart/form-data; boundary=" + BOUNDARY,
         "",
-        "--------------------------943603c96ae956d6",
+        "--" + BOUNDARY,
         "Content-Disposition: form-data; name=\"text\"",
         "",
-        "TheText",
-        "--------------------------943603c96ae956d6",
+        TEXT,
+        "--" + BOUNDARY,
         "Content-Disposition: form-data; name=\"file1\"; filename=\"t1.txt\"",
         "Content-Type: text/plain",
         "",
-        "This is line 1 from file 1",
-        "This is line 2 from file 1",
-        "",
-        "--------------------------943603c96ae956d6",
+        FILE1,
+        "--" + BOUNDARY,
         "Content-Disposition: form-data; name=\"file2\"; filename=\"t2.txt\"",
-        "Content-Type: text/plain",
+        "Content-Type: application/test",
         "",
-        "This is line 1 from file 2",
-        "This is line 2 from file 2",
-        "",
-        "--------------------------943603c96ae956d6--"};
+        FILE2,
+        "--" + BOUNDARY + "--"};
  // @formatter:on  
 
     @Test
@@ -45,34 +45,29 @@ public class MultiPartRequestTest {
 
         assertTrue(request.hasMultipartBody());
 
-        BodyPart part = request.readNextBodyPart();
-        assertNotNull(part);
-        assertEquals("text", part.getName());
-        assertNull(part.getFilename());
-        assertNull(part.getContentType());
-        assertEquals("TheText", part.getContentAsString());
+        RequestValues requestValues = request.readBodyAsValues();
 
-        part = request.readNextBodyPart();
-        assertNotNull(part);
-        assertEquals("file1", part.getName());
-        assertEquals("t1.txt", part.getFilename());
-        assertEquals("text/plain", part.getContentType());
-        assertEquals("This is line 1 from file 1\r\nThis is line 2 from file 1\r\n", part.getContentAsString());
+        assertEquals(TEXT, requestValues.getValue("text"));
+        assertArrayEquals(TEXT.getBytes("UTF-8"), requestValues.getBytesValue("text"));
+        assertNull("text/plain", requestValues.getContentType("text"));
+        assertNull(requestValues.getFileName("text"));
 
-        part = request.readNextBodyPart();
-        assertNotNull(part);
-        assertEquals("file2", part.getName());
-        assertEquals("t2.txt", part.getFilename());
-        assertEquals("text/plain", part.getContentType());
-        assertEquals("This is line 1 from file 2\r\nThis is line 2 from file 2\r\n", part.getContentAsString());
+        assertEquals(FILE1, requestValues.getValue("file1"));
+        assertArrayEquals(FILE1.getBytes("UTF-8"), requestValues.getBytesValue("file1"));
+        assertEquals("text/plain", requestValues.getContentType("file1"));
+        assertEquals("t1.txt", requestValues.getFileName("file1"));
 
-        part = request.readNextBodyPart();
-        assertNull(part);
+        assertEquals(FILE2, requestValues.getValue("file2"));
+        assertArrayEquals(FILE2.getBytes("UTF-8"), requestValues.getBytesValue("file2"));
+        assertEquals("t2.txt", requestValues.getFileName("file2"));
+        assertEquals("application/test", requestValues.getContentType("file2"));
+
+        assertNull(requestValues.getValue("wrong"));
         assertEquals(0, inputStream.available());
     }
 
     private InputStream getRequestAsStream() throws UnsupportedEncodingException {
-        return new ByteArrayInputStream(Utils.concatWithDelimiter(REQUEST_DATA, "\r\n").getBytes("ASCII"));
+        return new ByteArrayInputStream((Utils.concatWithDelimiter(REQUEST_DATA, "\r\n") + "\r\n").getBytes("UTF-8"));
     }
 
 }

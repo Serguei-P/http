@@ -9,7 +9,7 @@ class MultipartBodyParser {
     private final String border;
     private UpToBorderStreamReader reader;
 
-    private int partCount = 0;
+    private boolean firstBorderRead;
 
     MultipartBodyParser(InputStream inputStream, String border) {
         this.inputStream = inputStream;
@@ -18,15 +18,15 @@ class MultipartBodyParser {
     }
 
     public BodyPart readNextBodyPart() throws IOException {
-        if (partCount == 0) {
+        if (!firstBorderRead) {
             reader.read();
             reader = new UpToBorderStreamReader(inputStream, ("\r\n--" + border).getBytes());
+            firstBorderRead = true;
         }
         if (readToCheckIfFinalBorder()) {
             inputStream.skip(2); // final CRLF
             return null;
         }
-        partCount++;
         HttpHeaders headers = new MultipartHttpHeaders();
         headers.readHeaders(new HeaderLineReader(inputStream));
         byte[] body = reader.read();

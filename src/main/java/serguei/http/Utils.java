@@ -31,4 +31,23 @@ public final class Utils {
         return builder.toString();
     }
 
+    public static String encodeHtml(String value) {
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (ch == '"') {
+                result.append("&quot;");
+            } else if (ch == '&') {
+                result.append("&amp;");
+            } else if (ch == '<') {
+                result.append("&lt;");
+            } else if (ch == '>') {
+                result.append("&gt;");
+            } else {
+                result.append(ch);
+            }
+        }
+        return result.toString();
+    }
+
 }

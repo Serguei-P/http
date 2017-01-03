@@ -46,6 +46,24 @@ public class ServerWithPostFormTest {
     }
 
     @Test
+    public void shouldInputValues() throws Exception {
+        String field1 = "This is field1 value";
+        String field2 = "This is field2 value";
+        String field3 = "This is field3 value";
+        String body = "field1=" + field1 + "&field2=" + field2 + "&field3=" + field3;
+        HttpClientConnection client = new HttpClientConnection("localhost", server.getPort());
+        HttpRequestHeaders headers = HttpRequestHeaders.postRequest("http://localhost:" + server.getPort() + "/input");
+
+        HttpResponse response = client.send(headers, body);
+
+        assertEquals(200, response.getStatusCode());
+        String responseBody = response.readBodyAsString();
+        assertTrue(responseBody.contains('"' + field1 + '"'));
+        assertTrue(responseBody.contains('"' + field2 + '"'));
+        assertTrue(responseBody.contains('"' + field3 + '"'));
+    }
+
+    @Test
     public void shouldUploadImage() throws Exception {
         String text = "This is the text";
         String boundary = "--------------------------943603c96ae956d6";
@@ -61,11 +79,30 @@ public class ServerWithPostFormTest {
         HttpResponse response = client.send(headers, body.getBody());
 
         assertEquals(200, response.getStatusCode());
-        assertTrue(response.readBodyAsString().contains('"' + text + '"'));
+        String responseBody = response.readBodyAsString();
+        assertTrue(responseBody.contains('"' + text + '"'));
 
         response = client.send(HttpRequestHeaders.getRequest("http://localhost:" + server.getPort() + "/image.jpg"));
 
         assertArrayEquals(image, response.readBodyAsBytes());
+    }
+
+    @Test
+    public void shouldInputValuesWithSpecialCharacters() throws Exception {
+        String field1 = "This is field+1 value";
+        String field2 = "This is field++2 value";
+        String field3 = "%22This is field3 value%22";
+        String body = "field1=" + field1 + "&field2=" + field2 + "&field3=" + field3;
+        HttpClientConnection client = new HttpClientConnection("localhost", server.getPort());
+        HttpRequestHeaders headers = HttpRequestHeaders.postRequest("http://localhost:" + server.getPort() + "/input");
+
+        HttpResponse response = client.send(headers, body);
+
+        assertEquals(200, response.getStatusCode());
+        String responseBody = response.readBodyAsString();
+        assertTrue(responseBody.contains("\"This is field 1 value\""));
+        assertTrue(responseBody.contains("\"This is field  2 value\""));
+        assertTrue(responseBody.contains("\"&quot;This is field3 value&quot;\""));
     }
 
     private void waitUntilRunning(boolean running) {

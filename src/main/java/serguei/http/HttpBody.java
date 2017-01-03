@@ -4,6 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.util.zip.GZIPInputStream;
 
 class HttpBody {
@@ -51,6 +52,22 @@ class HttpBody {
         GZIPInputStream stream = new GZIPInputStream(zippedInputStream);
         byte[] result = readStream(stream);
         return new String(result, BODY_CODEPAGE);
+    }
+
+    static byte[] stringAsBytes(String value) {
+        try {
+            return value.getBytes(BODY_CODEPAGE);
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException("charset " + BODY_CODEPAGE + " is not supported", e);
+        }
+    }
+
+    static String bytesAsString(byte[] value) {
+        try {
+            return new String(value, BODY_CODEPAGE);
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException("charset " + BODY_CODEPAGE + " is not supported", e);
+        }
     }
 
     private byte[] readStream(InputStream stream) throws IOException {

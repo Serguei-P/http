@@ -22,8 +22,6 @@ public class HttpRequest {
     private final boolean chunked;
     private final URL url;
 
-    private MultipartBodyParser multipartBodyParser;
-
     HttpRequest(InputStream inputStream) throws IOException {
         this.headers = new HttpRequestHeaders(inputStream);
         this.url = headers.getUrl();
@@ -91,18 +89,17 @@ public class HttpRequest {
         return body.readAndUnzipAsString();
     }
 
-    public BodyPart readNextBodyPart() throws IOException {
-        if (multipartBodyParser == null) {
-            if (!hasMultipartBody()) {
-                return null;
-            }
+    public RequestValues readBodyAsValues() throws IOException {
+        if (hasMultipartBody()) {
             String boundary = headers.getHeaderValue("Content-Type", "boundary");
             if (boundary == null) {
-                return null;
+                throw new HttpException("Boundary not specified in Content-Type header for multi-part request");
             }
-            multipartBodyParser = new MultipartBodyParser(body.getBodyInputStream(), boundary);
+            MultipartBodyParser multipartBodyParser = new MultipartBodyParser(body.getBodyInputStream(), boundary);
+            return new RequestValues(multipartBodyParser);
+        } else {
+            return new RequestValues(body.readAsString());
         }
-        return multipartBodyParser.readNextBodyPart();
     }
 
     HttpRequestHeaders getHeaders() {
