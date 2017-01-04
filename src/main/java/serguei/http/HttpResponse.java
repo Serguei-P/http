@@ -67,4 +67,9 @@ public class HttpResponse {
         return body.readAndUnzipAsString();
     }
 
+    @Override
+    public String toString() {
+        return headers.toString();
+    }
+
 }
