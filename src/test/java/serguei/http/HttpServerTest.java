@@ -16,6 +16,7 @@ import org.junit.Test;
 public class HttpServerTest {
 
     private static final int PORT = 8080;
+    private static final int SSL_PORT = 8443;
     private static final String REQUEST_BODY = "This is a body of the request";
 
     private final ExecutorService threadPool = Executors.newCachedThreadPool();
@@ -36,6 +37,31 @@ public class HttpServerTest {
 
         for (int i = 0; i < requestNumber; i++) {
             responses[i] = threadPool.submit(new RequestProcess());
+        }
+        latch.await();
+
+        server.stop();
+
+        assertEquals(requestNumber, started.get());
+        assertEquals(requestNumber, stopped.get());
+        for (int i = 0; i < requestNumber; i++) {
+            assertEquals(200, responses[i].get().getStatusCode());
+        }
+    }
+
+    @Test(timeout = 60000)
+    public void shouldStartAndStopServerWithSsl() throws Exception {
+        int requestNumber = 2;
+        CountDownLatch latch = new CountDownLatch(requestNumber);
+        RequestHandler requestHandler = new RequestHandler(latch);
+        HttpServer server = new HttpServer(requestHandler, PORT, SSL_PORT, keyStorePath(), "password", "test01");
+        @SuppressWarnings("unchecked")
+        Future<HttpResponse>[] responses = new Future[requestNumber];
+
+        server.start();
+
+        for (int i = 0; i < requestNumber; i++) {
+            responses[i] = threadPool.submit(new SslRequestProcess());
         }
         latch.await();
 
@@ -85,9 +111,35 @@ public class HttpServerTest {
 
         @Override
         public HttpResponse call() throws Exception {
-            HttpClientConnection client = new HttpClientConnection("localhost", PORT);
-            return client.send(HttpRequestHeaders.postRequest("http://localhost:" + PORT + "/"), REQUEST_BODY);
+            try {
+                HttpClientConnection connection = new HttpClientConnection("localhost", PORT);
+                return connection.send(HttpRequestHeaders.postRequest("http://localhost:" + PORT + "/"), REQUEST_BODY);
+            } catch (IOException e) {
+                // we don't want to miss stack trace when things go wrong
+                e.printStackTrace();
+                return null;
+            }
         }
+    }
+
+    private class SslRequestProcess implements Callable<HttpResponse> {
+
+        @Override
+        public HttpResponse call() {
+            try {
+                HttpClientConnection connection = new HttpClientConnection("localhost", SSL_PORT);
+                connection.startHandshake();
+                return connection.send(HttpRequestHeaders.postRequest("http://localhost:" + SSL_PORT + "/"), REQUEST_BODY);
+            } catch (IOException e) {
+                // we don't want to miss stack trace when things go wrong
+                e.printStackTrace();
+                return null;
+            }
+        }
+    }
+
+    private String keyStorePath() {
+        return getClass().getResource("/test.jks").getFile();
     }
 
 }

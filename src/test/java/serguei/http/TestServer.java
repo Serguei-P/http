@@ -9,12 +9,13 @@ import java.util.zip.GZIPOutputStream;
 public class TestServer extends HttpServer {
 
     private static final int PORT = 8080;
+    private static final int SSL_PORT = 8443;
     private static final String BODY_CODEPAGE = "UTF-8";
 
     private final TestRequestHandler requestHandler;
 
     public TestServer() throws IOException {
-        super(new TestRequestHandler(), PORT);
+        super(new TestRequestHandler(), PORT, SSL_PORT, keyStorePath(), "password", "test01");
         requestHandler = (TestRequestHandler)getRequestHandler();
         start();
         long startTime = System.currentTimeMillis();
@@ -26,12 +27,16 @@ public class TestServer extends HttpServer {
             }
         }
         if (!isRunning()) {
-            throw new IOException("Server did not start on " + PORT);
+            throw new IOException("Server did not start on " + PORT + " and " + SSL_PORT);
         }
     }
 
     public int getPort() {
         return PORT;
+    }
+
+    public int getSslPort() {
+        return SSL_PORT;
     }
 
     public void setResponse(HttpResponseHeaders headers, byte[] body) {
@@ -151,4 +156,9 @@ public class TestServer extends HttpServer {
         }
 
     }
+
+    private static String keyStorePath() {
+        return TestServer.class.getResource("/test.jks").getFile();
+    }
+
 }

@@ -1,7 +1,6 @@
 package serguei.http;
 
 import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -11,6 +10,7 @@ import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.zip.GZIPOutputStream;
@@ -156,14 +156,19 @@ public class HttpClientConnection {
         socket = sslSocket;
         inputStream = socket.getInputStream();
         outputStream = socket.getOutputStream();
+        Certificate[] certificates = sslSocket.getSession().getPeerCertificates();
+        sslCertificates = new X509Certificate[certificates.length];
+        for (int i = 0; i < certificates.length; i++) {
+            sslCertificates[i] = (X509Certificate)certificates[i];
+        }
         negotiatedSslProtocol = TlsVersion.fromJdkString(sslSocket.getSession().getProtocol());
         negotiatedCipher = sslSocket.getSession().getCipherSuite();
     }
 
     public void close() {
-        closeQuietly(inputStream);
-        closeQuietly(outputStream);
-        closeQuietly(socket);
+        Utils.closeQuietly(inputStream);
+        Utils.closeQuietly(outputStream);
+        Utils.closeQuietly(socket);
         socket = null;
         inputStream = null;
         outputStream = null;
@@ -208,16 +213,6 @@ public class HttpClientConnection {
 
     public String getNegotiatedCipher() {
         return negotiatedCipher;
-    }
-
-    private void closeQuietly(Closeable closable) {
-        if (closable != null) {
-            try {
-                closable.close();
-            } catch (IOException e) {
-                // quietly
-            }
-        }
     }
 
     private SSLContext createSslContext(boolean validateCertificates) {

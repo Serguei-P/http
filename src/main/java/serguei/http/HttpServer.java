@@ -1,15 +1,28 @@
 package serguei.http;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.net.UnknownHostException;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
 
 public class HttpServer {
 
@@ -18,37 +31,81 @@ public class HttpServer {
 
     private final ExecutorService threadPool = Executors.newCachedThreadPool();
     private final SocketAddress socketAddress;
+    private final SocketAddress sslSocketAddress;
     private final int timeoutMils;
     private final HttpServerRequestHandler requestHandler;
     private final Map<Long, SocketRunner> connections = new ConcurrentHashMap<>();
+    private final String keyStorePath;
+    private final String keyStorePassword;
+    private final String certificatePassword;
+    private final int numberOfPorts;
 
-    private ServerSocket serverSocket;
-    private ServerSocketRunner serverSocketRunner;
-    private boolean isStopped;
+    private List<ServerSocketRunner> serverSocketRunners = new ArrayList<>();
+    private volatile boolean isStopped;
+    private AtomicLong connectionNo = new AtomicLong(0);
 
     public HttpServer(HttpServerRequestHandler requestHandler, int port) {
-        socketAddress = new InetSocketAddress(port);
-        timeoutMils = DEFAULT_TIMEOUT_MILS;
-        this.requestHandler = requestHandler;
+        this(requestHandler, allLocalAddresses(), port, -1, null, null, null);
     }
 
     public HttpServer(HttpServerRequestHandler requestHandler, InetAddress inetAddress, int port) {
+        this(requestHandler, inetAddress, port, -1, null, null, null);
+    }
+
+    public HttpServer(HttpServerRequestHandler requestHandler, int port, int sslPort, String keyStorePath,
+            String keyStorePassword, String certificatePassword) {
+        this(requestHandler, allLocalAddresses(), port, sslPort, keyStorePath, keyStorePassword, certificatePassword);
+    }
+
+    public HttpServer(HttpServerRequestHandler requestHandler, InetAddress inetAddress, int port, int sslPort,
+            String keyStorePath, String keyStorePassword, String certificatePassword) {
         socketAddress = new InetSocketAddress(inetAddress, port);
+        if (sslPort > 0) {
+            sslSocketAddress = new InetSocketAddress(inetAddress, sslPort);
+            numberOfPorts = 2;
+        } else {
+            sslSocketAddress = null;
+            numberOfPorts = 1;
+        }
         timeoutMils = DEFAULT_TIMEOUT_MILS;
         this.requestHandler = requestHandler;
+        this.keyStorePath = keyStorePath;
+        this.keyStorePassword = keyStorePassword;
+        this.certificatePassword = certificatePassword;
     }
 
     public void start() throws IOException {
-        serverSocket = new ServerSocket();
-        serverSocket.bind(socketAddress);
-        serverSocket.setSoTimeout(timeoutMils);
-        serverSocketRunner = new ServerSocketRunner();
-        threadPool.execute(serverSocketRunner);
+        List<ServerSocket> serverSockets = new ArrayList<>();
+        try {
+            ServerSocket serverSocket = createServerSocket(socketAddress);
+            serverSockets.add(serverSocket);
+            if (sslSocketAddress != null) {
+                serverSocket = createSslServerSocket(sslSocketAddress);
+                serverSockets.add(serverSocket);
+            }
+        } catch (IOException | GeneralSecurityException e) {
+            for (ServerSocket serverSocket : serverSockets) {
+                Utils.closeQuietly(serverSocket);
+            }
+            throw new IOException(e.getMessage(), e);
+        }
+        synchronized (serverSocketRunners) {
+            for (ServerSocket serverSocket : serverSockets) {
+                ServerSocketRunner serverSocketRunner = new ServerSocketRunner(serverSocket);
+                serverSocketRunners.add(serverSocketRunner);
+                threadPool.execute(serverSocketRunner);
+            }
+        }
     }
 
     public void stop() {
         try {
-            serverSocketRunner.stop();
+            synchronized (serverSocketRunners) {
+                for (ServerSocketRunner serverSocketRunner : serverSocketRunners) {
+                    serverSocketRunner.stop();
+                }
+                serverSocketRunners.clear();
+            }
             for (SocketRunner runner : connections.values()) {
                 runner.stop();
             }
@@ -57,7 +114,7 @@ public class HttpServer {
                 try {
                     Thread.sleep(200);
                 } catch (InterruptedException e) {
-                    // nothing we can do here
+                    break;
                 }
             }
             isStopped = true;
@@ -71,10 +128,12 @@ public class HttpServer {
     }
 
     public boolean isRunning() {
-        if (serverSocketRunner != null) {
-            return serverSocketRunner.isRunning();
-        } else {
-            return false;
+        synchronized (serverSocketRunners) {
+            if (serverSocketRunners.size() >= numberOfPorts) {
+                return serverSocketRunners.get(numberOfPorts - 1).isRunning();
+            } else {
+                return false;
+            }
         }
     }
 
@@ -86,11 +145,57 @@ public class HttpServer {
         return requestHandler;
     }
 
+    private ServerSocket createServerSocket(SocketAddress socketAddress) throws IOException {
+        ServerSocket serverSocket = new ServerSocket();
+        serverSocket.bind(socketAddress);
+        serverSocket.setSoTimeout(timeoutMils);
+        return serverSocket;
+    }
+
+    private ServerSocket createSslServerSocket(SocketAddress socketAddress) throws IOException, GeneralSecurityException {
+        ServerSocket serverSocket = createSSLServerSocket();
+        serverSocket.bind(socketAddress);
+        serverSocket.setSoTimeout(timeoutMils);
+        return serverSocket;
+    }
+
+    private SSLServerSocket createSSLServerSocket() throws IOException, GeneralSecurityException {
+        KeyStore keyStore = loadKeyStore();
+        String algorithm = KeyManagerFactory.getDefaultAlgorithm();
+        KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(algorithm);
+        keyManagerFactory.init(keyStore, certificatePassword.toCharArray());
+        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(algorithm);
+        trustManagerFactory.init(keyStore);
+        SSLContext sslContext = SSLContext.getInstance("SSL");
+        sslContext.init(keyManagerFactory.getKeyManagers(), trustManagerFactory.getTrustManagers(), null);
+        SSLServerSocketFactory ssocketFactory = sslContext.getServerSocketFactory();
+        return (SSLServerSocket)ssocketFactory.createServerSocket();
+    }
+
+    private KeyStore loadKeyStore() throws IOException, GeneralSecurityException {
+        KeyStore keystore = KeyStore.getInstance("JKS");
+        keystore.load(new FileInputStream(keyStorePath), keyStorePassword.toCharArray());
+        return keystore;
+    }
+
+    private static InetAddress allLocalAddresses() {
+        byte[] address = {0, 0, 0, 0};
+        try {
+            return InetAddress.getByAddress(address);
+        } catch (UnknownHostException e) {
+            return null;
+        }
+    }
+
     private class ServerSocketRunner implements Runnable {
 
-        private Long connectionNo = 0l;
+        private final ServerSocket serverSocket;
         private volatile boolean finished;
         private volatile boolean started;
+
+        public ServerSocketRunner(ServerSocket serverSocket) {
+            this.serverSocket = serverSocket;
+        }
 
         @Override
         public void run() {
@@ -98,10 +203,11 @@ public class HttpServer {
                 try {
                     started = true;
                     Socket socket = serverSocket.accept();
-                    SocketRunner socketRunner = new SocketRunner(socket, connectionNo++);
+                    SocketRunner socketRunner = new SocketRunner(socket);
                     threadPool.execute(socketRunner);
                 } catch (IOException e) {
                     // we will get SocketException when serverSocket is closed
+                    finished = true;
                 }
             }
         }
@@ -119,18 +225,17 @@ public class HttpServer {
     private class SocketRunner implements Runnable {
 
         private final Socket socket;
-        private final Long connectionNo;
         private volatile boolean finished = false;
 
-        public SocketRunner(Socket socket, long connectionNo) {
+        public SocketRunner(Socket socket) {
             this.socket = socket;
-            this.connectionNo = connectionNo;
         }
 
         @Override
         public void run() {
+            Long connNo = connectionNo.incrementAndGet();
             try {
-                connections.put(connectionNo, this);
+                connections.put(connNo, this);
                 while (!finished) {
                     HttpRequest request;
                     try {
@@ -151,7 +256,7 @@ public class HttpServer {
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
-                connections.remove(connectionNo);
+                connections.remove(connNo);
                 try {
                     socket.close();
                 } catch (IOException e) {

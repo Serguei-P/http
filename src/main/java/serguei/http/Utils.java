@@ -1,5 +1,8 @@
 package serguei.http;
 
+import java.io.Closeable;
+import java.io.IOException;
+
 public final class Utils {
 
     private Utils() {
@@ -48,6 +51,16 @@ public final class Utils {
             }
         }
         return result.toString();
+    }
+
+    public static void closeQuietly(Closeable closable) {
+        if (closable != null) {
+            try {
+                closable.close();
+            } catch (IOException e) {
+                // quietly
+            }
+        }
     }
 
 }
