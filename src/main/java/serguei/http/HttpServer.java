@@ -24,6 +24,16 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
+/**
+ * This is HTTP Server. When started it will listen on one (usually HTTP port) or two (plus HTTPS port - this will do
+ * SSL handshake on the connection)
+ * 
+ * This class provides all necessary scaffolding including listening on a port and creating threads for processing
+ * requests. The actual job of processing request is done in HttpServerRequestHandler object passed in a constructor
+ * 
+ * @author Serguei Poliakov
+ *
+ */
 public class HttpServer {
 
     private static final int DEFAULT_TIMEOUT_MILS = 10_000;
@@ -44,19 +54,79 @@ public class HttpServer {
     private volatile boolean isStopped;
     private AtomicLong connectionNo = new AtomicLong(0);
 
+    /**
+     * Creating an instance of HttpServer listening to one ports (this does not actually start the server - call start()
+     * for that). This listens to connection to all IP addresses (bind to 0.0.0.0).
+     * 
+     * @param requestHandler
+     *            - an implementation of HttpServerRequestHandler that will processes all requests
+     * @param port
+     *            - port for HTTP requests
+     */
     public HttpServer(HttpServerRequestHandler requestHandler, int port) {
         this(requestHandler, allLocalAddresses(), port, -1, null, null, null);
     }
 
+    /**
+     * Creating an instance of HttpServer listening to one ports (this does not actually start the server - call start()
+     * for that).
+     * 
+     * @param requestHandler
+     *            - an implementation of HttpServerRequestHandler that will processes all requests
+     * @param inetAddress
+     *            - an IP address to which the server is bound. You can use this constructor if you wish to limit your
+     *            server to a particular local interface, if it is null, then we binding on 0.0.0.0
+     * @param port
+     *            - port for HTTP requests
+     */
     public HttpServer(HttpServerRequestHandler requestHandler, InetAddress inetAddress, int port) {
         this(requestHandler, inetAddress, port, -1, null, null, null);
     }
 
+    /**
+     * Creating an instance of HttpServer listening to two ports (this does not actually start the server - call start()
+     * for that). This listens to connection to all IP addresses (bind to 0.0.0.0).
+     * 
+     * @param requestHandler
+     *            - an implementation of HttpServerRequestHandler that will processes all requests
+     * @param port
+     *            - port for HTTP requests
+     * @param sslPort
+     *            - port for HTTPS requests (on connection to this port the server will expect the client to start SSL
+     *            handshake)
+     * @param keyStorePath
+     *            - path to Java keystore file (JKS file)
+     * @param keyStorePassword
+     *            - password for Java keystore file
+     * @param certificatePassword
+     *            - password for certificates in Java keystore
+     */
     public HttpServer(HttpServerRequestHandler requestHandler, int port, int sslPort, String keyStorePath,
             String keyStorePassword, String certificatePassword) {
         this(requestHandler, allLocalAddresses(), port, sslPort, keyStorePath, keyStorePassword, certificatePassword);
     }
 
+    /**
+     * Creating an instance of HttpServer listening to two ports (this does not actually start the server - call start()
+     * for that).
+     * 
+     * @param requestHandler
+     *            - an implementation of HttpServerRequestHandler that will processes all requests
+     * @param inetAddress
+     *            - an IP address to which the server is bound. You can use this constructor if you wish to limit your
+     *            server to a particular local interface, if it is null, then we binding on 0.0.0.0
+     * @param port
+     *            - port for HTTP requests
+     * @param sslPort
+     *            - port for HTTPS requests (on connection to this port the server will expect the client to start SSL
+     *            handshake)
+     * @param keyStorePath
+     *            - path to Java keystore file (JKS file)
+     * @param keyStorePassword
+     *            - password for Java keystore file
+     * @param certificatePassword
+     *            - password for certificates in Java keystore
+     */
     public HttpServer(HttpServerRequestHandler requestHandler, InetAddress inetAddress, int port, int sslPort,
             String keyStorePath, String keyStorePassword, String certificatePassword) {
         socketAddress = new InetSocketAddress(inetAddress, port);
@@ -74,7 +144,19 @@ public class HttpServer {
         this.certificatePassword = certificatePassword;
     }
 
+    /**
+     * Starts the server. This operation will return after server sockets are bound to ports but before the server
+     * actually starts listening on sockets
+     * 
+     * @throws IOException
+     *             - often indicate that we can't bind to a port (e.g. because it is used by a different application or
+     *             we don't have authority to find to it).
+     */
     public void start() throws IOException {
+        if (serverSocketRunners.size() > 0) {
+            throw new RuntimeException("Server is already running");
+        }
+        isStopped = false;
         List<ServerSocket> serverSockets = new ArrayList<>();
         try {
             ServerSocket serverSocket = createServerSocket(socketAddress);
@@ -98,6 +180,10 @@ public class HttpServer {
         }
     }
 
+    /**
+     * Stops the server. This will stop listening to ports and attempt to wait until all current requests finish
+     * execution (subject to a timeout)
+     */
     public void stop() {
         try {
             synchronized (serverSocketRunners) {
@@ -123,11 +209,20 @@ public class HttpServer {
         }
     }
 
+    /**
+     * @return Current number of client connections to the server
+     */
     public int getConnectionNo() {
         return connections.size();
     }
 
+    /**
+     * @return true if the server started successfully and accepting incoming connections
+     */
     public boolean isRunning() {
+        if (isStopped) {
+            return false;
+        }
         synchronized (serverSocketRunners) {
             if (serverSocketRunners.size() >= numberOfPorts) {
                 return serverSocketRunners.get(numberOfPorts - 1).isRunning();
@@ -137,6 +232,9 @@ public class HttpServer {
         }
     }
 
+    /**
+     * @return true if the server stopped (after waiting for active requests to finish or timeout)
+     */
     public boolean isStopped() {
         return isStopped;
     }
@@ -199,9 +297,9 @@ public class HttpServer {
 
         @Override
         public void run() {
+            started = true;
             while (!finished) {
                 try {
-                    started = true;
                     Socket socket = serverSocket.accept();
                     SocketRunner socketRunner = new SocketRunner(socket);
                     threadPool.execute(socketRunner);
