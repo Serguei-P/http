@@ -15,11 +15,19 @@ public class ChunkedOutputStream extends OutputStream {
     private final boolean leaveUnderlyingStreamOpen;
     private int bytesInChunk = 0;
 
-    public ChunkedOutputStream(OutputStream outputStream, boolean leaveUnderlyingStreamOpen) {
-        this(outputStream, leaveUnderlyingStreamOpen, DEFAULT_CHUNK_SIZE);
+    public ChunkedOutputStream(OutputStream outputStream) {
+        this(outputStream, DEFAULT_CHUNK_SIZE, false);
     }
 
-    public ChunkedOutputStream(OutputStream outputStream, boolean leaveUnderlyingStreamOpen, int chunkSize) {
+    public ChunkedOutputStream(OutputStream outputStream, int chunkSize) {
+        this(outputStream, chunkSize, false);
+    }
+
+    public ChunkedOutputStream(OutputStream outputStream, boolean leaveUnderlyingStreamOpen) {
+        this(outputStream, DEFAULT_CHUNK_SIZE, leaveUnderlyingStreamOpen);
+    }
+
+    public ChunkedOutputStream(OutputStream outputStream, int chunkSize, boolean leaveUnderlyingStreamOpen) {
         this.outputStream = outputStream;
         this.chunkBuffer = new byte[chunkSize];
         this.leaveUnderlyingStreamOpen = leaveUnderlyingStreamOpen;

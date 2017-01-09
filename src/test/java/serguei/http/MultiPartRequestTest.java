@@ -8,6 +8,8 @@ import java.io.UnsupportedEncodingException;
 
 import org.junit.Test;
 
+import serguei.http.utils.Utils;
+
 public class MultiPartRequestTest {
 
     private static final String BOUNDARY = "------------------------943603c96ae951d6";

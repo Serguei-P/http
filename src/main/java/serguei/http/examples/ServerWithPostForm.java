@@ -11,7 +11,7 @@ import serguei.http.HttpResponseHeaders;
 import serguei.http.HttpServer;
 import serguei.http.HttpServerRequestHandler;
 import serguei.http.RequestValues;
-import serguei.http.Utils;
+import serguei.http.utils.Utils;
 
 /**
  * This is an example of a very simple web server that shows a screen allowing to create a normal and multi-part POST
@@ -53,8 +53,8 @@ public class ServerWithPostForm implements Runnable {
     public void run() {
         try {
             server.start();
+            System.out.println("Server started on " + PORT);
             while (true) {
-                System.out.println("Server started");
                 String line = reader.readLine();
                 if (line != null && line.equalsIgnoreCase("quit")) {
                     server.stop();
@@ -88,7 +88,6 @@ public class ServerWithPostForm implements Runnable {
             } else {
                 respondWithMainPage(outputStream);
             }
-            outputStream.flush();
         }
 
         private void extractFormData(HttpRequest request) throws IOException {

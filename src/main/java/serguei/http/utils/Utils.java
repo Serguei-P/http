@@ -1,4 +1,4 @@
-package serguei.http;
+package serguei.http.utils;
 
 import java.io.Closeable;
 import java.io.IOException;

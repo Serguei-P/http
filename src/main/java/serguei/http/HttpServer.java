@@ -24,6 +24,8 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
+import serguei.http.utils.Utils;
+
 /**
  * This is HTTP Server. When started it will listen on one (usually HTTP port) or two (plus HTTPS port - this will do
  * SSL handshake on the connection)
@@ -346,6 +348,7 @@ public class HttpServer {
                     }
                     try {
                         requestHandler.process(request, socket.getOutputStream());
+                        socket.getOutputStream().flush();
                     } catch (IOException e) {
                         System.out.println("Error while processing request: " + e.getMessage());
                         finished = true;

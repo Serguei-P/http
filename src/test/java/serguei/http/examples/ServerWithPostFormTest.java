@@ -2,9 +2,6 @@ package serguei.http.examples;
 
 import static org.junit.Assert.*;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -13,7 +10,7 @@ import serguei.http.HttpClientConnection;
 import serguei.http.HttpRequestHeaders;
 import serguei.http.HttpResponse;
 import serguei.http.MultipartFormDataRequestBody;
-import serguei.http.Utils;
+import serguei.http.utils.WaitingByteArrayInputStream;
 
 public class ServerWithPostFormTest {
 
@@ -114,42 +111,6 @@ public class ServerWithPostFormTest {
                 break;
             }
         }
-    }
-
-    private class WaitingByteArrayInputStream extends ByteArrayInputStream {
-
-        public WaitingByteArrayInputStream() {
-            super(new byte[0]);
-        }
-
-        @Override
-        public synchronized int read() {
-            while (available() == 0) {
-                try {
-                    this.wait();
-                } catch (InterruptedException e) {
-                }
-            }
-            return super.read();
-        }
-
-        @Override
-        public synchronized int read(byte[] buffer, int off, int len) {
-            while (available() == 0) {
-                try {
-                    this.wait();
-                } catch (InterruptedException e) {
-                }
-            }
-            return super.read(buffer, off, len);
-        }
-
-        private synchronized void push(String line) throws IOException {
-            buf = Utils.concat(buf, line.getBytes("UTF-8"));
-            count = buf.length;
-            this.notifyAll();
-        }
-
     }
 
 }

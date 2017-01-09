@@ -19,7 +19,7 @@ public class ChunkedOutputStreamTest {
     @Test
     public void shouldWriteChunk() throws Exception {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        ChunkedOutputStream outputStream = new ChunkedOutputStream(output, false, 10);
+        ChunkedOutputStream outputStream = new ChunkedOutputStream(output, 10, false);
 
         outputStream.write(OUTPUT_DATA);
         outputStream.close();
@@ -30,7 +30,7 @@ public class ChunkedOutputStreamTest {
     @Test
     public void shouldWriteChunkByByte() throws Exception {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        ChunkedOutputStream outputStream = new ChunkedOutputStream(output, false, 10);
+        ChunkedOutputStream outputStream = new ChunkedOutputStream(output, 10, false);
 
         for (byte ch : OUTPUT_DATA) {
             outputStream.write((int)ch);
@@ -54,7 +54,7 @@ public class ChunkedOutputStreamTest {
     @Test
     public void shouldBeReadByChunkedInputStream() throws Exception {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        ChunkedOutputStream outputStream = new ChunkedOutputStream(output, false, 12);
+        ChunkedOutputStream outputStream = new ChunkedOutputStream(output, 12, false);
 
         outputStream.write(OUTPUT_DATA);
         outputStream.close();

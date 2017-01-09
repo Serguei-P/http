@@ -4,6 +4,8 @@ import static org.junit.Assert.*;
 
 import org.junit.Test;
 
+import serguei.http.utils.Utils;
+
 public class MultipartFormDataRequestBodyTest {
 
     private static final String text = "This is the text";
