@@ -46,7 +46,7 @@ public class ClientAndServerTest {
         assertEquals(200, response.getStatusCode());
         assertNull(response.getHeader("Content-Encoding"));
         assertEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
-        assertFalse(response.isResponseChunked());
+        assertFalse(response.isContentChunked());
         assertEquals(responseBody, response.readBodyAsString());
     }
 
@@ -63,7 +63,7 @@ public class ClientAndServerTest {
         assertEquals("gzip", response.getHeader("Content-Encoding"));
         assertTrue(response.getContentLength() > 0);
         assertNotEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
-        assertFalse(response.isResponseChunked());
+        assertFalse(response.isContentChunked());
         assertEquals(responseBody, response.readBodyAsString());
     }
 
@@ -80,7 +80,7 @@ public class ClientAndServerTest {
         assertEquals(200, response.getStatusCode());
         assertNull(response.getHeader("Content-Encoding"));
         assertEquals(-1, response.getContentLength());
-        assertTrue(response.isResponseChunked());
+        assertTrue(response.isContentChunked());
         assertEquals(responseBody, response.readBodyAsString());
     }
 
@@ -99,7 +99,7 @@ public class ClientAndServerTest {
         assertEquals(200, response.getStatusCode());
         assertEquals("gzip", response.getHeader("Content-Encoding"));
         assertEquals(-1, response.getContentLength());
-        assertTrue(response.isResponseChunked());
+        assertTrue(response.isContentChunked());
         assertEquals(responseBody, response.readBodyAsString());
     }
 
@@ -112,7 +112,7 @@ public class ClientAndServerTest {
         HttpResponse response = clientConnection.send(headers, inputStream);
 
         assertNull(response.getHeader("Content-Encoding"));
-        assertTrue(response.isResponseChunked());
+        assertTrue(response.isContentChunked());
         assertEquals(responseBody, response.readBodyAsString());
 
         server.setChunkedResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.GZIP);
@@ -122,7 +122,7 @@ public class ClientAndServerTest {
         response = clientConnection.send(headers, inputStream, BodyCompression.GZIP);
 
         assertEquals("gzip", response.getHeader("Content-Encoding"));
-        assertTrue(response.isResponseChunked());
+        assertTrue(response.isContentChunked());
         assertEquals(responseBody, response.readBodyAsString());
     }
 

@@ -1,6 +1,5 @@
 package serguei.http;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,14 +43,6 @@ class HttpBody {
 
     InputStream getBodyInputStream() {
         return bodyInputStream;
-    }
-
-    String readAndUnzipAsString() throws IOException {
-        byte[] buffer = readAsBytes();
-        ByteArrayInputStream zippedInputStream = new ByteArrayInputStream(buffer);
-        GZIPInputStream stream = new GZIPInputStream(zippedInputStream);
-        byte[] result = readStream(stream);
-        return new String(result, BODY_CODEPAGE);
     }
 
     static byte[] stringAsBytes(String value) {

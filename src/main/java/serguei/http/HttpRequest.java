@@ -31,18 +31,30 @@ public class HttpRequest {
         body = new HttpBody(inputStream, contentLength, chunked, encoding);
     }
 
+    /**
+     * @return HTTP method (e.g. GET, POST etc)
+     */
     public String getMethod() {
         return headers.getMethod();
     }
 
+    /**
+     * @return Request url (build from a request line and, if it is missing host name, from Host header)
+     */
     public URL getUrl() {
         return url;
     }
 
+    /**
+     * @return HTTP version ("HTTP/1.0" or "HTTP/1.1")
+     */
     public String getVersion() {
         return headers.getVersion();
     }
 
+    /**
+     * @return Host name. Comes from Host header or, if absent (e.g. when HTTP/1.0) then from request line
+     */
     public String getHost() {
         String host = headers.getHeader("Host");
         if (host != null) {
@@ -52,14 +64,23 @@ public class HttpRequest {
         }
     }
 
+    /**
+     * @return content length (as set in Content-Length header). If absent - returns -1
+     */
     public long getContentLength() {
         return contentLength;
     }
 
-    public boolean isResponseChunked() {
+    /**
+     * @return true if body is sent using chunked encoding
+     */
+    public boolean isContentChunked() {
         return chunked;
     }
 
+    /**
+     * @return true if it is multi-part request
+     */
     public boolean hasMultipartBody() {
         String contentType = headers.getHeader("Content-Type");
         if (contentType != null) {
@@ -69,26 +90,45 @@ public class HttpRequest {
         }
     }
 
+    /**
+     * This returns an HTTP header by name, if there are more then one header with this name, the first one will be
+     * returned, if header with this name does not exist, null is returned. The name is not case-sensitive.
+     */
     public String getHeader(String headerName) {
         return headers.getHeader(headerName);
     }
 
+    /**
+     * This returns headers by name, if there are more then one header with this name, all of them will be returned, if
+     * headers with this name don't exist, an empty list is returned The name is not case-sensitive.
+     */
     public List<String> getHeaders(String headerName) {
         return Collections.unmodifiableList(headers.getHeaders(headerName));
     }
 
+    /**
+     * This reads the body of the request and returns it as a string
+     * 
+     * @throws IOException
+     */
     public String readBodyAsString() throws IOException {
         return body.readAsString();
     }
 
+    /**
+     * This reads the body of the request and returns it as an array of bytes
+     * 
+     * @throws IOException
+     */
     public byte[] readBodyAsBytes() throws IOException {
         return body.readAsBytes();
     }
 
-    public String readBodyAndUnzip() throws IOException {
-        return body.readAndUnzipAsString();
-    }
-
+    /**
+     * This reads the body of the request and parses it assuming it contains HTML Form data
+     * 
+     * @throws IOException
+     */
     public RequestValues readBodyAsValues() throws IOException {
         if (hasMultipartBody()) {
             String boundary = headers.getHeaderValue("Content-Type", "boundary");

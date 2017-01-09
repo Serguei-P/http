@@ -44,7 +44,7 @@ abstract class HttpHeaders {
     }
 
     /**
-     * This returns a headers by name, if there are more then one header with this name, all of them will be returned
+     * This returns headers by name, if there are more then one header with this name, all of them will be returned
      */
     public List<String> getHeaders(String headerName) {
         headerName = normalize(headerName);

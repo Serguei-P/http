@@ -46,7 +46,7 @@ public class ClientAndServerSslTest {
         assertEquals(200, response.getStatusCode());
         assertNull(response.getHeader("Content-Encoding"));
         assertEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
-        assertFalse(response.isResponseChunked());
+        assertFalse(response.isContentChunked());
         assertEquals(responseBody, response.readBodyAsString());
     }
 
