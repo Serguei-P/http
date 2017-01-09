@@ -47,6 +47,9 @@ public class HttpResponseHeaders extends HttpHeaders {
     HttpResponseHeaders(InputStream inputStream) throws IOException {
         HeaderLineReader reader = new HeaderLineReader(inputStream);
         String line = reader.readLine();
+        if (line != null && line.length() == 0) {
+            line = reader.readLine();
+        }
         if (line != null) {
             parseResponseLine(line);
         } else {
@@ -120,15 +123,15 @@ public class HttpResponseHeaders extends HttpHeaders {
     }
 
     private void parseResponseLine(String line) throws HttpException {
-        int versionPos = line.indexOf(' ');
-        if (versionPos > 0) {
-            version = line.substring(0, versionPos);
+        int versionEndPos = line.indexOf(' ');
+        if (versionEndPos > 0) {
+            version = line.substring(0, versionEndPos);
         } else {
             throwWrongNumberOfElementsException(line);
         }
-        int statusPos = line.indexOf(' ', versionPos + 1);
-        if (statusPos > 0) {
-            String statusCodeAsString = line.substring(versionPos + 1, statusPos);
+        int statusEndPos = line.indexOf(' ', versionEndPos + 1);
+        if (statusEndPos > 0) {
+            String statusCodeAsString = line.substring(versionEndPos + 1, statusEndPos);
             try {
                 statusCode = Integer.parseInt(statusCodeAsString);
             } catch (NumberFormatException e) {
@@ -137,11 +140,11 @@ public class HttpResponseHeaders extends HttpHeaders {
         } else {
             throwWrongNumberOfElementsException(line);
         }
-        reason = line.substring(statusPos + 1);
+        reason = line.substring(statusEndPos + 1);
     }
 
     private void throwWrongNumberOfElementsException(String line) throws HttpException {
-        throw new HttpException("Wrong number of elements in response line: " + line);
+        throw new HttpException("Wrong number of elements in response line: \"" + line + "\"");
     }
 
 }

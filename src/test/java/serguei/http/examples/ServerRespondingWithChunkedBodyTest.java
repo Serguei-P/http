@@ -55,6 +55,19 @@ public class ServerRespondingWithChunkedBodyTest {
         assertTrue(response.readBodyAsString().contains("--- END ---"));
     }
 
+    @Test
+    public void shouldLeaveConnectionOpenAfterFirstRequest() throws Exception {
+        HttpClientConnection connection = new HttpClientConnection("localhost", server.getPort());
+
+        HttpRequestHeaders headers = HttpRequestHeaders.getRequest("http://localhost:" + server.getPort() + "/");
+
+        HttpResponse response = connection.send(headers);
+        // assertEquals(200, response.getStatusCode());
+
+        response = connection.send(headers);
+        assertEquals(200, response.getStatusCode());
+    }
+
     private void waitUntilRunning(boolean running) {
         long startTime = System.currentTimeMillis();
         while (server.isRunning() != running || System.currentTimeMillis() - startTime > 2000) {
