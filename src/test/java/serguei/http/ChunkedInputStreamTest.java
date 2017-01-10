@@ -10,6 +10,8 @@ import java.io.UnsupportedEncodingException;
 
 import org.junit.Test;
 
+import serguei.http.utils.Utils;
+
 // RFC-2616
 public class ChunkedInputStreamTest {
 
@@ -21,8 +23,24 @@ public class ChunkedInputStreamTest {
     public void shouldReadData() throws Exception {
         String line1 = "This is the first chunk\r\n";
         String line2 = "And another chunk\r\n";
-        byte[] data = mergeBuffers(makeChunk(line1, ";extName1=extValue1;extName2=extValue2"), makeChunk(line2, ""),
-                makeLastChunk(""), makeTrailer("trailerName1=trailerValue2", "trailerName1=trailerValue2"));
+        byte[] data = Utils.concat(makeChunk(line1, ";extName1=extValue1;extName2=extValue2"), makeChunk(line2, ""),
+                makeLastChunk(""), makeTrailer("trailerName1: trailerValue1", "trailerName2: trailerValue2"), CRLF);
+        ByteArrayInputStream input = new ByteArrayInputStream(data);
+
+        ChunkedInputStream stream = new ChunkedInputStream(input);
+        String result = readToString(stream);
+
+        assertEquals(line1 + line2, result);
+        assertEquals("trailerValue1", stream.getTrailerValue("trailerName1"));
+        assertEquals("trailerValue2", stream.getTrailerValue("trailerName2"));
+    }
+
+    @Test
+    public void shouldReadDataWithoutTrailer() throws Exception {
+        String line1 = "This is the first chunk\r\n";
+        String line2 = "And another chunk\r\n";
+        byte[] data = Utils.concat(makeChunk(line1, ";extName1=extValue1;extName2=extValue2"), makeChunk(line2, ""),
+                makeLastChunk(""), CRLF);
         ByteArrayInputStream input = new ByteArrayInputStream(data);
 
         ChunkedInputStream stream = new ChunkedInputStream(input);
@@ -34,8 +52,8 @@ public class ChunkedInputStreamTest {
     @Test
     public void shouldReadLargeData() throws Exception {
         String line1 = "This is small chunk ";
-        String line2 = makeLongString(10000);
-        byte[] data = mergeBuffers(makeChunk(line1, ""), makeChunk(line2, ""), makeLastChunk(""), makeTrailer());
+        String line2 = makeLongString(40000);
+        byte[] data = Utils.concat(makeChunk(line1, ""), makeChunk(line2, ""), makeLastChunk(""), makeTrailer(), CRLF);
         ByteArrayInputStream input = new ByteArrayInputStream(data);
 
         ChunkedInputStream stream = new ChunkedInputStream(input);
@@ -48,8 +66,8 @@ public class ChunkedInputStreamTest {
     public void shouldReadDataByByte() throws Exception {
         String line1 = "This is the first chunk\r\n";
         String line2 = "And another chunk\r\n";
-        byte[] data = mergeBuffers(makeChunk(line1, ";extName1=extValue1;extName2=extValue2"), makeChunk(line2, ""),
-                makeLastChunk(""), makeTrailer("trailerName1=trailerValue2", "trailerName1=trailerValue2"));
+        byte[] data = Utils.concat(makeChunk(line1, ";extName1=extValue1;extName2=extValue2"), makeChunk(line2, ""),
+                makeLastChunk(""), makeTrailer("trailerName1: trailerValue1", "trailerName2: trailerValue2"), CRLF);
         ByteArrayInputStream input = new ByteArrayInputStream(data);
 
         ChunkedInputStream stream = new ChunkedInputStream(input);
@@ -62,7 +80,7 @@ public class ChunkedInputStreamTest {
     public void shouldReadLargeDataByByte() throws Exception {
         String line1 = "This is small chunk ";
         String line2 = makeLongString(10000);
-        byte[] data = mergeBuffers(makeChunk(line1, ""), makeChunk(line2, ""), makeLastChunk(""), makeTrailer());
+        byte[] data = Utils.concat(makeChunk(line1, ""), makeChunk(line2, ""), makeLastChunk(""), makeTrailer(), CRLF);
         ByteArrayInputStream input = new ByteArrayInputStream(data);
 
         ChunkedInputStream stream = new ChunkedInputStream(input);
@@ -71,21 +89,37 @@ public class ChunkedInputStreamTest {
         assertEquals(line1 + line2, result);
     }
 
+    @Test
+    public void shouldNotReadMoreThenRequired() throws Exception {
+        String line1 = "This is the first chunk\r\n";
+        String line2 = "And another chunk\r\n";
+        byte[] moreData = {10, 11};
+        byte[] data = Utils.concat(makeChunk(line1, ";extName1=extValue1;extName2=extValue2"), makeChunk(line2, ""),
+                makeLastChunk(""), makeTrailer("trailerName1: trailerValue1", "trailerName2: trailerValue2"), CRLF, moreData);
+        ByteArrayInputStream input = new ByteArrayInputStream(data);
+
+        ChunkedInputStream stream = new ChunkedInputStream(input);
+        String result = readToStringByByte(stream);
+
+        assertEquals(line1 + line2, result);
+        assertEquals(moreData.length, input.available());
+    }
+
     private byte[] makeChunk(String chunkBody, String extension) throws UnsupportedEncodingException {
         byte[] bodyBuffer = chunkBody.getBytes(DATA_CODEPAGE);
         String header = Integer.toHexString(bodyBuffer.length) + extension;
         byte[] headerBuffer = header.getBytes(HTTP_CODEPAGE);
-        return mergeBuffers(headerBuffer, CRLF, bodyBuffer, CRLF);
+        return Utils.concat(headerBuffer, CRLF, bodyBuffer, CRLF);
     }
 
     private byte[] makeLastChunk(String extension) throws UnsupportedEncodingException {
         String header = "0" + extension;
         byte[] headerBuffer = header.getBytes(HTTP_CODEPAGE);
-        return mergeBuffers(headerBuffer, CRLF);
+        return Utils.concat(headerBuffer, CRLF);
     }
 
     private byte[] makeTrailer(String... headers) throws UnsupportedEncodingException {
-        int size = 2;
+        int size = 2; // for last CRLF
         byte[][] buffers = new byte[headers.length][];
         for (int i = 0; i < headers.length; i++) {
             buffers[i] = headers[i].getBytes(HTTP_CODEPAGE);
@@ -100,20 +134,6 @@ public class ChunkedInputStreamTest {
             pos += 2;
         }
         System.arraycopy(CRLF, 0, result, pos, CRLF.length);
-        return result;
-    }
-
-    private byte[] mergeBuffers(byte[]... buffers) {
-        int size = 0;
-        for (byte[] buffer : buffers) {
-            size += buffer.length;
-        }
-        byte[] result = new byte[size];
-        int pos = 0;
-        for (byte[] buffer : buffers) {
-            System.arraycopy(buffer, 0, result, pos, buffer.length);
-            pos += buffer.length;
-        }
         return result;
     }
 

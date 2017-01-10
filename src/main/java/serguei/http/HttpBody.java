@@ -6,12 +6,15 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.zip.GZIPInputStream;
 
+import serguei.http.utils.Utils;
+
 class HttpBody {
 
     static final String BODY_CODEPAGE = "UTF-8";
     private static final int BUFFER_SIZE = 1024 * 4;
 
     private final InputStream bodyInputStream;
+    private final InputStream streamToDrainOfData;
     private final boolean hasBody;
 
     HttpBody(InputStream inputStream, long contentLength, boolean chunked, String encoding) throws IOException {
@@ -22,7 +25,11 @@ class HttpBody {
             stream = new LimitedLengthInputStream(inputStream, contentLength);
         }
         if (encoding != null && encoding.equals("gzip")) {
+            // GZIPInputStream returns -1 before all bytes from input stream read
+            streamToDrainOfData = stream;
             stream = new GZIPInputStream(stream);
+        } else {
+            streamToDrainOfData = null;
         }
         this.bodyInputStream = stream;
         this.hasBody = contentLength > 0 || chunked;
@@ -69,7 +76,11 @@ class HttpBody {
             outputStream.write(buffer, 0, read);
             read = stream.read(buffer);
         }
-        return outputStream.toByteArray();
+        byte[] result = outputStream.toByteArray();
+        if (streamToDrainOfData != null) {
+            Utils.readFully(streamToDrainOfData);
+        }
+        return result;
     }
 
 }

@@ -1,7 +1,11 @@
 package serguei.http;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -327,19 +331,23 @@ public class HttpServer {
         private final Socket socket;
         private volatile boolean finished = false;
 
-        public SocketRunner(Socket socket) {
+        public SocketRunner(Socket socket) throws IOException {
             this.socket = socket;
         }
 
         @Override
         public void run() {
             Long connNo = connectionNo.incrementAndGet();
+            connections.put(connNo, this);
+            InputStream inputStream = null;
+            OutputStream outputStream = null;
             try {
-                connections.put(connNo, this);
+                inputStream = new BufferedInputStream(socket.getInputStream());
+                outputStream = new BufferedOutputStream(socket.getOutputStream());
                 while (!finished) {
                     HttpRequest request;
                     try {
-                        request = new HttpRequest(socket.getInputStream());
+                        request = new HttpRequest(inputStream);
                     } catch (HttpException e) {
                         // this happens when connection is closed by the client or
                         // client sends non-HTTP data
@@ -347,8 +355,8 @@ public class HttpServer {
                         break;
                     }
                     try {
-                        requestHandler.process(request, socket.getOutputStream());
-                        socket.getOutputStream().flush();
+                        requestHandler.process(request, outputStream);
+                        outputStream.flush();
                     } catch (IOException e) {
                         System.out.println("Error while processing request: " + e.getMessage());
                         finished = true;
@@ -358,11 +366,9 @@ public class HttpServer {
                 e.printStackTrace();
             } finally {
                 connections.remove(connNo);
-                try {
-                    socket.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                Utils.closeQuietly(inputStream);
+                Utils.closeQuietly(outputStream);
+                Utils.closeQuietly(socket);
                 finished = true;
             }
         }

@@ -8,6 +8,8 @@ import java.io.InputStream;
 
 import org.junit.Test;
 
+import serguei.http.utils.Utils;
+
 public class ChunkedOutputStreamTest {
 
     private byte[] OUTPUT_DATA = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10};
@@ -62,11 +64,10 @@ public class ChunkedOutputStreamTest {
         InputStream inputStream = new ByteArrayInputStream(output.toByteArray());
         InputStream chunkedInputStream = new ChunkedInputStream(inputStream);
 
-        byte[] buffer = new byte[OUTPUT_DATA.length];
-        int read = chunkedInputStream.read(buffer);
-        assertEquals(OUTPUT_DATA.length, read);
-        assertEquals(-1, chunkedInputStream.read());
+        byte[] buffer = Utils.readFully(chunkedInputStream);
+        assertEquals(OUTPUT_DATA.length, buffer.length);
         assertArrayEquals(OUTPUT_DATA, buffer);
         chunkedInputStream.close();
     }
+
 }

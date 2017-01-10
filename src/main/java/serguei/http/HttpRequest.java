@@ -28,7 +28,12 @@ public class HttpRequest {
         contentLength = headers.getContentLength();
         chunked = contentLength < 0 && headers.hasChunkedBody();
         String encoding = headers.getHeader("content-encoding");
-        body = new HttpBody(inputStream, contentLength, chunked, encoding);
+        String method = headers.getMethod();
+        if (!method.equals("GET") && !method.equals("CONNECT")) {
+            body = new HttpBody(inputStream, contentLength, chunked, encoding);
+        } else {
+            body = null;
+        }
     }
 
     /**
@@ -84,7 +89,7 @@ public class HttpRequest {
     public boolean hasMultipartBody() {
         String contentType = headers.getHeader("Content-Type");
         if (contentType != null) {
-            return contentType.startsWith("multipart/");
+            return contentType.startsWith("multipart/") && body != null;
         } else {
             return false;
         }
@@ -112,7 +117,11 @@ public class HttpRequest {
      * @throws IOException
      */
     public String readBodyAsString() throws IOException {
-        return body.readAsString();
+        if (body != null) {
+            return body.readAsString();
+        } else {
+            return "";
+        }
     }
 
     /**
@@ -121,7 +130,11 @@ public class HttpRequest {
      * @throws IOException
      */
     public byte[] readBodyAsBytes() throws IOException {
-        return body.readAsBytes();
+        if (body != null) {
+            return body.readAsBytes();
+        } else {
+            return new byte[0];
+        }
     }
 
     /**
@@ -138,7 +151,11 @@ public class HttpRequest {
             MultipartBodyParser multipartBodyParser = new MultipartBodyParser(body.getBodyInputStream(), boundary);
             return new RequestValues(multipartBodyParser);
         } else {
-            return new RequestValues(body.readAsString());
+            if (body != null) {
+                return new RequestValues(body.readAsString());
+            } else {
+                return new RequestValues("");
+            }
         }
     }
 

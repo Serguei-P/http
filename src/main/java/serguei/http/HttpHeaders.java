@@ -36,6 +36,8 @@ abstract class HttpHeaders {
 
     /**
      * This returns a header by name, if there are more then one header with this name, the first one will be returned
+     * 
+     * Returns null if header does not exit
      */
     public String getHeader(String headerName) {
         headerName = normalize(headerName);
@@ -144,6 +146,10 @@ abstract class HttpHeaders {
         }
         output.write(LINE_SEPARATOR_BYTES);
         output.flush();
+    }
+
+    boolean isEmpty() {
+        return headers.isEmpty();
     }
 
     private static String normalize(String name) {

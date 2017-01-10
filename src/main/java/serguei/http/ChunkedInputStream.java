@@ -5,16 +5,11 @@ import java.io.InputStream;
 
 class ChunkedInputStream extends InputStream {
 
-    private static int DEFAULT_BUFFER_SIZE = 8192;
-
     private final InputStream inputStream;
-    private final byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
 
-    private boolean eof = false;
-    private int bytesInBuffer;
-    private int bufferPos = 0;
     private int leftInChunk = 0;
     private int chunkCount = 0;
+    private Trailer trailer = new Trailer();
 
     ChunkedInputStream(InputStream inputStream) {
         this.inputStream = inputStream;
@@ -22,9 +17,6 @@ class ChunkedInputStream extends InputStream {
 
     @Override
     public int read() throws IOException {
-        if (eof) {
-            return -1;
-        }
         if (leftInChunk <= 0) {
             findChunk();
             if (leftInChunk <= 0) {
@@ -32,7 +24,7 @@ class ChunkedInputStream extends InputStream {
             }
         }
         leftInChunk--;
-        return nextByte();
+        return inputStream.read();
     }
 
     @Override
@@ -44,36 +36,16 @@ class ChunkedInputStream extends InputStream {
         } else if (len == 0) {
             return 0;
         }
-        if (eof) {
-            return -1;
+        if (leftInChunk <= 0) {
+            findChunk();
+            if (leftInChunk <= 0) {
+                return -1;
+            }
         }
-        int result = 0;
-        int leftToRead = len;
-        while (leftToRead > 0) {
-            if (leftInChunk == 0) {
-                findChunk();
-                if (leftInChunk <= 0) {
-                    if (result > 0) {
-                        return result;
-                    } else {
-                        return -1;
-                    }
-                }
-            }
-            while (leftInChunk > 0 && leftToRead > 0) {
-                if (bufferPos >= bytesInBuffer) {
-                    readNextBuffer();
-                    if (bytesInBuffer == 0) {
-                        return result;
-                    }
-                }
-                int toCopy = Math.min(Math.min(leftInChunk, leftToRead), bytesInBuffer - bufferPos);
-                System.arraycopy(buffer, bufferPos, b, result, toCopy);
-                bufferPos += toCopy;
-                leftToRead -= toCopy;
-                leftInChunk -= toCopy;
-                result += toCopy;
-            }
+        int toRead = len > leftInChunk ? leftInChunk : len;
+        int result = inputStream.read(b, 0, toRead);
+        if (result >= 0) {
+            leftInChunk -= result;
         }
         return result;
     }
@@ -93,13 +65,23 @@ class ChunkedInputStream extends InputStream {
         inputStream.close();
     }
 
+    /**
+     * This returns a header from the trailer by name, if there are more then one header with this name, the first one
+     * will be returned.
+     * 
+     * Returns null if header does not exit
+     */
+    public String getTrailerValue(String name) {
+        return trailer.getHeader(name);
+    }
+
     private void findChunk() throws IOException {
         if (chunkCount > 0) {
             readCrLf();
         }
         leftInChunk = 0;
         int value;
-        while ((value = nextByte()) >= 0) {
+        while ((value = inputStream.read()) >= 0) {
             int digit = getDigit(value);
             if (digit >= 0) {
                 if (leftInChunk > 0xfffffff) {
@@ -110,32 +92,17 @@ class ChunkedInputStream extends InputStream {
                 break;
             }
         }
-        while (!eof && value != 10) {
+        while (value != 10) {
             // TODO: for now ignoring chunk extensions
-            value = nextByte();
+            value = inputStream.read();
+            if (value == -1) {
+                leftInChunk = 0;
+                return;
+            }
         }
         chunkCount++;
         if (leftInChunk == 0) {
             processEndOfStream();
-        }
-    }
-
-    private int nextByte() throws IOException {
-        if (!eof && bufferPos >= bytesInBuffer) {
-            readNextBuffer();
-        }
-        if (!eof && bufferPos < bytesInBuffer) {
-            return buffer[bufferPos++] & 0xff;
-        } else {
-            return -1;
-        }
-    }
-
-    private void readNextBuffer() throws IOException {
-        bytesInBuffer = inputStream.read(buffer);
-        bufferPos = 0;
-        if (bytesInBuffer <= 0) {
-            eof = true;
         }
     }
 
@@ -153,33 +120,29 @@ class ChunkedInputStream extends InputStream {
     }
 
     private void processEndOfStream() throws IOException {
-        // TODO: for now ignoring trailer
-        boolean lineStarted = false;
-        while (!eof) {
-            int value = nextByte();
-            if (value == 13) {
-
-            } else if (value == 10) {
-                if (!lineStarted) {
-                    eof = true;
-                    return;
-                }
-                lineStarted = false;
-            } else {
-                lineStarted = true;
-            }
+        try {
+            trailer.readHeaders(new HeaderLineReader(inputStream));
+        } catch (IOException e) {
+            throw new IOException("Error in chunk encoding while reading trailer", e);
+        }
+        if (!trailer.isEmpty()) {
+            readCrLf();
         }
     }
 
     private void readCrLf() throws IOException {
-        int value = nextByte();
+        int value = inputStream.read();
         if (value != 13) {
             throw new IOException("Error in chunk encoding, expected \\r was " + value + " '" + (char)value + "'");
         }
-        value = nextByte();
+        value = inputStream.read();
         if (value != 10) {
             throw new IOException("Error in chunk encoding, expected \\n was " + value + " '" + (char)value + "'");
         }
+    }
+
+    private class Trailer extends HttpHeaders {
+
     }
 
 }

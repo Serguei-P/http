@@ -60,12 +60,15 @@ public class ServerRespondingWithChunkedBodyTest {
         HttpClientConnection connection = new HttpClientConnection("localhost", server.getPort());
 
         HttpRequestHeaders headers = HttpRequestHeaders.getRequest("http://localhost:" + server.getPort() + "/");
+        headers.setHeader("Accept-Encoding", "gzip");
 
         HttpResponse response = connection.send(headers);
-        // assertEquals(200, response.getStatusCode());
+        assertEquals(200, response.getStatusCode());
+        assertTrue(response.readBodyAsString().contains("--- END ---"));
 
         response = connection.send(headers);
         assertEquals(200, response.getStatusCode());
+        assertTrue(response.readBodyAsString().contains("--- END ---"));
     }
 
     private void waitUntilRunning(boolean running) {
