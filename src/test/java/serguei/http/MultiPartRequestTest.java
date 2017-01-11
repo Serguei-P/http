@@ -5,6 +5,7 @@ import static org.junit.Assert.*;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.InetSocketAddress;
 
 import org.junit.Test;
 
@@ -43,7 +44,7 @@ public class MultiPartRequestTest {
     @Test
     public void serverShouldProcessMultipartRequest() throws Exception {
         InputStream inputStream = getRequestAsStream();
-        HttpRequest request = new HttpRequest(inputStream);
+        HttpRequest request = new HttpRequest(inputStream, new InetSocketAddress("10.10.0.1", 1111));
 
         assertTrue(request.hasMultipartBody());
 

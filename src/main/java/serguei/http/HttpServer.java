@@ -347,7 +347,7 @@ public class HttpServer {
                 while (!finished) {
                     HttpRequest request;
                     try {
-                        request = new HttpRequest(inputStream);
+                        request = new HttpRequest(inputStream, (InetSocketAddress)socket.getRemoteSocketAddress());
                     } catch (HttpException e) {
                         // this happens when connection is closed by the client or
                         // client sends non-HTTP data

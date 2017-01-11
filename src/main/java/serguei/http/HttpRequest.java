@@ -2,6 +2,8 @@ package serguei.http;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
@@ -16,15 +18,16 @@ import java.util.List;
 public class HttpRequest {
 
     private final HttpRequestHeaders headers;
-
     private final HttpBody body;
     private final long contentLength;
     private final boolean chunked;
     private final URL url;
+    private final InetSocketAddress remoteSocketAddress;
 
-    HttpRequest(InputStream inputStream) throws IOException {
+    HttpRequest(InputStream inputStream, InetSocketAddress remoteSocketAddress) throws IOException {
         this.headers = new HttpRequestHeaders(inputStream);
         this.url = headers.getUrl();
+        this.remoteSocketAddress = remoteSocketAddress;
         contentLength = headers.getContentLength();
         chunked = contentLength < 0 && headers.hasChunkedBody();
         String encoding = headers.getHeader("content-encoding");
@@ -157,6 +160,13 @@ public class HttpRequest {
                 return new RequestValues("");
             }
         }
+    }
+
+    /**
+     * @return IP address of the remote client
+     */
+    public InetAddress getRemoteAddress() {
+        return remoteSocketAddress.getAddress();
     }
 
     HttpRequestHeaders getHeaders() {

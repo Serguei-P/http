@@ -78,6 +78,7 @@ public class ServerRespondingWithChunkedBody implements Runnable {
             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(stream, "UTF-8"));
             writer.write("<HTML><BODY><TABLE>");
             writer.write("<tr><td colspan=2>Properties</td></tr>");
+            writer.write("<tr><td>Remote Ip</td><td>" + request.getRemoteAddress().getHostAddress() + "</td></tr>");
             Properties properties = System.getProperties();
             for (Object key : properties.keySet()) {
                 String property = key.toString();
