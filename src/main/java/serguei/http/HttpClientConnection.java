@@ -126,7 +126,7 @@ public class HttpClientConnection {
      *            - request headers that will be sent to the server
      * @param body
      *            - a body of the request
-     * @param compressiong
+     * @param compression
      *            - specifies if body needs to be compressed
      * @return a response the server sends after receiving the request
      * @throws IOException
@@ -167,7 +167,7 @@ public class HttpClientConnection {
      *            - request headers that will be sent to the server
      * @param body
      *            - a body of the request
-     * @param compressiong
+     * @param compression
      *            - specifies if body needs to be compressed
      * @return a response the server sends after receiving the request
      * @throws IOException
@@ -201,13 +201,11 @@ public class HttpClientConnection {
      * @param body
      *            - an input stream from where to read data for the request body (the data is read until end of stream
      *            encountered)
-     * @param compressiong
-     *            - specifies if body needs to be compressed
      * @return a response the server sends after receiving the request
      * @throws IOException
      */
-    public HttpResponse send(HttpRequestHeaders request, InputStream body) throws IOException {
-        return send(request, body, BodyCompression.NONE);
+    public HttpResponse send(HttpRequestHeaders requestHeaders, InputStream body) throws IOException {
+        return send(requestHeaders, body, BodyCompression.NONE);
     }
 
     /**
@@ -223,7 +221,7 @@ public class HttpClientConnection {
      * @param body
      *            - an input stream from where to read data for the request body (the data is read until end of stream
      *            encountered)
-     * @param compressiong
+     * @param compression
      *            - specifies if body needs to be compressed
      * @return a response the server sends after receiving the request
      * @throws IOException
