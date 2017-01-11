@@ -94,13 +94,13 @@ public class GetWeatherInLondon {
     }
 
     private void outputSslParameters(HttpClientConnection connection) throws IOException {
-        output.write("TLS version used: " + connection.getNegotiatedSslProtocol().toJdkString());
+        output.write("TLS version used: " + connection.getNegotiatedTlsProtocol().toJdkString());
         output.newLine();
         output.write("Negotiated cipher suite: " + connection.getNegotiatedCipher());
         output.newLine();
         output.write("Received certificates:");
         output.newLine();
-        for (X509Certificate certificate : connection.getSslCertificates()) {
+        for (X509Certificate certificate : connection.getTlsCertificates()) {
             output.write("  " + certificate.getSubjectDN().getName());
             output.newLine();
         }

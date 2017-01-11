@@ -24,26 +24,58 @@ import javax.net.ssl.X509TrustManager;
 
 import serguei.http.utils.Utils;
 
+/**
+ * HTTP client connection - a simple HTTP client
+ * 
+ * @author Serguei Poliakov
+ *
+ */
 public class HttpClientConnection {
 
     private final InetSocketAddress serverAddress;
     private Socket socket;
     private InputStream inputStream;
     private OutputStream outputStream;
-    private X509Certificate[] sslCertificates;
-    private TlsVersion[] enabledSslProtocols;
+    private X509Certificate[] tlsCertificates;
+    private TlsVersion[] enabledTlsProtocols;
     private String[] enabledCipherSuites;
-    private TlsVersion negotiatedSslProtocol;
+    private TlsVersion negotiatedTlsProtocol;
     private String negotiatedCipher;
 
+    /**
+     * Create an instance of HttpClientConnection. We don't connect to the server yet at this point.
+     * 
+     * @param host
+     *            - host name (could be a string contains an IP address), if we are connecting via a proxy, this should
+     *            be proxy hostname/IP
+     * @param port
+     *            - port (e.g. 80 for HTTP or 443 for HTTPS)
+     */
     public HttpClientConnection(String host, int port) {
-        this.serverAddress = new InetSocketAddress(host, port);
+        this(new InetSocketAddress(host, port));
     }
 
+    /**
+     * Create an instance of HttpClientConnection. We don't connect to the server yet at this point.
+     * 
+     * @param address
+     *            - IP socket address to the server we will be connecting. If we connecting via a proxy, this should be
+     *            an address of the proxy.
+     */
     public HttpClientConnection(InetSocketAddress address) {
         this.serverAddress = address;
     }
 
+    /**
+     * This sends a request without body and waits for response. It will create a connection if necessary.
+     * 
+     * @param requestLine
+     *            - request line of the request (e.g. "GET /path HTTP/1.1")
+     * @param headers
+     *            - headers (e.g. "Accept-Encoding: gzip")
+     * @return a response the server sends after receiving the request
+     * @throws IOException
+     */
     public HttpResponse sendRequest(String requestLine, String... headers) throws IOException {
         connectIfNecessary();
         for (String line : headers) {
@@ -55,38 +87,101 @@ public class HttpClientConnection {
         return new HttpResponse(inputStream);
     }
 
-    public HttpResponse send(HttpRequestHeaders request) throws IOException {
-        return send(request, (byte[])null, BodyCompression.NONE);
+    /**
+     * This sends a request without body and waits for a response. It will create a connection if necessary.
+     * 
+     * @param requestHeaders
+     *            - request headers that will be sent to the server
+     * @return a response the server sends after receiving the request
+     * @throws IOException
+     */
+    public HttpResponse send(HttpRequestHeaders requestHeaders) throws IOException {
+        return send(requestHeaders, (byte[])null, BodyCompression.NONE);
     }
 
-    public HttpResponse send(HttpRequestHeaders request, String body) throws IOException {
-        return send(request, body, BodyCompression.NONE);
+    /**
+     * This sends a request with a body and waits for a response. It will create a connection if necessary.
+     * 
+     * This adds a "Content-Length" header based on the length of the body (different from body.length()) to
+     * requestHeaders before sending them.
+     * 
+     * @param requestHeaders
+     *            - request headers that will be sent to the server
+     * @param body
+     *            - a body of the request
+     * @return a response the server sends after receiving the request
+     * @throws IOException
+     */
+    public HttpResponse send(HttpRequestHeaders requestHeaders, String body) throws IOException {
+        return send(requestHeaders, body, BodyCompression.NONE);
     }
 
-    public HttpResponse send(HttpRequestHeaders request, String body, BodyCompression compression) throws IOException {
+    /**
+     * This sends a request with a body and waits for a response. It will create a connection if necessary.
+     * 
+     * This adds "Content-Length" header based on the length of the body (different from body.length()) and
+     * "Content-Encoding" if compression is specified to requestHeaders before sending request.
+     * 
+     * @param requestHeaders
+     *            - request headers that will be sent to the server
+     * @param body
+     *            - a body of the request
+     * @param compressiong
+     *            - specifies if body needs to be compressed
+     * @return a response the server sends after receiving the request
+     * @throws IOException
+     */
+    public HttpResponse send(HttpRequestHeaders requestHeaders, String body, BodyCompression compression) throws IOException {
         byte[] bodyAsBytes;
         if (body != null) {
             bodyAsBytes = body.getBytes(HttpBody.BODY_CODEPAGE);
         } else {
             bodyAsBytes = null;
         }
-        return send(request, bodyAsBytes, compression);
+        return send(requestHeaders, bodyAsBytes, compression);
     }
 
-    public HttpResponse send(HttpRequestHeaders request, byte[] body) throws IOException {
-        return send(request, body, BodyCompression.NONE);
+    /**
+     * This sends a request with a body and waits for a response. It will create a connection if necessary.
+     * 
+     * This adds a "Content-Length" header based on the length of the body to requestHeaders before sending headers.
+     * 
+     * @param requestHeaders
+     *            - request headers that will be sent to the server
+     * @param body
+     *            - a body of the request
+     * @return a response the server sends after receiving the request
+     * @throws IOException
+     */
+    public HttpResponse send(HttpRequestHeaders requestHeaders, byte[] body) throws IOException {
+        return send(requestHeaders, body, BodyCompression.NONE);
     }
 
-    public HttpResponse send(HttpRequestHeaders request, byte[] body, BodyCompression compression) throws IOException {
+    /**
+     * This sends a request with a body and waits for a response. It will create a connection if necessary.
+     * 
+     * This adds "Content-Length" header based on the length of the body (it might different from body.length if body is
+     * compressed) and "Content-Encoding" if compression is specified to requestHeaders before sending request.
+     * 
+     * @param requestHeaders
+     *            - request headers that will be sent to the server
+     * @param body
+     *            - a body of the request
+     * @param compressiong
+     *            - specifies if body needs to be compressed
+     * @return a response the server sends after receiving the request
+     * @throws IOException
+     */
+    public HttpResponse send(HttpRequestHeaders requestHeaders, byte[] body, BodyCompression compression) throws IOException {
         connectIfNecessary();
         if (body != null) {
             if (compression == BodyCompression.GZIP) {
                 body = gzip(body);
-                request.setHeader("Content-Encoding", "gzip");
+                requestHeaders.setHeader("Content-Encoding", "gzip");
             }
-            request.setHeader("Content-Length", Integer.toString(body.length));
+            requestHeaders.setHeader("Content-Length", Integer.toString(body.length));
         }
-        request.write(outputStream);
+        requestHeaders.write(outputStream);
         if (body != null) {
             outputStream.write(body);
         }
@@ -94,19 +189,55 @@ public class HttpClientConnection {
         return new HttpResponse(inputStream);
     }
 
+    /**
+     * This sends a request with a body and waits for a response. It will create a connection if necessary.
+     * 
+     * This will send body using chunked transfer encoding.
+     * 
+     * This adds "Transfer-Encoding: chunked" header to requestHeaders before sending the request.
+     * 
+     * @param requestHeaders
+     *            - request headers that will be sent to the server
+     * @param body
+     *            - an input stream from where to read data for the request body (the data is read until end of stream
+     *            encountered)
+     * @param compressiong
+     *            - specifies if body needs to be compressed
+     * @return a response the server sends after receiving the request
+     * @throws IOException
+     */
     public HttpResponse send(HttpRequestHeaders request, InputStream body) throws IOException {
         return send(request, body, BodyCompression.NONE);
     }
 
-    public HttpResponse send(HttpRequestHeaders request, InputStream body, BodyCompression compression) throws IOException {
+    /**
+     * This sends a request with a body and waits for a response. It will create a connection if necessary.
+     * 
+     * This will send body using chunked transfer encoding.
+     * 
+     * This adds "Transfer-Encoding: chunked" header and, if compression is specified, "Content-Encoding" header to
+     * requestHeaders before sending the request.
+     * 
+     * @param requestHeaders
+     *            - request headers that will be sent to the server
+     * @param body
+     *            - an input stream from where to read data for the request body (the data is read until end of stream
+     *            encountered)
+     * @param compressiong
+     *            - specifies if body needs to be compressed
+     * @return a response the server sends after receiving the request
+     * @throws IOException
+     */
+    public HttpResponse send(HttpRequestHeaders requestHeaders, InputStream body, BodyCompression compression)
+            throws IOException {
         connectIfNecessary();
         OutputStream bodyStream = new ChunkedOutputStream(outputStream, true);
         if (compression == BodyCompression.GZIP) {
-            request.setHeader("Content-Encoding", "gzip");
+            requestHeaders.setHeader("Content-Encoding", "gzip");
             bodyStream = new GZIPOutputStream(bodyStream);
         }
-        request.setHeader("Transfer-Encoding", "chunked");
-        request.write(outputStream);
+        requestHeaders.setHeader("Transfer-Encoding", "chunked");
+        requestHeaders.write(outputStream);
         byte[] buffer = new byte[8192];
         int read;
         while ((read = body.read(buffer)) != -1) {
@@ -116,6 +247,17 @@ public class HttpClientConnection {
         return new HttpResponse(inputStream);
     }
 
+    /**
+     * This will send a CONNECT request and wait for a response, expecting to receive 200 OK. A connection will be
+     * created if required.
+     * 
+     * This is usually used to make a TLS connection via HTTP proxy.
+     * 
+     * @param host
+     *            - host name to be used in the request
+     * @throws IOException
+     *             - when IO failed or the proxy returned a result different from 200.
+     */
     public void sendConnectRequest(String host) throws IOException {
         HttpResponse response = send(HttpRequestHeaders.connectRequest(host));
         if (response == null) {
@@ -126,19 +268,52 @@ public class HttpClientConnection {
         }
     }
 
-    public void setupTlsConnectionViaProxy(String host) throws IOException {
-        sendConnectRequest(host);
-        startHandshake(host);
-    }
-
+    /**
+     * Start TLS connection without validating certificates received from the server. A connection will be created if
+     * required.
+     * 
+     * If we specified unresolved host name when instantiating this instance, it will send it as SNI in ClientHello.
+     * 
+     * @throws IOException
+     */
     public void startHandshake() throws IOException {
         startHandshake(serverAddress.getHostString());
     }
 
+    /**
+     * Start TLS connection without validating certificates received from the server sending specified host name as part
+     * of ClientHello. A connection will be created if required.
+     * 
+     * @param hostName
+     *            - host name to be sent in SNI in ClientHello. This is needed for the server to choose a correct
+     *            certificate.
+     * @throws IOException
+     */
     public void startHandshake(String hostName) throws IOException {
         startHandshake(hostName, false);
     }
 
+    /**
+     * Start TLS connection validating certificates received from the server using default trust manager. A connection
+     * will be created if required.
+     * 
+     * If we specified unresolved host name when instantiating this instance, it will send it as SNI in ClientHello.
+     * 
+     * @throws IOException
+     */
+    public void startHandshakeAndValidate() throws IOException {
+        startHandshake(serverAddress.getHostString(), true);
+    }
+
+    /**
+     * Start TLS connection validating certificates received from the server using default trust manager. A connection
+     * will be created if required.
+     * 
+     * @param hostName
+     *            - host name to be sent in SNI in ClientHello. This is needed for the server to choose a correct
+     *            certificate.
+     * @throws IOException
+     */
     public void startHandshakeAndValidate(String hostName) throws IOException {
         startHandshake(hostName, true);
     }
@@ -148,8 +323,8 @@ public class HttpClientConnection {
         SSLContext sslContext = createSslContext(validateCertificates);
         SSLSocketFactory socketFactory = sslContext.getSocketFactory();
         SSLSocket sslSocket = (SSLSocket)socketFactory.createSocket(socket, hostName, serverAddress.getPort(), true);
-        if (enabledSslProtocols != null) {
-            sslSocket.setEnabledProtocols(TlsVersion.toJdkStrings(enabledSslProtocols));
+        if (enabledTlsProtocols != null) {
+            sslSocket.setEnabledProtocols(TlsVersion.toJdkStrings(enabledTlsProtocols));
         }
         if (enabledCipherSuites != null) {
             sslSocket.setEnabledCipherSuites(enabledCipherSuites);
@@ -159,14 +334,17 @@ public class HttpClientConnection {
         inputStream = socket.getInputStream();
         outputStream = socket.getOutputStream();
         Certificate[] certificates = sslSocket.getSession().getPeerCertificates();
-        sslCertificates = new X509Certificate[certificates.length];
+        tlsCertificates = new X509Certificate[certificates.length];
         for (int i = 0; i < certificates.length; i++) {
-            sslCertificates[i] = (X509Certificate)certificates[i];
+            tlsCertificates[i] = (X509Certificate)certificates[i];
         }
-        negotiatedSslProtocol = TlsVersion.fromJdkString(sslSocket.getSession().getProtocol());
+        negotiatedTlsProtocol = TlsVersion.fromJdkString(sslSocket.getSession().getProtocol());
         negotiatedCipher = sslSocket.getSession().getCipherSuite();
     }
 
+    /**
+     * Close the connection to the server
+     */
     public void close() {
         Utils.closeQuietly(inputStream);
         Utils.closeQuietly(outputStream);
@@ -174,22 +352,48 @@ public class HttpClientConnection {
         socket = null;
         inputStream = null;
         outputStream = null;
-        negotiatedSslProtocol = null;
+        tlsCertificates = null;
+        negotiatedTlsProtocol = null;
         negotiatedCipher = null;
     }
 
-    public X509Certificate[] getSslCertificates() {
-        return sslCertificates;
+    /**
+     * @return Certificates received from the server during TLS handshake or null if no TLS connection was established.
+     */
+    public X509Certificate[] getTlsCertificates() {
+        return tlsCertificates;
     }
 
-    public void setSslProtocol(TlsVersion... enabledSslProtocols) {
-        this.enabledSslProtocols = enabledSslProtocols;
+    /**
+     * @return A TLS protocol negotiated during TLS handshake or null if TLS handshake did not happen
+     */
+    public TlsVersion getNegotiatedTlsProtocol() {
+        return negotiatedTlsProtocol;
     }
 
-    public void useJdkDefaultSslProtocols() {
-        enabledSslProtocols = null;
+    /**
+     * @return A TLS cipher negotiated during TLS handshake or null if TLS handshake did not happen
+     */
+    public String getNegotiatedCipher() {
+        return negotiatedCipher;
     }
 
+    /**
+     * @param enabledTlsProtocols
+     *            - list of allowed TLS protocols
+     */
+    public void setTlsProtocol(TlsVersion... enabledTlsProtocols) {
+        this.enabledTlsProtocols = enabledTlsProtocols;
+    }
+
+    public void useJdkDefaultTlsProtocols() {
+        enabledTlsProtocols = null;
+    }
+
+    /**
+     * @param enabledCipherSuites
+     *            - list of allowed Cipher Suites
+     */
     public void setCipherSuites(String... enabledCipherSuites) {
         this.enabledCipherSuites = enabledCipherSuites;
     }
@@ -198,23 +402,23 @@ public class HttpClientConnection {
         this.enabledCipherSuites = null;
     }
 
+    /**
+     * @return the local port number or -1 if connection was not established
+     */
     public int getSocketSourcePort() {
         return socket != null ? socket.getLocalPort() : -1;
     }
 
+    /**
+     * Connects to the server. Usually one does not need to call it as it will be called automatically when required.
+     * 
+     * @throws IOException
+     */
     public void connect() throws IOException {
         close();
         socket = connectSocket();
         inputStream = socket.getInputStream();
         outputStream = socket.getOutputStream();
-    }
-
-    public TlsVersion getNegotiatedSslProtocol() {
-        return negotiatedSslProtocol;
-    }
-
-    public String getNegotiatedCipher() {
-        return negotiatedCipher;
     }
 
     private SSLContext createSslContext(boolean validateCertificates) {
@@ -278,7 +482,7 @@ public class HttpClientConnection {
 
         @Override
         public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-            sslCertificates = chain;
+            tlsCertificates = chain;
             if (trustManager != null) {
                 trustManager.checkClientTrusted(chain, authType);
             }
