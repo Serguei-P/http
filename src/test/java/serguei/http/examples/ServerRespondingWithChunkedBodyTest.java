@@ -45,30 +45,33 @@ public class ServerRespondingWithChunkedBodyTest {
 
     @Test
     public void shouldReceiveResponseFromServer() throws Exception {
-        HttpClientConnection connection = new HttpClientConnection("localhost", server.getPort());
+        try (HttpClientConnection connection = new HttpClientConnection("localhost", server.getPort())) {
         
-        HttpResponse response = connection.send(HttpRequestHeaders.getRequest("http://localhost:" + server.getPort() + "/"));
+            HttpResponse response = connection
+                    .send(HttpRequestHeaders.getRequest("http://localhost:" + server.getPort() + "/"));
 
-        assertEquals(200, response.getStatusCode());
-        assertTrue(response.isContentChunked());
-        assertEquals("gzip", response.getHeader("Content-Encoding"));
-        assertTrue(response.readBodyAsString().contains("--- END ---"));
+            assertEquals(200, response.getStatusCode());
+            assertTrue(response.isContentChunked());
+            assertEquals("gzip", response.getHeader("Content-Encoding"));
+            assertTrue(response.readBodyAsString().contains("--- END ---"));
+        }
     }
 
     @Test
     public void shouldLeaveConnectionOpenAfterFirstRequest() throws Exception {
-        HttpClientConnection connection = new HttpClientConnection("localhost", server.getPort());
+        try (HttpClientConnection connection = new HttpClientConnection("localhost", server.getPort())) {
 
-        HttpRequestHeaders headers = HttpRequestHeaders.getRequest("http://localhost:" + server.getPort() + "/");
-        headers.setHeader("Accept-Encoding", "gzip");
+            HttpRequestHeaders headers = HttpRequestHeaders.getRequest("http://localhost:" + server.getPort() + "/");
+            headers.setHeader("Accept-Encoding", "gzip");
 
-        HttpResponse response = connection.send(headers);
-        assertEquals(200, response.getStatusCode());
-        assertTrue(response.readBodyAsString().contains("--- END ---"));
+            HttpResponse response = connection.send(headers);
+            assertEquals(200, response.getStatusCode());
+            assertTrue(response.readBodyAsString().contains("--- END ---"));
 
-        response = connection.send(headers);
-        assertEquals(200, response.getStatusCode());
-        assertTrue(response.readBodyAsString().contains("--- END ---"));
+            response = connection.send(headers);
+            assertEquals(200, response.getStatusCode());
+            assertTrue(response.readBodyAsString().contains("--- END ---"));
+        }
     }
 
     private void waitUntilRunning(boolean running) {

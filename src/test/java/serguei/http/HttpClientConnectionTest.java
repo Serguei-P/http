@@ -7,24 +7,24 @@ import javax.net.ssl.SSLHandshakeException;
 import org.junit.After;
 import org.junit.Test;
 
-public class HttpClientTest {
+public class HttpClientConnectionTest {
 
-    private HttpClientConnection client;
+    private HttpClientConnection connection;
 
     @After
     public void clearUp() {
-        if (client != null) {
-            client.close();
+        if (connection != null) {
+            connection.close();
         }
     }
 
     @Test
     public void testHttp() throws Exception {
         String hostName = "www.cisco.com";
-        client = new HttpClientConnection(hostName, 80);
+        connection = new HttpClientConnection(hostName, 80);
 
         HttpRequestHeaders request = HttpRequestHeaders.getRequest("http://" + hostName + "/");
-        HttpResponse response = client.send(request);
+        HttpResponse response = connection.send(request);
 
         assertEquals(200, response.getStatusCode());
 
@@ -36,11 +36,11 @@ public class HttpClientTest {
     @Test
     public void testHttpWithGzip() throws Exception {
         String hostName = "www.cisco.com";
-        client = new HttpClientConnection(hostName, 80);
+        connection = new HttpClientConnection(hostName, 80);
 
         HttpRequestHeaders request = HttpRequestHeaders.getRequest("http://" + hostName + "/");
         request.setHeader("Accept-Encoding", "gzip");
-        HttpResponse response = client.send(request);
+        HttpResponse response = connection.send(request);
 
         assertEquals(200, response.getStatusCode());
         
@@ -51,10 +51,10 @@ public class HttpClientTest {
     @Test
     public void shouldAllowSelfSignedCertificate() throws Exception {
         String hostName = "self-signed.badssl.com";
-        client = new HttpClientConnection(hostName, 443);
+        connection = new HttpClientConnection(hostName, 443);
 
-        client.startHandshake(hostName);
-        HttpResponse response = client.send(HttpRequestHeaders.getRequest("http://" + hostName + "/"));
+        connection.startHandshake(hostName);
+        HttpResponse response = connection.send(HttpRequestHeaders.getRequest("http://" + hostName + "/"));
 
         assertEquals(200, response.getStatusCode());
 
@@ -65,9 +65,15 @@ public class HttpClientTest {
     @Test(expected = SSLHandshakeException.class)
     public void shouldFailOnSelfSignedCertificate() throws Exception {
         String hostName = "self-signed.badssl.com";
-        client = new HttpClientConnection(hostName, 443);
+        connection = new HttpClientConnection(hostName, 443);
 
-        client.startHandshakeAndValidate(hostName);
+        connection.startHandshakeAndValidate(hostName);
+    }
+
+    @Test
+    public void shouldCloseUnusedConnection() {
+        connection = new HttpClientConnection("www.cisco.com", 80);
+        connection.close();
     }
 
 }

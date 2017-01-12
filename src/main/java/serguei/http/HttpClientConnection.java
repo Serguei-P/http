@@ -1,6 +1,7 @@
 package serguei.http;
 
 import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,7 +31,7 @@ import serguei.http.utils.Utils;
  * @author Serguei Poliakov
  *
  */
-public class HttpClientConnection {
+public class HttpClientConnection implements Closeable {
 
     private final InetSocketAddress serverAddress;
     private Socket socket;

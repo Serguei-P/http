@@ -111,8 +111,7 @@ public class HttpServerTest {
 
         @Override
         public HttpResponse call() throws Exception {
-            try {
-                HttpClientConnection connection = new HttpClientConnection("localhost", PORT);
+            try (HttpClientConnection connection = new HttpClientConnection("localhost", PORT)) {
                 return connection.send(HttpRequestHeaders.postRequest("http://localhost:" + PORT + "/"), REQUEST_BODY);
             } catch (IOException e) {
                 // we don't want to miss stack trace when things go wrong
@@ -126,8 +125,7 @@ public class HttpServerTest {
 
         @Override
         public HttpResponse call() {
-            try {
-                HttpClientConnection connection = new HttpClientConnection("localhost", SSL_PORT);
+            try (HttpClientConnection connection = new HttpClientConnection("localhost", SSL_PORT)) {
                 connection.startHandshake();
                 return connection.send(HttpRequestHeaders.postRequest("http://localhost:" + SSL_PORT + "/"), REQUEST_BODY);
             } catch (IOException e) {

@@ -48,13 +48,17 @@ public class ServerWithPostFormTest {
         String field2 = "This is field2 value";
         String field3 = "This is field3 value";
         String body = "field1=" + field1 + "&field2=" + field2 + "&field3=" + field3;
-        HttpClientConnection client = new HttpClientConnection("localhost", server.getPort());
-        HttpRequestHeaders headers = HttpRequestHeaders.postRequest("http://localhost:" + server.getPort() + "/input");
 
-        HttpResponse response = client.send(headers, body);
+        String responseBody;
+        int statusCode;
+        try (HttpClientConnection client = new HttpClientConnection("localhost", server.getPort())) {
+            HttpRequestHeaders headers = HttpRequestHeaders.postRequest("http://localhost:" + server.getPort() + "/input");
+            HttpResponse response = client.send(headers, body);
+            statusCode = response.getStatusCode();
+            responseBody = response.readBodyAsString();
+        }
 
-        assertEquals(200, response.getStatusCode());
-        String responseBody = response.readBodyAsString();
+        assertEquals(200, statusCode);
         assertTrue(responseBody.contains('"' + field1 + '"'));
         assertTrue(responseBody.contains('"' + field2 + '"'));
         assertTrue(responseBody.contains('"' + field3 + '"'));
@@ -69,19 +73,17 @@ public class ServerWithPostFormTest {
         MultipartFormDataRequestBody body = new MultipartFormDataRequestBody(boundary);
         body.add(text.getBytes("UTF-8"), "text");
         body.add(image, "image", "image.jpg", "image/jpg");
-        HttpClientConnection client = new HttpClientConnection("localhost", server.getPort());
         HttpRequestHeaders headers = HttpRequestHeaders.postRequest("http://localhost:" + server.getPort() + "/upload");
         headers.setHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
 
-        HttpResponse response = client.send(headers, body.getBody());
-
-        assertEquals(200, response.getStatusCode());
-        String responseBody = response.readBodyAsString();
-        assertTrue(responseBody.contains('"' + text + '"'));
-
-        response = client.send(HttpRequestHeaders.getRequest("http://localhost:" + server.getPort() + "/image.jpg"));
-
-        assertArrayEquals(image, response.readBodyAsBytes());
+        try (HttpClientConnection client = new HttpClientConnection("localhost", server.getPort())) {
+            HttpResponse response = client.send(headers, body.getBody());
+            assertEquals(200, response.getStatusCode());
+            String responseBody = response.readBodyAsString();
+            assertTrue(responseBody.contains('"' + text + '"'));
+            response = client.send(HttpRequestHeaders.getRequest("http://localhost:" + server.getPort() + "/image.jpg"));
+            assertArrayEquals(image, response.readBodyAsBytes());
+        }
     }
 
     @Test
@@ -90,13 +92,17 @@ public class ServerWithPostFormTest {
         String field2 = "This is field++2 value";
         String field3 = "%22This is field3 value%22";
         String body = "field1=" + field1 + "&field2=" + field2 + "&field3=" + field3;
-        HttpClientConnection client = new HttpClientConnection("localhost", server.getPort());
-        HttpRequestHeaders headers = HttpRequestHeaders.postRequest("http://localhost:" + server.getPort() + "/input");
 
-        HttpResponse response = client.send(headers, body);
+        int statusCode;
+        String responseBody;
+        try (HttpClientConnection client = new HttpClientConnection("localhost", server.getPort())) {
+            HttpRequestHeaders headers = HttpRequestHeaders.postRequest("http://localhost:" + server.getPort() + "/input");
+            HttpResponse response = client.send(headers, body);
+            statusCode = response.getStatusCode();
+            responseBody = response.readBodyAsString();
+        }
 
-        assertEquals(200, response.getStatusCode());
-        String responseBody = response.readBodyAsString();
+        assertEquals(200, statusCode);
         assertTrue(responseBody.contains("\"This is field 1 value\""));
         assertTrue(responseBody.contains("\"This is field  2 value\""));
         assertTrue(responseBody.contains("\"&quot;This is field3 value&quot;\""));
