@@ -2,7 +2,26 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.github.serguei-p</groupId>
   <artifactId>http</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <name>http</name>
+  <description>Simple HTTP client and HTTP server. Easy to use and small. No dependencies.</description>
+  <url>https://github.com/Serguei-P/http</url>
+  <version>1.0.1-SNAPSHOT</version>
+  <licenses>
+    <license>
+      <name>MIT Licence</name>
+      <url>https://github.com/Serguei-P/http/blob/master/LICENSE.txt</url>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <name>Serguei Poliakov</name>
+      <email>sergueip141@gmail.com</email>
+    </developer>
+  </developers>
+    <scm>
+    <connection>scm:git:https://github.com/Serguei-P/http.git</connection>
+    <url>https://github.com/Serguei-P/http.git</url>
+  </scm>
   <properties>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
