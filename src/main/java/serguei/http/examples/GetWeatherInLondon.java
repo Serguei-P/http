@@ -51,8 +51,7 @@ public class GetWeatherInLondon {
         URL url = new URL(WEATHER_API_URL);
         boolean ssl = url.getProtocol().equals("https");
         int port = ssl ? 443 : 80;
-        HttpClientConnection connection = new HttpClientConnection(url.getHost(), port);
-        try {
+        try (HttpClientConnection connection = new HttpClientConnection(url.getHost(), port)) {
             if (ssl) {
                 // the following will not validate if the certificate is valid, for validation use
                 // startHandshakeAndValidate
@@ -71,8 +70,6 @@ public class GetWeatherInLondon {
                 output.newLine();
             }
             output.flush();
-        } finally {
-            connection.close();
         }
     }
 
