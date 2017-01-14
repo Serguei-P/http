@@ -1,4 +1,3 @@
-# http
 Simple HTTP client and a simple HTTP server. Easy to use and small.
 
 Demonstrates that if one needs to write an application communicating via HTTP one does not need large libraries or frameworks.
