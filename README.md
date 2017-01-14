@@ -7,10 +7,12 @@ Java 8 is used for development, but the code is mostly classic Java (no Stream A
 
 To include the latest stable version from Maven Repository add the following to your pom.xml:
 
+```xml
 <!-- https://mvnrepository.com/artifact/com.github.serguei-p/http -->
 <dependency>
     <groupId>com.github.serguei-p</groupId>
     <artifactId>http</artifactId>
     <version>1.0.0</version>
 </dependency>
+```
 
