@@ -3,7 +3,7 @@ package serguei.http;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -22,7 +22,7 @@ abstract class HttpHeaders {
     private static final String KEY_VALUE_SEPARATOR = ": ";
     private static final byte[] KEY_VALUE_SEPARATOR_BYTES = KEY_VALUE_SEPARATOR.getBytes();
 
-    private final Map<String, HeaderValues> headers = new HashMap<>();
+    private final Map<String, HeaderValues> headers = new LinkedHashMap<>();
 
     /**
      * Read headers into the stream

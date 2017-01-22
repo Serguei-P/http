@@ -152,4 +152,18 @@ public class HttpRequestHeadersTest {
         assertEquals(expected, result);
     }
 
+    @Test
+    public void shouldPreserveHeadersOrder() throws Exception {
+        String data = "GET / HTTP/1.1" + LINE_BREAK + "Host: www.myhost.com" + "Header1: header1" + LINE_BREAK
+                + "Header2: header2" + LINE_BREAK + LINE_BREAK;
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(data.getBytes("UTF-8"));
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        HttpRequestHeaders headers = new HttpRequestHeaders(inputStream);
+        headers.write(outputStream);
+        String result = new String(outputStream.toString("UTF-8"));
+
+        assertEquals(data, result);
+    }
+
 }
