@@ -10,6 +10,8 @@ import java.util.List;
 
 import org.junit.Test;
 
+import serguei.http.utils.Utils;
+
 public class HttpRequestHeadersTest {
 
     private static final String LINE_BREAK = "\r\n";
@@ -164,6 +166,106 @@ public class HttpRequestHeadersTest {
         String result = new String(outputStream.toString("UTF-8"));
 
         assertEquals(data, result);
+    }
+
+    @Test
+    public void shouldReadLastMultilineHeaders() throws Exception {
+        String headerName = "HeaderName";
+        String headerValue = "Header" + LINE_BREAK + " value";
+        String content = "GET http://www.fitltd.com/test.jsp HTTP/1.1" + LINE_BREAK + "HOST: www.fitltd.com" + LINE_BREAK
+                + headerName + ": " + headerValue + LINE_BREAK + LINE_BREAK;
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(content.getBytes("UTF-8"));
+
+        HttpRequestHeaders request = new HttpRequestHeaders(inputStream);
+
+        assertEquals(headerValue, request.getHeader(headerName));
+    }
+
+    @Test
+    public void shouldReadNotLastMultilineHeaders() throws Exception {
+        String headerName1 = "HeaderName";
+        String headerValue1 = "Header" + LINE_BREAK + " value";
+        String headerName2 = "headername2";
+        String headerValue2 = "Header value 2";
+        String content = "GET http://www.fitltd.com/test.jsp HTTP/1.1" + LINE_BREAK + "HOST: www.fitltd.com" + LINE_BREAK
+                + headerName1 + ": " + headerValue1 + LINE_BREAK + headerName2 + ":" + headerValue2 + LINE_BREAK + LINE_BREAK;
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(content.getBytes("UTF-8"));
+
+        HttpRequestHeaders request = new HttpRequestHeaders(inputStream);
+
+        assertEquals(headerValue1, request.getHeader(headerName1));
+        assertEquals(headerValue2, request.getHeader(headerName2));
+    }
+
+    @Test
+    public void shouldReadHeaderWithDelimiters() throws Exception {
+        String headerName = "HeaderName";
+        String headerValue = "Header value";
+        String content = "GET http://www.fitltd.com/test.jsp HTTP/1.1" + LINE_BREAK + "HOST: www.fitltd.com" + LINE_BREAK
+                + headerName + ":" + LINE_BREAK + " " + headerValue + "\t" + LINE_BREAK + LINE_BREAK;
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(content.getBytes("UTF-8"));
+
+        HttpRequestHeaders request = new HttpRequestHeaders(inputStream);
+
+        assertEquals(headerValue, request.getHeader(headerName));
+    }
+
+    @Test
+    public void shouldLeaveBodyNotRead() throws Exception {
+        String body = "This is body";
+        String content = "GET http://www.fitltd.com/test.jsp HTTP/1.1" + LINE_BREAK + "HOST: www.fitltd.com" + LINE_BREAK
+                + "content-length: 12" + LINE_BREAK + LINE_BREAK + body;
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(content.getBytes("UTF-8"));
+
+        HttpRequestHeaders request = new HttpRequestHeaders(inputStream);
+
+        assertEquals("12", request.getHeader("Content-Length"));
+        assertEquals("www.fitltd.com", request.getHost());
+        assertEquals(body.length(), inputStream.available());
+    }
+
+    @Test
+    public void shouldReadLongHeader() throws Exception {
+        String headerName = "HeaderName";
+        String headerValue = Utils.multiplyString("Header value", 100);
+        String content = "GET http://www.fitltd.com/test.jsp HTTP/1.1" + LINE_BREAK + "HOST: www.fitltd.com" + LINE_BREAK
+                + headerName + ": " + headerValue + LINE_BREAK + LINE_BREAK;
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(content.getBytes("UTF-8"));
+
+        HttpRequestHeaders request = new HttpRequestHeaders(inputStream);
+
+        assertEquals(headerValue, request.getHeader(headerName));
+    }
+
+    @Test
+    public void shouldBreakOnVeryLongHeader() throws Exception {
+        String headerName = "HeaderName";
+        String headerValue = Utils.multiplyString("Header value", 1000);
+        String content = "GET http://www.fitltd.com/test.jsp HTTP/1.1" + LINE_BREAK + "HOST: www.fitltd.com" + LINE_BREAK
+                + headerName + ": " + headerValue + LINE_BREAK + LINE_BREAK;
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(content.getBytes("UTF-8"));
+        try {
+            new HttpRequestHeaders(inputStream);
+            fail("Failed to throw exception");
+        } catch (HttpException e) {
+            assertTrue("Was: " + e.getMessage(), e.getMessage().startsWith("Line is too long while reading headers"));
+        }
+    }
+
+    @Test
+    public void shouldBreakOnTooManyHeaders() throws Exception {
+        StringBuilder content = new StringBuilder("GET http://www.fitltd.com/test.jsp HTTP/1.1" + LINE_BREAK + "HOST: www.fitltd.com" + LINE_BREAK);
+        for (int i = 0; i < 2000; i++) {
+            content.append("HeaderName").append(Integer.valueOf(i)).append(": headerValue").append(LINE_BREAK);
+        }
+        content.append(LINE_BREAK);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(content.toString().getBytes("UTF-8"));
+        try {
+            new HttpRequestHeaders(inputStream);
+            fail("Failed to throw exception");
+        } catch (HttpException e) {
+            assertTrue("Was: " + e.getMessage(), e.getMessage().startsWith("Reading HTTP headers - too many headers found"));
+        }
     }
 
 }

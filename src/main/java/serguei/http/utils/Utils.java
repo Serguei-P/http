@@ -75,4 +75,12 @@ public final class Utils {
         return result.toByteArray();
     }
 
+    public static String multiplyString(String value, int number) {
+        StringBuilder builder = new StringBuilder(value.length() * number);
+        for (int i = 0; i < number; i++) {
+            builder.append(value);
+        }
+        return builder.toString();
+    }
+
 }

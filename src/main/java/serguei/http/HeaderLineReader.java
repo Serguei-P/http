@@ -6,13 +6,18 @@ import java.io.UnsupportedEncodingException;
 
 class HeaderLineReader {
 
+    // This class is a bit messy due to performance optimisation
+
     private static final int MAX_LINE_LENGTH = 4096;
     private static final int BUFFER_SIZE = 128;
     private static final String EMPTY_LINE = "";
+    private static final String HEADER_CODEPAGE = "ISO_8859_1";
 
     private final InputStream in;
     private final byte[] buffer;
     private StringBuilder sb = null;
+    private int buffPos = 0;
+    private boolean eof = false;
 
     HeaderLineReader(InputStream in) {
         this.in = in;
@@ -20,50 +25,98 @@ class HeaderLineReader {
     }
 
     public String readLine() throws IOException {
-        int lineLength = 0;
-        int buffPos = 0;
-        int ch;
-        if (sb != null) {
-            sb.setLength(0);
+        if (eof) {
+            return null;
         }
-        while ((ch = in.read()) != -1 && ch != '\n') {
+        boolean crFound = false;
+        boolean crlfFound = false;
+        boolean extraByte = false;
+        int lineLength = buffPos;
+        if (buffPos > 0 && buffer[buffPos - 1] == '\r') {
+            crFound = true;
+            lineLength--;
+        }
+        int ch;
+        while ((ch = in.read()) != -1) {
             buffer[buffPos++] = (byte)ch;
-            lineLength++;
+            if (crlfFound) {
+                if (ch != ' ' && ch != '\t') {
+                    extraByte = true;
+                    break;
+                } else {
+                    crlfFound = false;
+                    crFound = false;
+                }
+            }
+            if (ch == '\r') {
+                crFound = true;
+            } else if (ch == '\n' && crFound) {
+                crlfFound = true;
+                if (lineLength == 0) { // it starts with CRLF
+                    eof = true;
+                    return null;
+                }
+            } else {
+                lineLength++;
+                if (crFound) {
+                    lineLength++;
+                    crFound = false;
+                }
+            }
             if (lineLength > MAX_LINE_LENGTH) {
-                throw new HttpException("Line too long");
+                throw new HttpException("Line is too long while reading headers, limit " + MAX_LINE_LENGTH);
             }
             if (buffPos >= buffer.length) {
-                String chunk = new String(buffer, 0, buffPos, "ISO_8859_1");
+                int reduction = 0;
+                if (crlfFound) {
+                    reduction += 2;
+                } else if (crFound) {
+                    reduction++;
+                }
+                String chunk = new String(buffer, 0, buffPos - reduction, HEADER_CODEPAGE);
                 if (sb == null) {
                     sb = new StringBuilder(chunk);
                 } else {
                     sb.append(chunk);
                 }
-                buffPos = 0;
+                for (int i = 0; i < reduction; i++) {
+                    buffer[i] = buffer[buffPos - reduction + i];
+                }
+                buffPos = reduction;
             }
         }
+        if (crlfFound) {
+            buffPos -= 2;
+            if (extraByte) {
+                buffPos--;
+            }
+        }
+        String result;
         if (sb == null || sb.length() == 0) {
             // short lines
-            if (lineLength > 0 || ch != -1) {
-                // empty non-EOF lines are returned so caller can detect
-                // the beginning of message body and read some other way
-                return rtrim(returnLastChunk(buffPos));
+            if (buffPos > 0) {
+                result = rtrim(returnLastChunk(buffPos));
             } else {
-                // LF EOF
-                return null;
+                eof = true;
+                result = null;
             }
         } else {
             // long lines
             sb.append(returnLastChunk(buffPos));
-            return rtrim(sb.toString());
+            result = rtrim(sb.toString());
+            sb.setLength(0);
         }
+        if (extraByte) {
+            buffer[0] = buffer[buffPos + 2];
+            buffPos = 1;
+        } else {
+            buffPos = 0;
+        }
+        return result;
     }
 
     private String returnLastChunk(int buffPos) throws UnsupportedEncodingException {
-        if (buffPos > 0 && buffer[buffPos - 1] == '\r') {
-            buffPos--;
-        }
-        return buffPos != 0 ? new String(buffer, 0, buffPos, "ISO_8859_1") : EMPTY_LINE;
+        return buffPos != 0 ? new String(buffer, 0, buffPos, HEADER_CODEPAGE) : EMPTY_LINE;
     }
 
     private static String rtrim(String line) {
@@ -73,5 +126,5 @@ class HeaderLineReader {
         }
         return len < line.length() ? line.substring(0, len) : line;
     }
-    
+
 }

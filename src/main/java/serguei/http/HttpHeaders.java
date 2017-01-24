@@ -21,6 +21,7 @@ abstract class HttpHeaders {
     protected static final byte[] SPACE = " ".getBytes();
     private static final String KEY_VALUE_SEPARATOR = ": ";
     private static final byte[] KEY_VALUE_SEPARATOR_BYTES = KEY_VALUE_SEPARATOR.getBytes();
+    private static final int MAX_HEADER_NUMBER = 1000;
 
     private final Map<String, HeaderValues> headers = new LinkedHashMap<>();
 
@@ -28,8 +29,13 @@ abstract class HttpHeaders {
      * Read headers into the stream
      */
     protected void readHeaders(HeaderLineReader reader) throws IOException {
+        int number = 0;
         String line;
         while ((line = reader.readLine()) != null && line.length() > 0) {
+            number++;
+            if (number > MAX_HEADER_NUMBER) {
+                throw new HttpException("Reading HTTP headers - too many headers found, max=" + MAX_HEADER_NUMBER);
+            }
             addHeader(line);
         }
     }
