@@ -11,6 +11,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
@@ -358,7 +359,7 @@ public class HttpServer {
                     HttpRequest request;
                     try {
                         request = new HttpRequest(inputStream, (InetSocketAddress)socket.getRemoteSocketAddress());
-                    } catch (HttpException e) {
+                    } catch (HttpException | SocketTimeoutException e) {
                         // this happens when connection is closed by the client or
                         // client sends non-HTTP data
                         finished = true;
@@ -367,6 +368,8 @@ public class HttpServer {
                     try {
                         requestHandler.process(request, outputStream);
                         if (postponedCloseOutputStream.shouldClose()) {
+                            // this will cause the connection to close abnormally
+                            socket.setSoLinger(true, 0);
                             finished = true;
                         } else {
                             outputStream.flush();
