@@ -42,7 +42,7 @@ import serguei.http.utils.Utils;
  */
 public class HttpServer {
 
-    private static final int DEFAULT_TIMEOUT_MILS = 10_000;
+    private static final int DEFAULT_TIMEOUT_MILS = 60_000;
     private static final int WAIT_FOR_PROCESSES_TO_FINISH_MILS = 10_000;
 
     private final ExecutorService threadPool = Executors.newCachedThreadPool();
@@ -252,14 +252,14 @@ public class HttpServer {
     private ServerSocket createServerSocket(SocketAddress socketAddress) throws IOException {
         ServerSocket serverSocket = new ServerSocket();
         serverSocket.bind(socketAddress);
-        serverSocket.setSoTimeout(timeoutMils);
+        serverSocket.setSoTimeout(0);
         return serverSocket;
     }
 
     private ServerSocket createSslServerSocket(SocketAddress socketAddress) throws IOException, GeneralSecurityException {
         ServerSocket serverSocket = createSSLServerSocket();
         serverSocket.bind(socketAddress);
-        serverSocket.setSoTimeout(timeoutMils);
+        serverSocket.setSoTimeout(0);
         return serverSocket;
     }
 
@@ -310,7 +310,14 @@ public class HttpServer {
                     SocketRunner socketRunner = new SocketRunner(socket);
                     threadPool.execute(socketRunner);
                 } catch (IOException e) {
-                    // we will get SocketException when serverSocket is closed
+                    // we will get SocketException when serverSocket is closed, meaning it is not an error
+                    // if we get this exception after initiating closing serverSocket
+                    if (!finished) {
+                        e.printStackTrace();
+                    }
+                    finished = true;
+                } catch (Exception e) {
+                    e.printStackTrace();
                     finished = true;
                 }
             }
@@ -341,9 +348,12 @@ public class HttpServer {
             connections.put(connNo, this);
             InputStream inputStream = null;
             OutputStream outputStream = null;
+            PostponedCloseOutputStream postponedCloseOutputStream = null;
             try {
+                socket.setSoTimeout(timeoutMils);
                 inputStream = new BufferedInputStream(socket.getInputStream());
-                outputStream = new BufferedOutputStream(socket.getOutputStream());
+                postponedCloseOutputStream = new PostponedCloseOutputStream(socket.getOutputStream());
+                outputStream = new BufferedOutputStream(postponedCloseOutputStream);
                 while (!finished) {
                     HttpRequest request;
                     try {
@@ -356,15 +366,21 @@ public class HttpServer {
                     }
                     try {
                         requestHandler.process(request, outputStream);
-                        outputStream.flush();
+                        if (postponedCloseOutputStream.shouldClose()) {
+                            finished = true;
+                        } else {
+                            outputStream.flush();
+                        }
                     } catch (IOException e) {
-                        System.out.println("Error while processing request: " + e.getMessage());
                         finished = true;
                     }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
+                if (postponedCloseOutputStream != null) {
+                    postponedCloseOutputStream.setClosing();
+                }
                 connections.remove(connNo);
                 Utils.closeQuietly(inputStream);
                 Utils.closeQuietly(outputStream);
@@ -375,6 +391,48 @@ public class HttpServer {
 
         public void stop() {
             finished = true;
+        }
+
+    }
+
+    private class PostponedCloseOutputStream extends OutputStream {
+
+        private final OutputStream output;
+
+        private boolean toClose = false;
+        private boolean closing = false;
+
+        public PostponedCloseOutputStream(OutputStream output) throws IOException {
+            this.output = output;
+        }
+
+        @Override
+        public void write(int b) throws IOException {
+            output.write(b);
+        }
+
+        public void write(byte b[], int off, int len) throws IOException {
+            output.write(b, off, len);
+        }
+
+        public void flush() throws IOException {
+            output.flush();
+        }
+
+        public void close() throws IOException {
+            if (closing) {
+                output.close();
+            } else {
+                toClose = true;
+            }
+        }
+
+        public void setClosing() {
+            closing = true;
+        }
+
+        public boolean shouldClose() {
+            return toClose;
         }
 
     }
