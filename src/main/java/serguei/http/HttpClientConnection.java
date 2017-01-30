@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketException;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -357,6 +358,20 @@ public class HttpClientConnection implements Closeable {
     }
 
     /**
+     * Reset the connection to the server
+     */
+    public void reset() {
+        if (socket != null) {
+            try {
+                socket.setSoLinger(true, 0);
+            } catch (SocketException e) {
+                // nothing can be done
+            }
+        }
+        close();
+    }
+
+    /**
      * @return Certificates received from the server during TLS handshake or null if no TLS connection was established.
      */
     public X509Certificate[] getTlsCertificates() {
@@ -420,18 +435,6 @@ public class HttpClientConnection implements Closeable {
         outputStream = socket.getOutputStream();
     }
 
-    private SSLContext createSslContext(boolean validateCertificates) {
-        SSLContext sslContext;
-        try {
-            X509TrustManager trustManager = new TrustManagerWrapper(validateCertificates ? getDefaultTrustManager() : null);
-            sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(null, new TrustManager[]{trustManager}, null);
-        } catch (NoSuchAlgorithmException | KeyManagementException | KeyStoreException e) {
-            throw new RuntimeException(e);
-        }
-        return sslContext;
-    }
-
     private void connectIfNecessary() throws IOException {
         if (socket == null) {
             socket = connectSocket();
@@ -446,6 +449,18 @@ public class HttpClientConnection implements Closeable {
         newSocket.setSoLinger(false, 1);
         newSocket.connect(serverAddress);
         return newSocket;
+    }
+
+    private SSLContext createSslContext(boolean validateCertificates) {
+        SSLContext sslContext;
+        try {
+            X509TrustManager trustManager = new TrustManagerWrapper(validateCertificates ? getDefaultTrustManager() : null);
+            sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, new TrustManager[]{trustManager}, null);
+        } catch (NoSuchAlgorithmException | KeyManagementException | KeyStoreException e) {
+            throw new RuntimeException(e);
+        }
+        return sslContext;
     }
 
     private X509TrustManager getDefaultTrustManager() throws KeyStoreException, NoSuchAlgorithmException {
