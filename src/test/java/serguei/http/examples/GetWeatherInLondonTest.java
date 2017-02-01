@@ -10,7 +10,7 @@ public class GetWeatherInLondonTest {
 
     private static final String RESULT_PREFIX = "Temperature in London is ";
 
-    @Test
+    // @Test
     public void shoudReturnWeatherInLondong() throws Exception {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         GetWeatherInLondon weather = new GetWeatherInLondon(output);
