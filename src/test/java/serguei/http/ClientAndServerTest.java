@@ -9,12 +9,15 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import serguei.http.utils.Utils;
+
 public class ClientAndServerTest {
 
     private static final String HOST = "localhost";
     private static final String BODY_CHARSET = "UTF-8";
     private static final String PATH = "/test/file.txt";
     private static final String REQUEST_LINE = "POST " + PATH + " HTTP/1.1";
+    private static final String EOL = "\r\n";
 
     private String requestBody = makeBody("client");
     private String responseBody = makeBody("server");
@@ -123,6 +126,25 @@ public class ClientAndServerTest {
 
         assertEquals("gzip", response.getHeader("Content-Encoding"));
         assertTrue(response.isContentChunked());
+        assertEquals(responseBody, response.readBodyAsString());
+    }
+
+    @Test
+    public void shouldSendBytesAndReceiveFromServer() throws Exception {
+        byte[] body = requestBody.getBytes(BODY_CHARSET);
+        byte[] headers = (REQUEST_LINE + EOL + "Host: localhost" + EOL + "Content-Length: " + body.length + EOL + EOL)
+                .getBytes("ASCII");
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        byte[] data = Utils.concat(headers, body);
+
+        HttpResponse response = clientConnection.send(data);
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertNull(response.getHeader("Content-Encoding"));
+        assertEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
+        assertFalse(response.isContentChunked());
         assertEquals(responseBody, response.readBodyAsString());
     }
 

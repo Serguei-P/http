@@ -248,6 +248,22 @@ public class HttpClientConnection implements Closeable {
     }
 
     /**
+     * This sends data to the server and waits for a response. It will create a connection if necessary.
+     * 
+     * @param data
+     *            - data to be sent to the server as-is
+     * 
+     * @return a response the server sends after receiving the request
+     * @throws IOException
+     */
+    public HttpResponse send(byte[] data) throws IOException {
+        connectIfNecessary();
+        outputStream.write(data);
+        outputStream.flush();
+        return new HttpResponse(inputStream);
+    }
+
+    /**
      * This will send a CONNECT request and wait for a response, expecting to receive 200 OK. A connection will be
      * created if required.
      * 
