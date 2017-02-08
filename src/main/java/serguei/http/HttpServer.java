@@ -337,11 +337,11 @@ public class HttpServer {
 
     private class SocketRunner implements Runnable {
 
-        private final Socket socket;
+        private final ConnectionContext connectionContext;
         private volatile boolean finished = false;
 
         public SocketRunner(Socket socket) throws IOException {
-            this.socket = socket;
+            this.connectionContext = new ConnectionContext(socket);
         }
 
         @Override
@@ -352,14 +352,14 @@ public class HttpServer {
             OutputStream outputStream = null;
             PostponedCloseOutputStream postponedCloseOutputStream = null;
             try {
-                socket.setSoTimeout(timeoutMils);
-                inputStream = new BufferedInputStream(socket.getInputStream());
-                postponedCloseOutputStream = new PostponedCloseOutputStream(socket.getOutputStream());
+                connectionContext.getSocket().setSoTimeout(timeoutMils);
+                inputStream = new BufferedInputStream(connectionContext.getSocket().getInputStream());
+                postponedCloseOutputStream = new PostponedCloseOutputStream(connectionContext.getSocket().getOutputStream());
                 outputStream = new BufferedOutputStream(postponedCloseOutputStream);
                 while (!finished) {
                     HttpRequest request;
                     try {
-                        request = new HttpRequest(inputStream, (InetSocketAddress)socket.getRemoteSocketAddress());
+                        request = new HttpRequest(inputStream);
                     } catch (HttpException | SocketTimeoutException | SocketException e) {
                         // this happens when connection is closed by the client or
                         // client sends non-HTTP data
@@ -367,16 +367,18 @@ public class HttpServer {
                         break;
                     }
                     try {
-                        requestHandler.process(request, outputStream);
+                        requestHandler.process(connectionContext, request, outputStream);
                         if (postponedCloseOutputStream.shouldClose()) {
                             // this will cause the connection to close abnormally
-                            socket.setSoLinger(true, 0);
                             finished = true;
                         } else {
                             outputStream.flush();
                         }
                     } catch (IOException e) {
                         finished = true;
+                    }
+                    if (connectionContext.getCloseAction() == ConnectionContext.CloseAction.RESET) {
+                        connectionContext.getSocket().setSoLinger(true, 0);
                     }
                 }
             } catch (Exception e) {
@@ -388,7 +390,7 @@ public class HttpServer {
                 connections.remove(connNo);
                 Utils.closeQuietly(inputStream);
                 Utils.closeQuietly(outputStream);
-                Utils.closeQuietly(socket);
+                Utils.closeQuietly(connectionContext.getSocket());
                 finished = true;
             }
         }

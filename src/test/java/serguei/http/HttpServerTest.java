@@ -83,7 +83,7 @@ public class HttpServerTest {
         }
 
         @Override
-        public void process(HttpRequest request, OutputStream outputStream) {
+        public void process(ConnectionContext connectionContext, HttpRequest request, OutputStream outputStream) {
             latch.countDown();
             try {
                 latch.await();

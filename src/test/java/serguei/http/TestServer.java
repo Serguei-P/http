@@ -112,7 +112,7 @@ public class TestServer extends HttpServer {
         private volatile byte[] latestRequestBody;
 
         @Override
-        public void process(HttpRequest request, OutputStream outputStream) {
+        public void process(ConnectionContext connectionContext, HttpRequest request, OutputStream outputStream) {
             latestRequestHeaders = request.getHeaders();
             try {
                 latestRequestBody = request.readBodyAsBytes();

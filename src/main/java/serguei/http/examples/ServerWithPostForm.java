@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 
+import serguei.http.ConnectionContext;
 import serguei.http.HttpRequest;
 import serguei.http.HttpResponseHeaders;
 import serguei.http.HttpServer;
@@ -73,7 +74,8 @@ public class ServerWithPostForm implements Runnable {
     private class RequestHandler implements HttpServerRequestHandler {
 
         @Override
-        public void process(HttpRequest request, OutputStream outputStream) throws IOException {
+        public void process(ConnectionContext connectionContext, HttpRequest request, OutputStream outputStream)
+                throws IOException {
             System.out.println(request.getMethod() + " " + request.getUrl());
             if (request.getUrl().getPath().equals("/favicon.ico")) {
                 respondNotFound(outputStream);

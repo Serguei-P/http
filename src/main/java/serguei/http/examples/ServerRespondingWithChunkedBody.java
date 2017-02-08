@@ -11,6 +11,7 @@ import java.util.Properties;
 import java.util.zip.GZIPOutputStream;
 
 import serguei.http.ChunkedOutputStream;
+import serguei.http.ConnectionContext;
 import serguei.http.HttpRequest;
 import serguei.http.HttpResponseHeaders;
 import serguei.http.HttpServer;
@@ -69,7 +70,8 @@ public class ServerRespondingWithChunkedBody implements Runnable {
     private class RequestHandler implements HttpServerRequestHandler {
 
         @Override
-        public void process(HttpRequest request, OutputStream outputStream) throws IOException {
+        public void process(ConnectionContext connectionContext, HttpRequest request, OutputStream outputStream)
+                throws IOException {
             HttpResponseHeaders headers = HttpResponseHeaders.ok();
             headers.setHeader("Transfer-Encoding", "chunked");
             headers.setHeader("Content-Encoding", "gzip");
@@ -78,7 +80,7 @@ public class ServerRespondingWithChunkedBody implements Runnable {
             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(stream, "UTF-8"));
             writer.write("<HTML><BODY><TABLE>");
             writer.write("<tr><td colspan=2>Properties</td></tr>");
-            writer.write("<tr><td>Remote Ip</td><td>" + request.getRemoteAddress().getHostAddress() + "</td></tr>");
+            writer.write("<tr><td>Remote Ip</td><td>" + connectionContext.getRemoteAddress().getHostAddress() + "</td></tr>");
             Properties properties = System.getProperties();
             for (Object key : properties.keySet()) {
                 String property = key.toString();
