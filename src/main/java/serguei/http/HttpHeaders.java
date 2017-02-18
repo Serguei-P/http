@@ -22,8 +22,17 @@ abstract class HttpHeaders {
     private static final String KEY_VALUE_SEPARATOR = ": ";
     private static final byte[] KEY_VALUE_SEPARATOR_BYTES = KEY_VALUE_SEPARATOR.getBytes();
     private static final int MAX_HEADER_NUMBER = 1000;
+    private static final int UPPER_LOW_DIFF = 'a' - 'A';
 
     private final Map<String, HeaderValues> headers = new LinkedHashMap<>();
+
+    protected HttpHeaders() {
+
+    }
+
+    protected HttpHeaders(HttpHeaders headers) {
+        this.headers.putAll(headers.headers);
+    }
 
     /**
      * Read headers into the stream
@@ -121,7 +130,7 @@ abstract class HttpHeaders {
         if (values == null) {
             headers.put(normilizedHeaderName, new HeaderValues(headerName, headerValue));
         } else {
-            values.add(headerValue);
+            headers.put(normilizedHeaderName, values.addValue(headerValue));
         }
     }
 
@@ -130,6 +139,13 @@ abstract class HttpHeaders {
      */
     public void removeHeader(String headerName) {
         headers.remove(normalize(headerName));
+    }
+
+    /**
+     * @return List of header names
+     */
+    public List<String> listHeaderNames() {
+        return new ArrayList<>(headers.keySet());
     }
 
     /**
@@ -159,7 +175,57 @@ abstract class HttpHeaders {
     }
 
     private static String normalize(String name) {
-        return name.trim().toLowerCase();
+        name = name.trim();
+        if (isNormalized(name)) {
+            return name;
+        }
+        StringBuilder builder = new StringBuilder(name.length());
+        boolean upper = true;
+        for (int i = 0; i < name.length(); i++) {
+            char ch = name.charAt(i);
+            if (ch == '-') {
+                builder.append(ch);
+                upper = true;
+            } else {
+                if (upper) {
+                    if (ch >= 'a' && ch <= 'z') {
+                        builder.append((char)(ch - UPPER_LOW_DIFF));
+                    } else {
+                        builder.append(ch);
+                    }
+                    upper = false;
+                } else {
+                    if (ch >= 'A' && ch <= 'Z') {
+                        builder.append((char)(ch + UPPER_LOW_DIFF));
+                    } else {
+                        builder.append(ch);
+                    }
+                }
+            }
+        }
+        return builder.toString();
+    }
+
+    private static boolean isNormalized(String name) {
+        boolean expectUpper = true;
+        for (int i = 0; i < name.length(); i++) {
+            char ch = name.charAt(i);
+            if (ch == '-')  {
+                expectUpper = true;
+            } else {
+                if (expectUpper) {
+                    if (ch >= 'a' && ch <= 'z') {
+                        return false;
+                    }
+                    expectUpper = false;
+                } else {
+                    if (ch >= 'A' && ch <= 'Z') {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
     }
 
     @Override
@@ -194,27 +260,39 @@ abstract class HttpHeaders {
     private static class HeaderValues {
 
         private final String name;
-        private String value;
-        private List<String> values;
+        private final String value;
+        private final List<String> values;
 
-        public HeaderValues(String name, String value) {
+        private HeaderValues(String name, String value) {
             this.name = name;
             this.value = value;
+            this.values = null;
         }
 
-        public String getName() {
+        private HeaderValues(String name, List<String> values) {
+            this.name = name;
+            this.value = null;
+            this.values = values;
+        }
+
+        private String getName() {
             return name;
         }
 
-        public void add(String value) {
-            if (values == null) {
-                values = new ArrayList<>();
-                values.add(this.value);
-                values.add(value);
+        private HeaderValues addValue(String value) {
+            if (this.values == null) {
+                List<String> newValues = new ArrayList<>();
+                newValues.add(this.value);
+                newValues.add(value);
+                return new HeaderValues(name, newValues);
+            } else {
+                List<String> newValues = new ArrayList<>(values);
+                newValues.add(value);
+                return new HeaderValues(name, newValues);
             }
         }
 
-        public String getValue() {
+        private String getValue() {
             if (values != null) {
                 return values.get(0);
             } else {
@@ -222,7 +300,7 @@ abstract class HttpHeaders {
             }
         }
 
-        public List<String> getValues() {
+        private List<String> getValues() {
             if (values != null) {
                 return values;
             } else {
@@ -231,6 +309,15 @@ abstract class HttpHeaders {
                     result.add(value);
                 }
                 return result;
+            }
+        }
+
+        @Override
+        public String toString() {
+            if (values != null) {
+                return name + " - " + values;
+            } else {
+                return name + " - " + value;
             }
         }
     }

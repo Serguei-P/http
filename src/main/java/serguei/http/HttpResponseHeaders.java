@@ -14,7 +14,7 @@ import java.io.OutputStream;
  * @author Serguei Poliakov
  * 
  */
-public class HttpResponseHeaders extends HttpHeaders {
+public final class HttpResponseHeaders extends HttpHeaders {
 
     private String version;
     private int statusCode;
@@ -56,6 +56,13 @@ public class HttpResponseHeaders extends HttpHeaders {
             throw new HttpException("Unexpected EOF when reading HTTP message");
         }
         readHeaders(reader);
+    }
+
+    HttpResponseHeaders(HttpResponseHeaders responseHeaders) {
+        super(responseHeaders);
+        this.version = responseHeaders.version;
+        this.statusCode = responseHeaders.statusCode;
+        this.reason = responseHeaders.reason;
     }
 
     public static HttpResponseHeaders ok() {
@@ -122,7 +129,7 @@ public class HttpResponseHeaders extends HttpHeaders {
         return reason;
     }
 
-    private void parseResponseLine(String line) throws HttpException {
+    private final void parseResponseLine(String line) throws HttpException {
         int versionEndPos = line.indexOf(' ');
         if (versionEndPos > 0) {
             version = line.substring(0, versionEndPos);

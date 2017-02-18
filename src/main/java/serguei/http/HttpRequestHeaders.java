@@ -16,7 +16,7 @@ import java.net.URL;
  * @author Serguei Poliakov
  * 
  */
-public class HttpRequestHeaders extends HttpHeaders {
+public final class HttpRequestHeaders extends HttpHeaders {
 
     private static final String PROTOCOL_SEPARATOR = "://";
 
@@ -57,6 +57,13 @@ public class HttpRequestHeaders extends HttpHeaders {
             throw new HttpException("Unexpected EOF when reading HTTP message");
         }
         readHeaders(reader);
+    }
+
+    HttpRequestHeaders(HttpRequestHeaders requestHeaders) {
+        super(requestHeaders);
+        this.method = requestHeaders.method;
+        this.version = requestHeaders.version;
+        this.path = requestHeaders.path;
     }
 
     /**

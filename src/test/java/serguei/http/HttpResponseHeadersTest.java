@@ -5,6 +5,7 @@ import static org.junit.Assert.*;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.util.Arrays;
 
 import org.junit.Test;
 
@@ -108,6 +109,24 @@ public class HttpResponseHeadersTest {
         response.write(output);
 
         assertArrayEquals(expectedValue, output.toByteArray());
+    }
+
+    @Test
+    public void shouldMakeCopy() throws HttpException {
+        HttpResponseHeaders origHeaders = new HttpResponseHeaders("HTTP/1.1 200 OK", "HOST: www.fitltd.com",
+                "content-length: 100", "Header1: Value1", "Header1: Value2", "Header2: Value1");
+
+        HttpResponseHeaders newHeaders = new HttpResponseHeaders(origHeaders);
+        origHeaders.addHeader("Header2", "Value2"); // should not change newHeaders
+
+        assertEquals("HTTP/1.1", newHeaders.getVersion());
+        assertEquals(200, newHeaders.getStatusCode());
+        assertEquals("OK", newHeaders.getReason());
+        assertEquals("www.fitltd.com", newHeaders.getHeader("Host"));
+        assertEquals("100", newHeaders.getHeader("Content-Length"));
+        assertEquals(Arrays.asList("Value1", "Value2"), newHeaders.getHeaders("Header1"));
+        assertEquals(Arrays.asList("Value1"), newHeaders.getHeaders("Header2"));
+        assertEquals(Arrays.asList("Value1", "Value2"), origHeaders.getHeaders("Header2"));
     }
 
 }

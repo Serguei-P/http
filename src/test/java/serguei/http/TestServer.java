@@ -113,7 +113,7 @@ public class TestServer extends HttpServer {
 
         @Override
         public void process(ConnectionContext connectionContext, HttpRequest request, OutputStream outputStream) {
-            latestRequestHeaders = request.getHeaders();
+            latestRequestHeaders = request.headers();
             try {
                 latestRequestBody = request.readBodyAsBytes();
                 response.getHeaders().write(outputStream);

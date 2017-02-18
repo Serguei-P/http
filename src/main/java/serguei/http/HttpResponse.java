@@ -96,6 +96,10 @@ public class HttpResponse {
         return body.readAsBytes();
     }
 
+    public HttpResponseHeaders getHeaders() {
+        return new HttpResponseHeaders(headers);
+    }
+
     @Override
     public String toString() {
         return headers.toString();

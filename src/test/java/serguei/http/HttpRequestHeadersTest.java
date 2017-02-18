@@ -268,4 +268,46 @@ public class HttpRequestHeadersTest {
         }
     }
 
+    @Test
+    public void shouldCreateCopy() throws Exception {
+        HttpRequestHeaders origHeaders = new HttpRequestHeaders("GET http://www.fitltd.com/test.jsp HTTP/1.1",
+                "HOST: www.fitltd.com", "content-length: 100", "Header1: Value1", "Header1: Value2", "Header2: Value1");
+
+        HttpRequestHeaders newHeaders = new HttpRequestHeaders(origHeaders);
+        origHeaders.addHeader("header2", "Value2"); // should not change newHeaders
+
+        assertEquals("GET", newHeaders.getMethod());
+        assertEquals(new URL("http://www.fitltd.com/test.jsp"), newHeaders.getUrl());
+        assertEquals("HTTP/1.1", newHeaders.getVersion());
+        assertEquals("www.fitltd.com", newHeaders.getHeader("Host"));
+        assertEquals("100", newHeaders.getHeader("Content-Length"));
+        assertEquals("www.fitltd.com", newHeaders.getHost());
+        assertEquals(Arrays.asList("Value1", "Value2"), newHeaders.getHeaders("Header1"));
+        assertEquals(Arrays.asList("Value1"), newHeaders.getHeaders("Header2"));
+        assertEquals(Arrays.asList("Value1", "Value2"), origHeaders.getHeaders("Header2"));
+    }
+
+    @Test
+    public void shouldListHeaderNames() throws Exception {
+        HttpRequestHeaders headers = new HttpRequestHeaders("GET http://www.fitltd.com/test.jsp HTTP/1.1",
+                "HOST: www.fitltd.com", "content-length: 100", "Header1: Value1", "Header1: Value2", "Header2: Value1");
+
+        List<String> names = headers.listHeaderNames();
+
+        assertEquals(Arrays.asList("Host", "Content-Length", "Header1", "Header2"), names);
+    }
+
+    @Test
+    public void shouldNotCreateValueCopiesUnncessary() throws HttpException {
+        String headerName = "Header1";
+        String headerValue = "Value1";
+        HttpRequestHeaders origHeaders = new HttpRequestHeaders("GET http://www.fitltd.com/test.jsp HTTP/1.1");
+        origHeaders.addHeader(headerName, headerValue);
+        origHeaders.addHeader(headerName, "Value2");
+
+        HttpRequestHeaders newHeaders = new HttpRequestHeaders(origHeaders);
+        
+        assertSame(headerValue, newHeaders.getHeader(headerName));
+        assertSame(headerName, newHeaders.listHeaderNames().get(0));
+    }
 }

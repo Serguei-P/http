@@ -158,7 +158,17 @@ public class HttpRequest {
         }
     }
 
-    HttpRequestHeaders getHeaders() {
+    /**
+     * @return copy of the HTTP headers
+     */
+    public HttpRequestHeaders getHeaders() {
+        return new HttpRequestHeaders(headers);
+    }
+
+    /**
+     * @return HTTP headers (without copying)
+     */
+    HttpRequestHeaders headers() {
         return headers;
     }
 
