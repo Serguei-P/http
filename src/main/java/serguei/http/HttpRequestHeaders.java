@@ -125,6 +125,13 @@ public final class HttpRequestHeaders extends HttpHeaders {
         return version;
     }
 
+    /**
+     * @return Path as specified in Request Line
+     */
+    public String getPath() {
+        return path;
+    }
+
     @Override
     public String toString() {
         return method + " " + path + " " + version + System.lineSeparator() + super.toString();

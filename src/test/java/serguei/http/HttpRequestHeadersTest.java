@@ -23,6 +23,7 @@ public class HttpRequestHeadersTest {
 
         assertEquals("GET", request.getMethod());
         assertEquals(new URL("http://www.fitltd.com/test.jsp"), request.getUrl());
+        assertEquals("http://www.fitltd.com/test.jsp", request.getPath());
         assertEquals("HTTP/1.1", request.getVersion());
         assertEquals("www.fitltd.com", request.getHeader("Host"));
         assertEquals("100", request.getHeader("Content-Length"));
@@ -36,6 +37,7 @@ public class HttpRequestHeadersTest {
 
         assertEquals("GET", request.getMethod());
         assertEquals(new URL("http://www.fitltd.com/test.jsp"), request.getUrl());
+        assertEquals("/test.jsp", request.getPath());
         assertEquals("HTTP/1.1", request.getVersion());
         assertEquals("www.fitltd.com", request.getHeader("Host"));
         assertEquals("100", request.getHeader("Content-Length"));
