@@ -74,6 +74,27 @@ public class HttpServerTest {
         }
     }
 
+    @Test(timeout = 60000)
+    public void shouldCloseConnection() throws Exception {
+        HttpServerRequestHandler requestHandler = new ClosingConnectionRequestHandler();
+        HttpServer server = new HttpServer(requestHandler, PORT);
+        try {
+            server.start();
+            try (HttpClientConnection connection = new HttpClientConnection("localhost", PORT)) {
+                HttpResponse response = connection.send(HttpRequestHeaders.getRequest("http://localhost:" + PORT + "/"));
+                assertEquals(200, response.getStatusCode());
+                try {
+                    response = connection.send(HttpRequestHeaders.getRequest("http://localhost:" + PORT + "/"));
+                    fail("Connection was not closed");
+                } catch (IOException e) {
+                    // should close connection coursing the exception
+                }
+            }
+        } finally {
+            server.stop();
+        }
+    }
+
     private class RequestHandler implements HttpServerRequestHandler {
 
         private final CountDownLatch latch;
@@ -105,6 +126,17 @@ public class HttpServerTest {
                 e.printStackTrace();
             }
         }
+    }
+
+    private class ClosingConnectionRequestHandler implements HttpServerRequestHandler {
+
+        @Override
+        public void process(ConnectionContext connectionContext, HttpRequest request, OutputStream outputStream)
+                throws IOException {
+            HttpResponseHeaders.ok().write(outputStream);
+            connectionContext.closeConnection();
+        }
+
     }
 
     private class RequestProcess implements Callable<HttpResponse> {

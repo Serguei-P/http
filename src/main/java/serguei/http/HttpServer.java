@@ -373,13 +373,16 @@ public class HttpServer {
                             finished = true;
                         } else {
                             outputStream.flush();
+                            if (connectionContext.getCloseAction() != ConnectionContext.CloseAction.NONE) {
+                                finished = true;
+                            }
                         }
                     } catch (IOException e) {
                         finished = true;
                     }
-                    if (connectionContext.getCloseAction() == ConnectionContext.CloseAction.RESET) {
-                        connectionContext.getSocket().setSoLinger(true, 0);
-                    }
+                }
+                if (connectionContext.getCloseAction() == ConnectionContext.CloseAction.RESET) {
+                    connectionContext.getSocket().setSoLinger(true, 0);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
