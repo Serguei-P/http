@@ -87,6 +87,14 @@ public class TestServer extends HttpServer {
         requestHandler.setResponse(new Response(headers, output.toByteArray()));
     }
 
+    public void setUnmodifiedResponse(HttpResponseHeaders headers, byte[] body) {
+        requestHandler.setResponse(new Response(headers, body));
+    }
+
+    public void closeAfterResponse() {
+        requestHandler.closeAfterResponse();
+    }
+
     public HttpRequestHeaders getLatestRequestHeaders() {
         return requestHandler.getLatestRequestHeaders();
     }
@@ -108,6 +116,7 @@ public class TestServer extends HttpServer {
     private static class TestRequestHandler implements HttpServerRequestHandler {
 
         private Response response;
+        private boolean closeAfterResponse = false;
         private volatile HttpRequestHeaders latestRequestHeaders;
         private volatile byte[] latestRequestBody;
 
@@ -118,7 +127,9 @@ public class TestServer extends HttpServer {
                 latestRequestBody = request.readBodyAsBytes();
                 response.getHeaders().write(outputStream);
                 outputStream.write(response.getBody());
-                outputStream.flush();
+                if (closeAfterResponse) {
+                    connectionContext.closeConnection();
+                }
             } catch (IOException e) {
                 throw new RuntimeException("Error", e);
             }
@@ -134,6 +145,10 @@ public class TestServer extends HttpServer {
 
         public void setResponse(Response response) {
             this.response = response;
+        }
+
+        public void closeAfterResponse() {
+            closeAfterResponse = true;
         }
     }
 

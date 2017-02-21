@@ -23,6 +23,8 @@ class HttpBody {
             stream = new ChunkedInputStream(inputStream);
         } else if (contentLength > 0) {
             stream = new LimitedLengthInputStream(inputStream, contentLength);
+        } else {
+            stream = inputStream;
         }
         if (encoding != null && encoding.equals("gzip")) {
             // GZIPInputStream returns -1 before all bytes from input stream read
@@ -32,7 +34,7 @@ class HttpBody {
             streamToDrainOfData = null;
         }
         this.bodyInputStream = stream;
-        this.hasBody = contentLength > 0 || chunked;
+        this.hasBody = contentLength != 0;
     }
 
     String readAsString() throws IOException {

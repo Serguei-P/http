@@ -148,6 +148,21 @@ public class ClientAndServerTest {
         assertEquals(responseBody, response.readBodyAsString());
     }
 
+    @Test(timeout = 10000)
+    public void shouldReceiveUnknownLengthResponse() throws Exception {
+        server.setUnmodifiedResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET));
+        server.closeAfterResponse();
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers, requestBody);
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertNull(response.getHeader("Content-Length"));
+        assertEquals(responseBody, response.readBodyAsString());
+    }
+
     private static String makeBody(String msg) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < 200; i++) {
