@@ -17,7 +17,8 @@ class HttpBody {
     private final InputStream streamToDrainOfData;
     private final boolean hasBody;
 
-    HttpBody(InputStream inputStream, long contentLength, boolean chunked, String encoding) throws IOException {
+    HttpBody(InputStream inputStream, long contentLength, boolean chunked, String encoding, boolean allowUnknownBodyLength)
+            throws IOException {
         InputStream stream = inputStream;
         if (chunked) {
             stream = new ChunkedInputStream(inputStream);
@@ -34,7 +35,7 @@ class HttpBody {
             streamToDrainOfData = null;
         }
         this.bodyInputStream = stream;
-        this.hasBody = contentLength != 0;
+        this.hasBody = contentLength > 0 || chunked || (allowUnknownBodyLength && contentLength < 0);
     }
 
     String readAsString() throws IOException {

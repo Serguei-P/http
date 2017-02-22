@@ -24,7 +24,7 @@ public class HttpResponse {
         contentLength = headers.getContentLength();
         chunked = contentLength < 0 && headers.hasChunkedBody();
         String encoding = headers.getHeader("content-encoding");
-        body = new HttpBody(inputStream, contentLength, chunked, encoding);
+        body = new HttpBody(inputStream, contentLength, chunked, encoding, true);
     }
 
     /**

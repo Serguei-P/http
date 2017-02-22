@@ -29,7 +29,7 @@ public class HttpRequest {
         String encoding = headers.getHeader("content-encoding");
         String method = headers.getMethod();
         if (!method.equals("GET") && !method.equals("CONNECT")) {
-            body = new HttpBody(inputStream, contentLength, chunked, encoding);
+            body = new HttpBody(inputStream, contentLength, chunked, encoding, false);
         } else {
             body = null;
         }
