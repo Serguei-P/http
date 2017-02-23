@@ -140,6 +140,7 @@ public class ClientAndServerTest {
         HttpResponse response = clientConnection.send(data);
 
         assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertFalse(server.getLatestConnectionContext().isSsl());
         assertEquals(requestBody, server.getLatestRequestBodyAsString());
         assertEquals(200, response.getStatusCode());
         assertNull(response.getHeader("Content-Encoding"));

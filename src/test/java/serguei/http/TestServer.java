@@ -103,6 +103,10 @@ public class TestServer extends HttpServer {
         return requestHandler.getLatestRequestBody();
     }
 
+    public ConnectionContext getLatestConnectionContext() {
+        return requestHandler.getLatestConnectionContext();
+    }
+
     public String getLatestRequestBodyAsString() {
         try {
             return new String(getLatestRequestBody(), BODY_CODEPAGE);
@@ -119,10 +123,12 @@ public class TestServer extends HttpServer {
         private boolean closeAfterResponse = false;
         private volatile HttpRequestHeaders latestRequestHeaders;
         private volatile byte[] latestRequestBody;
+        private volatile ConnectionContext latestConnectionContext;
 
         @Override
         public void process(ConnectionContext connectionContext, HttpRequest request, OutputStream outputStream) {
             latestRequestHeaders = request.headers();
+            latestConnectionContext = connectionContext;
             try {
                 latestRequestBody = request.readBodyAsBytes();
                 response.getHeaders().write(outputStream);
@@ -141,6 +147,10 @@ public class TestServer extends HttpServer {
 
         public byte[] getLatestRequestBody() {
             return latestRequestBody;
+        }
+
+        public ConnectionContext getLatestConnectionContext() {
+            return latestConnectionContext;
         }
 
         public void setResponse(Response response) {

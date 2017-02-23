@@ -1,8 +1,6 @@
 package serguei.http;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.*;
 
 import org.junit.After;
 import org.junit.Before;
@@ -42,6 +40,9 @@ public class ClientAndServerSslTest {
         HttpResponse response = clientConnection.send(headers, requestBody);
 
         assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertTrue(server.getLatestConnectionContext().isSsl());
+        assertNotNull(server.getLatestConnectionContext().getNegotiatedTlsProtocol());
+        assertTrue(server.getLatestConnectionContext().getNegotiatedCipher().length() > 0);
         assertEquals(requestBody, server.getLatestRequestBodyAsString());
         assertEquals(200, response.getStatusCode());
         assertNull(response.getHeader("Content-Encoding"));
