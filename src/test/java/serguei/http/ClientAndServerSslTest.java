@@ -51,6 +51,20 @@ public class ClientAndServerSslTest {
         assertEquals(responseBody, response.readBodyAsString());
     }
 
+    @Test
+    public void shouldSendAndReceiveFromServerWhichOnlySupportsTls10() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        server.setTlsProtocol(TlsVersion.TLSv10);
+        clientConnection.setTlsProtocol(TlsVersion.TLSv10, TlsVersion.TLSv11, TlsVersion.TLSv12);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        clientConnection.startHandshake();
+        HttpResponse response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals(TlsVersion.TLSv10, clientConnection.getNegotiatedTlsProtocol());
+    }
+
     private static String makeBody(String msg) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < 200; i++) {

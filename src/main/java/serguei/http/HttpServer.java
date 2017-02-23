@@ -26,8 +26,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLServerSocket;
-import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
 import serguei.http.utils.Utils;
@@ -58,9 +58,12 @@ public class HttpServer {
     private final String certificatePassword;
     private final int numberOfPorts;
 
+    private TlsVersion[] enabledTlsProtocols;
+    private String[] enabledCipherSuites;
     private List<ServerSocketRunner> serverSocketRunners = new ArrayList<>();
     private volatile boolean isStopped;
     private AtomicLong connectionNo = new AtomicLong(0);
+    private SSLSocketFactory sslSocketFactory;
 
     /**
      * Creating an instance of HttpServer listening to one ports (this does not actually start the server - call start()
@@ -159,6 +162,7 @@ public class HttpServer {
      * @throws IOException
      *             - often indicate that we can't bind to a port (e.g. because it is used by a different application or
      *             we don't have authority to find to it).
+     * @throws GeneralSecurityException
      */
     public void start() throws IOException {
         if (serverSocketRunners.size() > 0) {
@@ -166,22 +170,30 @@ public class HttpServer {
         }
         isStopped = false;
         List<ServerSocket> serverSockets = new ArrayList<>();
+        List<Boolean> ssl = new ArrayList<>();
         try {
             ServerSocket serverSocket = createServerSocket(socketAddress);
             serverSockets.add(serverSocket);
+            ssl.add(false);
             if (sslSocketAddress != null) {
-                serverSocket = createSslServerSocket(sslSocketAddress);
+                try {
+                    this.sslSocketFactory = createSSLSocketFactory();
+                } catch (GeneralSecurityException e) {
+                    throw new IOException(e.getMessage(), e);
+                }
+                serverSocket = createServerSocket(sslSocketAddress);
                 serverSockets.add(serverSocket);
+                ssl.add(true);
             }
-        } catch (IOException | GeneralSecurityException e) {
+        } catch (IOException e) {
             for (ServerSocket serverSocket : serverSockets) {
                 Utils.closeQuietly(serverSocket);
             }
             throw new IOException(e.getMessage(), e);
         }
         synchronized (serverSocketRunners) {
-            for (ServerSocket serverSocket : serverSockets) {
-                ServerSocketRunner serverSocketRunner = new ServerSocketRunner(serverSocket);
+            for (int i = 0; i < serverSockets.size(); i++) {
+                ServerSocketRunner serverSocketRunner = new ServerSocketRunner(serverSockets.get(i), ssl.get(i));
                 serverSocketRunners.add(serverSocketRunner);
                 threadPool.execute(serverSocketRunner);
             }
@@ -247,6 +259,30 @@ public class HttpServer {
         return isStopped;
     }
 
+    /**
+     * @param enabledTlsProtocols
+     *            - list of allowed TLS protocols
+     */
+    public void setTlsProtocol(TlsVersion... enabledTlsProtocols) {
+        this.enabledTlsProtocols = enabledTlsProtocols;
+    }
+
+    public void useJdkDefaultTlsProtocols() {
+        enabledTlsProtocols = null;
+    }
+
+    /**
+     * @param enabledCipherSuites
+     *            - list of allowed Cipher Suites
+     */
+    public void setCipherSuites(String... enabledCipherSuites) {
+        this.enabledCipherSuites = enabledCipherSuites;
+    }
+
+    public void useJdkDefaultCipherSuites() {
+        this.enabledCipherSuites = null;
+    }
+
     protected HttpServerRequestHandler getRequestHandler() {
         return requestHandler;
     }
@@ -258,14 +294,7 @@ public class HttpServer {
         return serverSocket;
     }
 
-    private ServerSocket createSslServerSocket(SocketAddress socketAddress) throws IOException, GeneralSecurityException {
-        ServerSocket serverSocket = createSSLServerSocket();
-        serverSocket.bind(socketAddress);
-        serverSocket.setSoTimeout(0);
-        return serverSocket;
-    }
-
-    private SSLServerSocket createSSLServerSocket() throws IOException, GeneralSecurityException {
+    private SSLSocketFactory createSSLSocketFactory() throws IOException, GeneralSecurityException {
         KeyStore keyStore = loadKeyStore();
         String algorithm = KeyManagerFactory.getDefaultAlgorithm();
         KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(algorithm);
@@ -274,8 +303,7 @@ public class HttpServer {
         trustManagerFactory.init(keyStore);
         SSLContext sslContext = SSLContext.getInstance("SSL");
         sslContext.init(keyManagerFactory.getKeyManagers(), trustManagerFactory.getTrustManagers(), null);
-        SSLServerSocketFactory ssocketFactory = sslContext.getServerSocketFactory();
-        return (SSLServerSocket)ssocketFactory.createServerSocket();
+        return sslContext.getSocketFactory();
     }
 
     private KeyStore loadKeyStore() throws IOException, GeneralSecurityException {
@@ -296,11 +324,13 @@ public class HttpServer {
     private class ServerSocketRunner implements Runnable {
 
         private final ServerSocket serverSocket;
+        private final boolean ssl;
         private volatile boolean finished;
         private volatile boolean started;
 
-        public ServerSocketRunner(ServerSocket serverSocket) {
+        public ServerSocketRunner(ServerSocket serverSocket, boolean ssl) {
             this.serverSocket = serverSocket;
+            this.ssl = ssl;
         }
 
         @Override
@@ -309,7 +339,7 @@ public class HttpServer {
             while (!finished) {
                 try {
                     Socket socket = serverSocket.accept();
-                    SocketRunner socketRunner = new SocketRunner(socket);
+                    SocketRunner socketRunner = new SocketRunner(socket, ssl);
                     threadPool.execute(socketRunner);
                 } catch (IOException e) {
                     // we will get SocketException when serverSocket is closed, meaning it is not an error
@@ -337,11 +367,14 @@ public class HttpServer {
 
     private class SocketRunner implements Runnable {
 
-        private final ConnectionContext connectionContext;
+        private final boolean ssl;
+        private ConnectionContext connectionContext;
+        private Socket socket;
         private volatile boolean finished = false;
 
-        public SocketRunner(Socket socket) throws IOException {
-            this.connectionContext = new ConnectionContext(socket);
+        public SocketRunner(Socket socket, boolean ssl) throws IOException {
+            this.socket = socket;
+            this.ssl = ssl;
         }
 
         @Override
@@ -352,7 +385,21 @@ public class HttpServer {
             OutputStream outputStream = null;
             PostponedCloseOutputStream postponedCloseOutputStream = null;
             try {
-                connectionContext.getSocket().setSoTimeout(timeoutMils);
+                socket.setSoTimeout(timeoutMils);
+                if (ssl) {
+                    socket = sslSocketFactory.createSocket(socket, socket.getLocalSocketAddress().toString(),
+                            socket.getPort(), true);
+                    SSLSocket sslSocket = (SSLSocket)socket;
+                    sslSocket.setUseClientMode(false);
+                    if (enabledTlsProtocols != null) {
+                        sslSocket.setEnabledProtocols(TlsVersion.toJdkStrings(enabledTlsProtocols));
+                    }
+                    if (enabledCipherSuites != null) {
+                        sslSocket.setEnabledCipherSuites(enabledCipherSuites);
+                    }
+                    sslSocket.startHandshake();
+                }
+                connectionContext = new ConnectionContext(socket);
                 inputStream = new BufferedInputStream(connectionContext.getSocket().getInputStream());
                 postponedCloseOutputStream = new PostponedCloseOutputStream(connectionContext.getSocket().getOutputStream());
                 outputStream = new BufferedOutputStream(postponedCloseOutputStream);
@@ -393,7 +440,7 @@ public class HttpServer {
                 connections.remove(connNo);
                 Utils.closeQuietly(inputStream);
                 Utils.closeQuietly(outputStream);
-                Utils.closeQuietly(connectionContext.getSocket());
+                Utils.closeQuietly(socket);
                 finished = true;
             }
         }
