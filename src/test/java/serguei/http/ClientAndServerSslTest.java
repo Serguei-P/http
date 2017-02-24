@@ -65,6 +65,32 @@ public class ClientAndServerSslTest {
         assertEquals(TlsVersion.TLSv10, clientConnection.getNegotiatedTlsProtocol());
     }
 
+    @Test
+    public void shouldSendSniToServer() throws Exception {
+        String sni = "www.fitltd.com";
+        server.setResponse(HttpResponseHeaders.ok(), new byte[0]);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        clientConnection.startHandshake(sni);
+        HttpResponse response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals(1, server.getLatestConnectionContext().getSni().length);
+        assertEquals(sni, server.getLatestConnectionContext().getSni()[0]);
+    }
+
+    @Test
+    public void shouldSendNoSniToServerWhenNotSpecified() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), new byte[0]);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        clientConnection.startHandshake();
+        HttpResponse response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals(0, server.getLatestConnectionContext().getSni().length);
+    }
+
     private static String makeBody(String msg) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < 200; i++) {

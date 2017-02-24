@@ -399,10 +399,10 @@ public class HttpServer {
                     }
                     sslSocket.startHandshake();
                 }
-                connectionContext = new ConnectionContext(socket);
-                inputStream = new BufferedInputStream(connectionContext.getSocket().getInputStream());
-                postponedCloseOutputStream = new PostponedCloseOutputStream(connectionContext.getSocket().getOutputStream());
+                inputStream = new BufferedInputStream(socket.getInputStream());
+                postponedCloseOutputStream = new PostponedCloseOutputStream(socket.getOutputStream());
                 outputStream = new BufferedOutputStream(postponedCloseOutputStream);
+                connectionContext = new ConnectionContext(socket);
                 while (!finished) {
                     HttpRequest request;
                     try {
