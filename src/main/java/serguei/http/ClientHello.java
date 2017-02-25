@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 
-public class ClientHello {
+class ClientHello {
 
     private static final int TLS_HEADER_LENGTH = 5;
     private static final int CH_HEADER_LEN = 6;
@@ -22,7 +22,7 @@ public class ClientHello {
     private byte[] buffer = new byte[512];
     private int bufferSize = 0;
 
-    public static ClientHello read(MarkAndResetInputStream inputStream) throws IOException {
+    static ClientHello read(MarkAndResetInputStream inputStream) throws IOException {
         ClientHello clientHello = new ClientHello(inputStream);
         inputStream.mark(0);
         clientHello.parse();
@@ -92,7 +92,6 @@ public class ClientHello {
     }
 
     private int getInt16(int pos) {
-        System.out.println(" " + getInt8(pos) + " " + getInt8(pos + 1));
         return (getInt8(pos) << 8) | getInt8(pos + 1);
     }
 

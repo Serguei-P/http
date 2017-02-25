@@ -387,17 +387,7 @@ public class HttpServer {
             try {
                 socket.setSoTimeout(timeoutMils);
                 if (ssl) {
-                    socket = sslSocketFactory.createSocket(socket, socket.getLocalSocketAddress().toString(),
-                            socket.getPort(), true);
-                    SSLSocket sslSocket = (SSLSocket)socket;
-                    sslSocket.setUseClientMode(false);
-                    if (enabledTlsProtocols != null) {
-                        sslSocket.setEnabledProtocols(TlsVersion.toJdkStrings(enabledTlsProtocols));
-                    }
-                    if (enabledCipherSuites != null) {
-                        sslSocket.setEnabledCipherSuites(enabledCipherSuites);
-                    }
-                    sslSocket.startHandshake();
+                    socket = setupSsl(socket);
                 }
                 inputStream = new BufferedInputStream(socket.getInputStream());
                 postponedCloseOutputStream = new PostponedCloseOutputStream(socket.getOutputStream());
@@ -447,6 +437,22 @@ public class HttpServer {
 
         public void stop() {
             finished = true;
+        }
+
+        private SSLSocket setupSsl(Socket socket) throws IOException {
+            InputStream inputStream = new MarkAndResetInputStream(socket.getInputStream());
+            socket = new SocketWrapper(socket, inputStream, socket.getOutputStream());
+            socket = sslSocketFactory.createSocket(socket, socket.getLocalSocketAddress().toString(), socket.getPort(), true);
+            SSLSocket sslSocket = (SSLSocket)socket;
+            sslSocket.setUseClientMode(false);
+            if (enabledTlsProtocols != null) {
+                sslSocket.setEnabledProtocols(TlsVersion.toJdkStrings(enabledTlsProtocols));
+            }
+            if (enabledCipherSuites != null) {
+                sslSocket.setEnabledCipherSuites(enabledCipherSuites);
+            }
+            sslSocket.startHandshake();
+            return sslSocket;
         }
 
     }

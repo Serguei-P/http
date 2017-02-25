@@ -4,14 +4,14 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class MarkAndResetInputStream extends FilterInputStream {
+class MarkAndResetInputStream extends FilterInputStream {
 
     private byte[] rememberedData;
     private int rememberedSize;
     private int rememberedPos;
     private boolean marked = false;
 
-    public MarkAndResetInputStream(InputStream input) {
+    MarkAndResetInputStream(InputStream input) {
         super(input);
     }
 
