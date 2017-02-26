@@ -75,8 +75,7 @@ public class ClientAndServerSslTest {
         HttpResponse response = clientConnection.send(headers, requestBody);
 
         assertEquals(200, response.getStatusCode());
-        assertEquals(1, server.getLatestConnectionContext().getSni().length);
-        assertEquals(sni, server.getLatestConnectionContext().getSni()[0]);
+        assertEquals(sni, server.getLatestConnectionContext().getSni());
     }
 
     @Test
@@ -88,7 +87,7 @@ public class ClientAndServerSslTest {
         HttpResponse response = clientConnection.send(headers, requestBody);
 
         assertEquals(200, response.getStatusCode());
-        assertEquals(0, server.getLatestConnectionContext().getSni().length);
+        assertEquals("", server.getLatestConnectionContext().getSni());
     }
 
     private static String makeBody(String msg) {

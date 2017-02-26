@@ -3,10 +3,7 @@ package serguei.http;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
 
-import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 
@@ -27,11 +24,11 @@ public class ConnectionContext {
     private final boolean ssl;
     private final TlsVersion negotiatedTlsProtocol;
     private final String negotiatedCipher;
-    private final String[] sni;
+    private final String sni;
 
     private CloseAction closeAction = CloseAction.NONE;
 
-    ConnectionContext(Socket socket) {
+    ConnectionContext(Socket socket, ClientHello clientHello) {
         this.socket = socket;
         this.remoteSocketAddress = (InetSocketAddress)socket.getRemoteSocketAddress();
         if (socket instanceof SSLSocket) {
@@ -40,10 +37,10 @@ public class ConnectionContext {
             SSLSession sslSession = sslSocket.getSession();
             this.negotiatedTlsProtocol = TlsVersion.fromJdkString(sslSession.getProtocol());
             this.negotiatedCipher = sslSession.getCipherSuite();
-            List<SNIServerName> serverNames = new ArrayList<>();
-            this.sni = new String[serverNames.size()];
-            for (int i = 0; i < serverNames.size(); i++) {
-                this.sni[i] = serverNames.get(i).toString();
+            if (clientHello != null) {
+                this.sni = clientHello.getSniHostName();
+            } else {
+                this.sni = "";
             }
         } else {
             ssl = false;
@@ -102,7 +99,7 @@ public class ConnectionContext {
     /**
      * @return SNIs received from the client during TLS handshake
      */
-    public String[] getSni() {
+    public String getSni() {
         return sni;
     }
 

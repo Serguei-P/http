@@ -365,6 +365,12 @@ public class HttpServer {
         }
     }
 
+    private static class SslConnection {
+
+        private SSLSocket socket;
+        private ClientHello clientHello;
+    }
+
     private class SocketRunner implements Runnable {
 
         private final boolean ssl;
@@ -386,13 +392,17 @@ public class HttpServer {
             PostponedCloseOutputStream postponedCloseOutputStream = null;
             try {
                 socket.setSoTimeout(timeoutMils);
+                SslConnection sslConnection;
                 if (ssl) {
-                    socket = setupSsl(socket);
+                    sslConnection = setupSsl(socket);
+                    socket = sslConnection.socket;
+                } else {
+                    sslConnection = null;
                 }
                 inputStream = new BufferedInputStream(socket.getInputStream());
                 postponedCloseOutputStream = new PostponedCloseOutputStream(socket.getOutputStream());
                 outputStream = new BufferedOutputStream(postponedCloseOutputStream);
-                connectionContext = new ConnectionContext(socket);
+                connectionContext = new ConnectionContext(socket, sslConnection != null ? sslConnection.clientHello : null);
                 while (!finished) {
                     HttpRequest request;
                     try {
@@ -439,9 +449,10 @@ public class HttpServer {
             finished = true;
         }
 
-        private SSLSocket setupSsl(Socket socket) throws IOException {
-            InputStream inputStream = new MarkAndResetInputStream(socket.getInputStream());
+        private SslConnection setupSsl(Socket socket) throws IOException {
+            MarkAndResetInputStream inputStream = new MarkAndResetInputStream(socket.getInputStream());
             socket = new SocketWrapper(socket, inputStream, socket.getOutputStream());
+            ClientHello clientHello = ClientHello.read(inputStream);
             socket = sslSocketFactory.createSocket(socket, socket.getLocalSocketAddress().toString(), socket.getPort(), true);
             SSLSocket sslSocket = (SSLSocket)socket;
             sslSocket.setUseClientMode(false);
@@ -452,7 +463,10 @@ public class HttpServer {
                 sslSocket.setEnabledCipherSuites(enabledCipherSuites);
             }
             sslSocket.startHandshake();
-            return sslSocket;
+            SslConnection result = new SslConnection();
+            result.socket = sslSocket;
+            result.clientHello = clientHello;
+            return result;
         }
 
     }
