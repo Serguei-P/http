@@ -53,9 +53,6 @@ public class HttpServer {
     private final int timeoutMils;
     private final HttpServerRequestHandler requestHandler;
     private final Map<Long, SocketRunner> connections = new ConcurrentHashMap<>();
-    private final String keyStorePath;
-    private final String keyStorePassword;
-    private final String certificatePassword;
     private final int numberOfPorts;
 
     private TlsVersion[] enabledTlsProtocols;
@@ -63,7 +60,7 @@ public class HttpServer {
     private List<ServerSocketRunner> serverSocketRunners = new ArrayList<>();
     private volatile boolean isStopped;
     private AtomicLong connectionNo = new AtomicLong(0);
-    private SSLSocketFactory sslSocketFactory;
+    private KeyStoreData defaultKeyStore;
 
     /**
      * Creating an instance of HttpServer listening to one ports (this does not actually start the server - call start()
@@ -150,9 +147,7 @@ public class HttpServer {
         }
         timeoutMils = DEFAULT_TIMEOUT_MILS;
         this.requestHandler = requestHandler;
-        this.keyStorePath = keyStorePath;
-        this.keyStorePassword = keyStorePassword;
-        this.certificatePassword = certificatePassword;
+        this.defaultKeyStore = new KeyStoreData(keyStorePath, keyStorePassword, certificatePassword);
     }
 
     /**
@@ -176,11 +171,6 @@ public class HttpServer {
             serverSockets.add(serverSocket);
             ssl.add(false);
             if (sslSocketAddress != null) {
-                try {
-                    this.sslSocketFactory = createSSLSocketFactory();
-                } catch (GeneralSecurityException e) {
-                    throw new IOException(e.getMessage(), e);
-                }
                 serverSocket = createServerSocket(sslSocketAddress);
                 serverSockets.add(serverSocket);
                 ssl.add(true);
@@ -292,24 +282,6 @@ public class HttpServer {
         serverSocket.bind(socketAddress);
         serverSocket.setSoTimeout(0);
         return serverSocket;
-    }
-
-    private SSLSocketFactory createSSLSocketFactory() throws IOException, GeneralSecurityException {
-        KeyStore keyStore = loadKeyStore();
-        String algorithm = KeyManagerFactory.getDefaultAlgorithm();
-        KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(algorithm);
-        keyManagerFactory.init(keyStore, certificatePassword.toCharArray());
-        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(algorithm);
-        trustManagerFactory.init(keyStore);
-        SSLContext sslContext = SSLContext.getInstance("SSL");
-        sslContext.init(keyManagerFactory.getKeyManagers(), trustManagerFactory.getTrustManagers(), null);
-        return sslContext.getSocketFactory();
-    }
-
-    private KeyStore loadKeyStore() throws IOException, GeneralSecurityException {
-        KeyStore keystore = KeyStore.getInstance("JKS");
-        keystore.load(new FileInputStream(keyStorePath), keyStorePassword.toCharArray());
-        return keystore;
     }
 
     private static InetAddress allLocalAddresses() {
@@ -453,7 +425,8 @@ public class HttpServer {
             MarkAndResetInputStream inputStream = new MarkAndResetInputStream(socket.getInputStream());
             socket = new SocketWrapper(socket, inputStream, socket.getOutputStream());
             ClientHello clientHello = ClientHello.read(inputStream);
-            socket = sslSocketFactory.createSocket(socket, socket.getLocalSocketAddress().toString(), socket.getPort(), true);
+            socket = defaultKeyStore.getSslSocketFactory().createSocket(socket, socket.getLocalSocketAddress().toString(),
+                    socket.getPort(), true);
             SSLSocket sslSocket = (SSLSocket)socket;
             sslSocket.setUseClientMode(false);
             if (enabledTlsProtocols != null) {
@@ -509,6 +482,49 @@ public class HttpServer {
 
         public boolean shouldClose() {
             return toClose;
+        }
+
+    }
+
+    private static class KeyStoreData {
+
+        private final String keyStorePath;
+        private final String keyStorePassword;
+        private final String certificatePassword;
+        private SSLSocketFactory sslSocketFactory;
+
+        public KeyStoreData(String keyStorePath, String keyStorePassword, String certificatePassword) {
+            this.keyStorePath = keyStorePath;
+            this.keyStorePassword = keyStorePassword;
+            this.certificatePassword = certificatePassword;
+        }
+
+        public SSLSocketFactory getSslSocketFactory() throws IOException {
+            if (sslSocketFactory == null) {
+                synchronized (this) {
+                    if (sslSocketFactory == null) {
+                        try {
+                            sslSocketFactory = createSSLSocketFactory();
+                        } catch (GeneralSecurityException e) {
+                            throw new IOException(e.getMessage(), e);
+                        }
+                    }
+                }
+            }
+            return sslSocketFactory;
+        }
+
+        private SSLSocketFactory createSSLSocketFactory() throws IOException, GeneralSecurityException {
+            KeyStore keyStore = KeyStore.getInstance("JKS");
+            keyStore.load(new FileInputStream(keyStorePath), keyStorePassword.toCharArray());
+            String algorithm = KeyManagerFactory.getDefaultAlgorithm();
+            KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(algorithm);
+            keyManagerFactory.init(keyStore, certificatePassword.toCharArray());
+            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(algorithm);
+            trustManagerFactory.init(keyStore);
+            SSLContext sslContext = SSLContext.getInstance("SSL");
+            sslContext.init(keyManagerFactory.getKeyManagers(), trustManagerFactory.getTrustManagers(), null);
+            return sslContext.getSocketFactory();
         }
 
     }
