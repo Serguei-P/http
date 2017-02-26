@@ -158,7 +158,6 @@ public class HttpServer {
      * @throws IOException
      *             - often indicate that we can't bind to a port (e.g. because it is used by a different application or
      *             we don't have authority to find to it).
-     * @throws GeneralSecurityException
      */
     public void start() throws IOException {
         if (serverSocketRunners.size() > 0) {
