@@ -61,6 +61,7 @@ public class HttpServer {
     private volatile boolean isStopped;
     private AtomicLong connectionNo = new AtomicLong(0);
     private KeyStoreData defaultKeyStore;
+    private final List<KeyStoreData> keyStores = new ArrayList<>();
 
     /**
      * Creating an instance of HttpServer listening to one ports (this does not actually start the server - call start()
@@ -147,7 +148,7 @@ public class HttpServer {
         }
         timeoutMils = DEFAULT_TIMEOUT_MILS;
         this.requestHandler = requestHandler;
-        this.defaultKeyStore = new KeyStoreData(keyStorePath, keyStorePassword, certificatePassword);
+        this.defaultKeyStore = new KeyStoreData("*", keyStorePath, keyStorePassword, certificatePassword);
     }
 
     /**
@@ -271,6 +272,25 @@ public class HttpServer {
 
     public void useJdkDefaultCipherSuites() {
         this.enabledCipherSuites = null;
+    }
+
+    /**
+     * Add additional keyStore with keys for a specific host name Choice will be made based on SNI, if nothing matches,
+     * the default specified in the constructor will be used
+     * 
+     * @param serverName
+     *            - server name received in SNI during TLS handshake
+     * @param keyStorePath
+     *            - path to Java keystore file (JKS file)
+     * @param keyStorePassword
+     *            - password for Java keystore file
+     * @param certificatePassword
+     *            - password for certificates in Java keystore
+     */
+    public void addHostSpecificKeystore(String serverName, String keyStorePath, String keyStorePassword,
+            String certificatePassword) {
+        KeyStoreData keyStore = new KeyStoreData(serverName, keyStorePath, keyStorePassword, certificatePassword);
+        keyStores.add(keyStore);
     }
 
     protected HttpServerRequestHandler getRequestHandler() {
@@ -425,7 +445,8 @@ public class HttpServer {
             MarkAndResetInputStream inputStream = new MarkAndResetInputStream(socket.getInputStream());
             socket = new SocketWrapper(socket, inputStream, socket.getOutputStream());
             ClientHello clientHello = ClientHello.read(inputStream);
-            socket = defaultKeyStore.getSslSocketFactory().createSocket(socket, socket.getLocalSocketAddress().toString(),
+            SSLSocketFactory socketFactory = getSslSocketFactory(clientHello.getSniHostName());
+            socket = socketFactory.createSocket(socket, socket.getLocalSocketAddress().toString(),
                     socket.getPort(), true);
             SSLSocket sslSocket = (SSLSocket)socket;
             sslSocket.setUseClientMode(false);
@@ -488,12 +509,14 @@ public class HttpServer {
 
     private static class KeyStoreData {
 
+        private final String serverName;
         private final String keyStorePath;
         private final String keyStorePassword;
         private final String certificatePassword;
         private SSLSocketFactory sslSocketFactory;
 
-        public KeyStoreData(String keyStorePath, String keyStorePassword, String certificatePassword) {
+        public KeyStoreData(String serverName, String keyStorePath, String keyStorePassword, String certificatePassword) {
+            this.serverName = serverName;
             this.keyStorePath = keyStorePath;
             this.keyStorePassword = keyStorePassword;
             this.certificatePassword = certificatePassword;
@@ -514,6 +537,10 @@ public class HttpServer {
             return sslSocketFactory;
         }
 
+        public String getServerName() {
+            return serverName;
+        }
+
         private SSLSocketFactory createSSLSocketFactory() throws IOException, GeneralSecurityException {
             KeyStore keyStore = KeyStore.getInstance("JKS");
             keyStore.load(new FileInputStream(keyStorePath), keyStorePassword.toCharArray());
@@ -527,6 +554,17 @@ public class HttpServer {
             return sslContext.getSocketFactory();
         }
 
+    }
+
+    SSLSocketFactory getSslSocketFactory(String serverName) throws IOException {
+        if (!serverName.isEmpty()) {
+            for (KeyStoreData keyStore : keyStores) {
+                if (keyStore.getServerName().equals(serverName)) {
+                    return keyStore.getSslSocketFactory();
+                }
+            }
+        }
+        return defaultKeyStore.getSslSocketFactory();
     }
 
 }
