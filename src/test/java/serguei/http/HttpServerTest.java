@@ -4,6 +4,8 @@ import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -28,7 +30,7 @@ public class HttpServerTest {
     public void shouldStartAndStopServer() throws Exception {
         int requestNumber = 2;
         CountDownLatch latch = new CountDownLatch(requestNumber);
-        RequestHandler requestHandler = new RequestHandler(latch);
+        RequestHandler requestHandler = new RequestHandler(latch, 1000);
         HttpServer server = new HttpServer(requestHandler, PORT);
         @SuppressWarnings("unchecked")
         Future<HttpResponse>[] responses = new Future[requestNumber];
@@ -53,7 +55,7 @@ public class HttpServerTest {
     public void shouldStartAndStopServerWithSsl() throws Exception {
         int requestNumber = 2;
         CountDownLatch latch = new CountDownLatch(requestNumber);
-        RequestHandler requestHandler = new RequestHandler(latch);
+        RequestHandler requestHandler = new RequestHandler(latch, 1000);
         HttpServer server = new HttpServer(requestHandler, PORT, SSL_PORT, keyStorePath(), "password", "test01");
         @SuppressWarnings("unchecked")
         Future<HttpResponse>[] responses = new Future[requestNumber];
@@ -95,12 +97,39 @@ public class HttpServerTest {
         }
     }
 
+    @Test(timeout=60000)
+    public void shouldCloseAllConnections() throws Exception {
+        int requestNumber = 2;
+        CountDownLatch latch = new CountDownLatch(requestNumber);
+        HttpServer server = new HttpServer(new RequestHandler(latch, 0), PORT);
+
+        server.start();
+
+        for (int i = 0; i < requestNumber; i++) {
+            threadPool.execute(new SendDataAndWaitProcess());
+        }
+        latch.await();
+
+        assertEquals(requestNumber, server.getConnectionNo());
+        server.closeAllConnection();
+
+        long start = System.currentTimeMillis();
+        while (server.getConnectionNo() > 0 && System.currentTimeMillis() - start < 5000) {
+            Thread.sleep(100);
+        }
+        assertEquals(0, server.getConnectionNo());
+
+        server.stop();
+    }
+
     private class RequestHandler implements HttpServerRequestHandler {
 
         private final CountDownLatch latch;
+        private final int timeout;
 
-        public RequestHandler(CountDownLatch latch) {
+        public RequestHandler(CountDownLatch latch, int timeout) {
             this.latch = latch;
+            this.timeout = timeout;
         }
 
         @Override
@@ -118,12 +147,12 @@ public class HttpServerTest {
                 }
                 response.write(outputStream);
                 outputStream.flush();
-                Thread.sleep(1000); // we want to test if the server waits for all processes to finish
+                Thread.sleep(timeout); // we want to test if the server waits for all processes to finish
                 stopped.incrementAndGet();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             } catch (IOException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         }
     }
@@ -137,6 +166,25 @@ public class HttpServerTest {
             connectionContext.closeConnection();
         }
 
+    }
+
+    private class SendDataAndWaitProcess implements Runnable {
+
+        @Override
+        public void run() {
+            try (Socket socket = new Socket()) {
+                socket.setReuseAddress(true);
+                socket.setSoLinger(false, 1);
+                socket.setSoTimeout(0);
+                socket.connect(new InetSocketAddress("localhost", PORT));
+                byte[] data = "POST / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 1000\r\n\r\n".getBytes("ASCII");
+                socket.getOutputStream().write(data);
+                socket.getOutputStream().flush();
+                socket.getInputStream().read(); // this will read indefinitely as the server awaits the body
+            } catch (IOException e) {
+                System.out.println(e.getMessage());
+            }
+        }
     }
 
     private class RequestProcess implements Callable<HttpResponse> {

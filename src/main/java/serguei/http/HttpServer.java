@@ -292,6 +292,16 @@ public class HttpServer {
         keyStores.add(keyStore);
     }
 
+    /**
+     * Closes all connections immediately without waiting for the processing to finish The server will continue to
+     * accept new connections
+     */
+    public void closeAllConnection() {
+        for (SocketRunner runner : connections.values()) {
+            runner.abort();
+        }
+    }
+
     protected HttpServerRequestHandler getRequestHandler() {
         return requestHandler;
     }
@@ -434,6 +444,11 @@ public class HttpServer {
                 Utils.closeQuietly(socket);
                 finished = true;
             }
+        }
+
+        public void abort() {
+            finished = true;
+            Utils.closeQuietly(socket);
         }
 
         public void stop() {
