@@ -2,6 +2,8 @@ package serguei.http;
 
 import static org.junit.Assert.*;
 
+import javax.net.ssl.SSLHandshakeException;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -88,6 +90,36 @@ public class ClientAndServerSslTest {
 
         assertEquals(200, response.getStatusCode());
         assertEquals("", server.getLatestConnectionContext().getSni());
+    }
+
+    @Test(expected = SSLHandshakeException.class)
+    public void shouldFailWhenServerIsSetToBreakOnSni() throws Exception {
+        String sni = "www.fitltd.com";
+        server.shouldFailOnSni(true);
+
+        clientConnection.startHandshake(sni);
+    }
+
+    @Test
+    public void shouldNotFailWhenServerIsSetToBreakOnSniAndNoSni() throws Exception {
+        server.shouldFailOnSni(true);
+
+        clientConnection.startHandshake("");
+    }
+
+    @Test(expected = SSLHandshakeException.class)
+    public void shouldFailWhenServerRequiresSniAndAbsent() throws Exception {
+        server.shouldFailWhenNoSni(true);
+
+        clientConnection.startHandshake("");
+    }
+
+    @Test
+    public void shouldNotFailWhenServerRequiresSniAndPresent() throws Exception {
+        String sni = "www.fitltd.com";
+        server.shouldFailWhenNoSni(true);
+
+        clientConnection.startHandshake(sni);
     }
 
     private static String makeBody(String msg) {

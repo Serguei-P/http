@@ -62,6 +62,8 @@ public class HttpServer {
     private AtomicLong connectionNo = new AtomicLong(0);
     private KeyStoreData defaultKeyStore;
     private final List<KeyStoreData> keyStores = new ArrayList<>();
+    private volatile boolean requireSni = false;
+    private volatile boolean failWhenSniReceived = false;
 
     /**
      * Creating an instance of HttpServer listening to one ports (this does not actually start the server - call start()
@@ -302,6 +304,24 @@ public class HttpServer {
         }
     }
 
+    /**
+     * @param shouldFail
+     *            - when set to TRUE, server will fail handshake if ClientHello does not include Server Name Indication
+     *            extension.
+     */
+    public void shouldFailWhenNoSni(boolean shouldFail) {
+        requireSni = shouldFail;
+    }
+
+    /**
+     * @param shouldFail
+     *            - when set to TRUE, server will fail handshake if ClientHello includes Server Name Indication
+     *            extension (this makes sense only when this server is used for testing SSL clients)
+     */
+    public void shouldFailOnSni(boolean shouldFail) {
+        failWhenSniReceived = shouldFail;
+    }
+
     protected HttpServerRequestHandler getRequestHandler() {
         return requestHandler;
     }
@@ -396,6 +416,13 @@ public class HttpServer {
                 SslConnection sslConnection;
                 if (ssl) {
                     sslConnection = setupSsl(socket);
+                    if (sslConnection == null) {
+                        writeUnrecognizedNameAlert(socket.getOutputStream());
+                        connections.remove(connNo);
+                        socket.close();
+                        finished = true;
+                        return;
+                    }
                     socket = sslConnection.socket;
                 } else {
                     sslConnection = null;
@@ -459,6 +486,12 @@ public class HttpServer {
             MarkAndResetInputStream inputStream = new MarkAndResetInputStream(socket.getInputStream());
             socket = new SocketWrapper(socket, inputStream, socket.getOutputStream());
             ClientHello clientHello = ClientHello.read(inputStream);
+            if (requireSni && clientHello.getSniHostName().isEmpty()) {
+                return null;
+            }
+            if (failWhenSniReceived && !clientHello.getSniHostName().isEmpty()) {
+                return null;
+            }
             SSLSocketFactory socketFactory = getSslSocketFactory(clientHello.getSniHostName());
             socket = socketFactory.createSocket(socket, socket.getLocalSocketAddress().toString(),
                     socket.getPort(), true);
@@ -475,6 +508,12 @@ public class HttpServer {
             result.socket = sslSocket;
             result.clientHello = clientHello;
             return result;
+        }
+
+        private void writeUnrecognizedNameAlert(OutputStream outputStream) throws IOException {
+            byte[] data = {0x15, 0x03, 0x00, 0x00, 0x02, 0x02, 0x28};
+            outputStream.write(data);
+            outputStream.flush();
         }
 
     }
