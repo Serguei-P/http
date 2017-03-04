@@ -49,7 +49,7 @@ public final class HttpRequestHeaders extends HttpHeaders {
      * @throws IOException
      *             - thrown when the data is not HTTP or IO errors
      */
-    HttpRequestHeaders(InputStream inputStream) throws IOException {
+    public HttpRequestHeaders(InputStream inputStream) throws IOException {
         HeaderLineReader reader = new HeaderLineReader(inputStream);
         String line = reader.readLine();
         if (line != null) {

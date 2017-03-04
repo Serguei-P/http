@@ -45,7 +45,7 @@ public final class HttpResponseHeaders extends HttpHeaders {
      * @throws IOException
      *             - thrown when the data is not HTTP or IO errors
      */
-    HttpResponseHeaders(InputStream inputStream) throws IOException {
+    public HttpResponseHeaders(InputStream inputStream) throws IOException {
         HeaderLineReader reader = new HeaderLineReader(inputStream);
         String line = reader.readLine();
         if (line != null && line.length() == 0) {
