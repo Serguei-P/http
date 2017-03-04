@@ -18,6 +18,7 @@ import java.security.cert.X509Certificate;
 import java.util.zip.GZIPOutputStream;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
@@ -349,13 +350,14 @@ public class HttpClientConnection implements Closeable {
         socket = sslSocket;
         inputStream = socket.getInputStream();
         outputStream = socket.getOutputStream();
-        Certificate[] certificates = sslSocket.getSession().getPeerCertificates();
+        SSLSession session = sslSocket.getSession();
+        Certificate[] certificates = session.getPeerCertificates();
         tlsCertificates = new X509Certificate[certificates.length];
         for (int i = 0; i < certificates.length; i++) {
             tlsCertificates[i] = (X509Certificate)certificates[i];
         }
-        negotiatedTlsProtocol = TlsVersion.fromJdkString(sslSocket.getSession().getProtocol());
-        negotiatedCipher = sslSocket.getSession().getCipherSuite();
+        negotiatedTlsProtocol = TlsVersion.fromJdkString(session.getProtocol());
+        negotiatedCipher = session.getCipherSuite();
     }
 
     /**

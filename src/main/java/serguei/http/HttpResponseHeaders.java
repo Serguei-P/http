@@ -1,5 +1,6 @@
 package serguei.http;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -102,7 +103,8 @@ public final class HttpResponseHeaders extends HttpHeaders {
     }
 
     @Override
-    public void write(OutputStream output) throws IOException {
+    public void write(OutputStream outputStream) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
         output.write(version.getBytes());
         output.write(SPACE);
         output.write(Integer.toString(statusCode).getBytes());
@@ -110,6 +112,7 @@ public final class HttpResponseHeaders extends HttpHeaders {
         output.write(reason.getBytes());
         output.write(LINE_SEPARATOR_BYTES);
         super.write(output);
+        outputStream.write(output.toByteArray());
     }
 
     @Override

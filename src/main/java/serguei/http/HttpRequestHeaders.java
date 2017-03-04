@@ -1,5 +1,6 @@
 package serguei.http;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -101,14 +102,16 @@ public final class HttpRequestHeaders extends HttpHeaders {
      * this)
      */
     @Override
-    public void write(OutputStream output) throws IOException {
-        output.write(method.getBytes());
-        output.write(SPACE);
-        output.write(path.getBytes());
-        output.write(SPACE);
-        output.write(version.getBytes());
-        output.write(LINE_SEPARATOR_BYTES);
-        super.write(output);
+    public void write(OutputStream outputStream) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        out.write(method.getBytes());
+        out.write(SPACE);
+        out.write(path.getBytes());
+        out.write(SPACE);
+        out.write(version.getBytes());
+        out.write(LINE_SEPARATOR_BYTES);
+        super.write(out);
+        outputStream.write(out.toByteArray());
     }
 
     /**

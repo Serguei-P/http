@@ -2,6 +2,8 @@ package serguei.http;
 
 import static org.junit.Assert.*;
 
+import java.io.IOException;
+
 import javax.net.ssl.SSLHandshakeException;
 
 import org.junit.After;
@@ -76,4 +78,18 @@ public class HttpClientConnectionTest {
         connection.close();
     }
 
+    @Test
+    public void shouldConnectToOpera() throws IOException {
+        String hostName = "opera.com";
+        connection = new HttpClientConnection(hostName, 443);
+
+        connection.startHandshake(hostName);
+
+        HttpRequestHeaders requestHeaders = new HttpRequestHeaders("GET / HTTP/1.1", "Host: " + hostName,
+                "User-Agent: curl/7.51.0", "Accept: */*");
+
+        HttpResponse response = connection.send(requestHeaders);
+
+        assertEquals(301, response.getStatusCode());
+    }
 }
