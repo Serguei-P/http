@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 
@@ -113,8 +114,8 @@ public class HttpResponseHeadersTest {
 
     @Test
     public void shouldMakeCopy() throws HttpException {
-        HttpResponseHeaders origHeaders = new HttpResponseHeaders("HTTP/1.1 200 OK", "HOST: www.fitltd.com",
-                "content-length: 100", "Header1: Value1", "Header1: Value2", "Header2: Value1");
+        HttpResponseHeaders origHeaders = new HttpResponseHeaders("HTTP/1.1 200 OK", "content-length: 100", "Header1: Value1",
+                "Header1: Value2", "Header2: Value1");
 
         HttpResponseHeaders newHeaders = new HttpResponseHeaders(origHeaders);
         origHeaders.addHeader("Header2", "Value2"); // should not change newHeaders
@@ -122,11 +123,22 @@ public class HttpResponseHeadersTest {
         assertEquals("HTTP/1.1", newHeaders.getVersion());
         assertEquals(200, newHeaders.getStatusCode());
         assertEquals("OK", newHeaders.getReason());
-        assertEquals("www.fitltd.com", newHeaders.getHeader("Host"));
         assertEquals("100", newHeaders.getHeader("Content-Length"));
         assertEquals(Arrays.asList("Value1", "Value2"), newHeaders.getHeaders("Header1"));
         assertEquals(Arrays.asList("Value1"), newHeaders.getHeaders("Header2"));
         assertEquals(Arrays.asList("Value1", "Value2"), origHeaders.getHeaders("Header2"));
+    }
+
+    @Test
+    public void shouldAcceptEmptyReasonPhrase() throws IOException {
+        String data = "HTTP/1.1 200 " + LINE_BREAK + "Content-Length: 100" + LINE_BREAK + LINE_BREAK;
+        InputStream inputStream = new ByteArrayInputStream(data.getBytes("UTF-8"));
+
+        HttpResponseHeaders headers = new HttpResponseHeaders(inputStream);
+
+        assertEquals("HTTP/1.1", headers.getVersion());
+        assertEquals(200, headers.getStatusCode());
+        assertEquals("", headers.getReason());
     }
 
 }

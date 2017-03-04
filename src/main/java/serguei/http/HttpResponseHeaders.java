@@ -137,17 +137,19 @@ public final class HttpResponseHeaders extends HttpHeaders {
             throwWrongNumberOfElementsException(line);
         }
         int statusEndPos = line.indexOf(' ', versionEndPos + 1);
+        String statusCodeAsString;
         if (statusEndPos > 0) {
-            String statusCodeAsString = line.substring(versionEndPos + 1, statusEndPos);
-            try {
-                statusCode = Integer.parseInt(statusCodeAsString);
-            } catch (NumberFormatException e) {
-                throw new HttpException("Cannot parse status code " + statusCodeAsString);
-            }
+            statusCodeAsString = line.substring(versionEndPos + 1, statusEndPos);
+            reason = line.substring(statusEndPos + 1);
         } else {
-            throwWrongNumberOfElementsException(line);
+            statusCodeAsString = line.substring(versionEndPos + 1);
+            reason = "";
         }
-        reason = line.substring(statusEndPos + 1);
+        try {
+            statusCode = Integer.parseInt(statusCodeAsString);
+        } catch (NumberFormatException e) {
+            throw new HttpException("Cannot parse status code " + statusCodeAsString);
+        }
     }
 
     private void throwWrongNumberOfElementsException(String line) throws HttpException {
