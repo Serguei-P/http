@@ -44,6 +44,7 @@ public class HttpClientConnection implements Closeable {
     private String[] enabledCipherSuites;
     private TlsVersion negotiatedTlsProtocol;
     private String negotiatedCipher;
+    private int timeout = 0;
 
     /**
      * Create an instance of HttpClientConnection. We don't connect to the server yet at this point.
@@ -453,6 +454,21 @@ public class HttpClientConnection implements Closeable {
         outputStream = socket.getOutputStream();
     }
 
+    /**
+     * Sets timeout for IO operations on socket
+     * 
+     * @param timeout
+     *            - timeout in milliseconds
+     * @throws SocketException
+     *             - when there is an error in TCP protocol
+     */
+    public void setTimeoutMillis(int timeout) throws SocketException {
+        this.timeout = timeout;
+        if (socket != null) {
+            socket.setSoTimeout(timeout);
+        }
+    }
+
     private void connectIfNecessary() throws IOException {
         if (socket == null) {
             socket = connectSocket();
@@ -465,7 +481,8 @@ public class HttpClientConnection implements Closeable {
         Socket newSocket = new Socket();
         newSocket.setReuseAddress(true);
         newSocket.setSoLinger(false, 1);
-        newSocket.connect(serverAddress);
+        newSocket.setSoTimeout(timeout);
+        newSocket.connect(serverAddress, timeout);
         return newSocket;
     }
 

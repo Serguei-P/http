@@ -92,4 +92,23 @@ public class HttpClientConnectionTest {
 
         assertEquals(301, response.getStatusCode());
     }
+
+    @Test
+    public void shouldTimeout() throws Exception {
+        String hostName = "127.0.0.2"; // nothing is there
+        connection = new HttpClientConnection(hostName, 80);
+        connection.setTimeoutMillis(1000);
+
+        long start = System.currentTimeMillis();
+        try {
+            connection.connect();
+            fail("Should not connect");
+        } catch (IOException e) {
+
+        }
+        long end = System.currentTimeMillis();
+
+        assertTrue("Time taken is " + (end - start) + " which is too long", end - start < 1200);
+    }
+
 }
