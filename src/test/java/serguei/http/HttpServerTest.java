@@ -15,6 +15,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
 
+import serguei.http.utils.Utils;
+
 public class HttpServerTest {
 
     private static final int PORT = 8080;
@@ -102,24 +104,51 @@ public class HttpServerTest {
         int requestNumber = 2;
         CountDownLatch latch = new CountDownLatch(requestNumber);
         HttpServer server = new HttpServer(new RequestHandler(latch, 0), PORT);
+        try {
+            server.start();
 
-        server.start();
+            for (int i = 0; i < requestNumber; i++) {
+                threadPool.execute(new SendDataAndWaitProcess());
+            }
+            latch.await();
 
-        for (int i = 0; i < requestNumber; i++) {
-            threadPool.execute(new SendDataAndWaitProcess());
+            assertEquals(requestNumber, server.getConnectionNo());
+            server.closeAllConnection();
+
+            long start = System.currentTimeMillis();
+            while (server.getConnectionNo() > 0 && System.currentTimeMillis() - start < 5000) {
+                Thread.sleep(100);
+            }
+            assertEquals(0, server.getConnectionNo());
+
+        } finally {
+            server.stop();
         }
-        latch.await();
+    }
 
-        assertEquals(requestNumber, server.getConnectionNo());
-        server.closeAllConnection();
-
-        long start = System.currentTimeMillis();
-        while (server.getConnectionNo() > 0 && System.currentTimeMillis() - start < 5000) {
-            Thread.sleep(100);
+    @Test(timeout = 60000)
+    public void shouldThrottleRead() throws Exception {
+        SimpleRequestHandler requestHandler = new SimpleRequestHandler();
+        HttpServer server = new HttpServer(requestHandler, PORT);
+        server.setThrottlingDelay(300);
+        HttpClientConnection client = new HttpClientConnection("localhost", PORT);
+        try {
+            server.start();
+            byte[] body = Utils.buildDataArray(10000);
+            byte[] headers = ("POST / HTTP/1.1\r\nHost: www.fitltd.com\r\nContent-Length: " + body.length + "\r\n\r\n")
+                    .getBytes("ASCII");
+            
+            long start = System.currentTimeMillis();
+            HttpResponse response = client.send(Utils.concat(headers, body));
+            long end = System.currentTimeMillis();
+            
+            assertEquals(200, response.getStatusCode());
+            assertArrayEquals(body, requestHandler.getLatestRequestBody());
+            assertTrue("Time was " + (end - start) + " which is shorter then expected 5 secs", end - start > 3000);
+        } finally {
+            client.close();
+            server.stop();
         }
-        assertEquals(0, server.getConnectionNo());
-
-        server.stop();
     }
 
     private class RequestHandler implements HttpServerRequestHandler {
@@ -164,6 +193,23 @@ public class HttpServerTest {
                 throws IOException {
             HttpResponseHeaders.ok().write(outputStream);
             connectionContext.closeConnection();
+        }
+
+    }
+
+    private class SimpleRequestHandler implements HttpServerRequestHandler {
+
+        private byte[] requestBody;
+
+        @Override
+        public void process(ConnectionContext connectionContext, HttpRequest request, OutputStream outputStream)
+                throws IOException {
+            requestBody = request.readBodyAsBytes();
+            HttpResponseHeaders.ok().write(outputStream);
+        }
+
+        public byte[] getLatestRequestBody() {
+            return requestBody;
         }
 
     }

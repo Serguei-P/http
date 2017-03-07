@@ -64,6 +64,7 @@ public class HttpServer {
     private final List<KeyStoreData> keyStores = new ArrayList<>();
     private volatile boolean requireSni = false;
     private volatile boolean failWhenSniReceived = false;
+    private int throttlingDelayMils = 0;
 
     /**
      * Creating an instance of HttpServer listening to one ports (this does not actually start the server - call start()
@@ -332,6 +333,18 @@ public class HttpServer {
         this.timeoutMils = timeoutMils;
     }
 
+    /**
+     * If set to a value of more then zero, this introduces a delay between every 100 bytes read from input stream.
+     * 
+     * This is when this library is used in testing. This will affect only new client connections.
+     * 
+     * @param throttlingDelayMils
+     *            - delay in milliseconds, when zero - no delay.
+     */
+    public void setThrottlingDelay(int throttlingDelayMils) {
+        this.throttlingDelayMils = throttlingDelayMils;
+    }
+
     protected HttpServerRequestHandler getRequestHandler() {
         return requestHandler;
     }
@@ -438,6 +451,9 @@ public class HttpServer {
                     sslConnection = null;
                 }
                 inputStream = new BufferedInputStream(socket.getInputStream());
+                if (throttlingDelayMils > 0) {
+                    inputStream = new ThrottlingInputStream(inputStream, 1000, throttlingDelayMils);
+                }
                 postponedCloseOutputStream = new PostponedCloseOutputStream(socket.getOutputStream());
                 outputStream = new BufferedOutputStream(postponedCloseOutputStream);
                 connectionContext = new ConnectionContext(socket, sslConnection != null ? sslConnection.clientHello : null);
