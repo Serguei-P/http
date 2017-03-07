@@ -50,10 +50,10 @@ public class HttpServer {
     private final ExecutorService threadPool = Executors.newCachedThreadPool();
     private final SocketAddress socketAddress;
     private final SocketAddress sslSocketAddress;
-    private final int timeoutMils;
     private final HttpServerRequestHandler requestHandler;
     private final Map<Long, SocketRunner> connections = new ConcurrentHashMap<>();
     private final int numberOfPorts;
+    private int timeoutMils;
 
     private TlsVersion[] enabledTlsProtocols;
     private String[] enabledCipherSuites;
@@ -320,6 +320,16 @@ public class HttpServer {
      */
     public void shouldFailOnSni(boolean shouldFail) {
         failWhenSniReceived = shouldFail;
+    }
+
+    /**
+     * Set timeout on client connection. This will change the timeout only for new connections.
+     * 
+     * @param timeoutMils
+     *            - timeout in milliseconds
+     */
+    public void setTimeoutMils(int timeoutMils) {
+        this.timeoutMils = timeoutMils;
     }
 
     protected HttpServerRequestHandler getRequestHandler() {
