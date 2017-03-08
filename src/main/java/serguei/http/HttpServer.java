@@ -449,10 +449,11 @@ public class HttpServer {
                 } else {
                     sslConnection = null;
                 }
-                inputStream = new BufferedInputStream(socket.getInputStream());
+                inputStream = socket.getInputStream();
                 if (throttlingDelayMils > 0) {
                     inputStream = new ThrottlingInputStream(inputStream, 1000, throttlingDelayMils);
                 }
+                inputStream = new BufferedInputStream(inputStream);
                 postponedCloseOutputStream = new PostponedCloseOutputStream(socket.getOutputStream());
                 outputStream = new BufferedOutputStream(postponedCloseOutputStream);
                 connectionContext = new ConnectionContext(socket, sslConnection != null ? sslConnection.clientHello : null);
