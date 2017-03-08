@@ -3,6 +3,7 @@ package serguei.http;
 import static org.junit.Assert.*;
 
 import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLProtocolException;
 
 import org.junit.After;
 import org.junit.Before;
@@ -92,17 +93,18 @@ public class ClientAndServerSslTest {
         assertEquals("", server.getLatestConnectionContext().getSni());
     }
 
-    @Test(expected = SSLHandshakeException.class)
+    @Test(expected = SSLProtocolException.class)
     public void shouldFailWhenServerIsSetToBreakOnSni() throws Exception {
+        // Java, unlike OpenSSL, fails when the unrecognized_name warning received
         String sni = "www.fitltd.com";
-        server.shouldFailOnSni(true);
+        server.shouldWarnWhenSniNotMatching(true);
 
         clientConnection.startHandshake(sni);
     }
 
     @Test
     public void shouldNotFailWhenServerIsSetToBreakOnSniAndNoSni() throws Exception {
-        server.shouldFailOnSni(true);
+        server.shouldWarnWhenSniNotMatching(true);
 
         clientConnection.startHandshake("");
     }

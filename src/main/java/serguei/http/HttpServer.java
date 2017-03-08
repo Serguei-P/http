@@ -63,7 +63,7 @@ public class HttpServer {
     private KeyStoreData defaultKeyStore;
     private final List<KeyStoreData> keyStores = new ArrayList<>();
     private volatile boolean requireSni = false;
-    private volatile boolean failWhenSniReceived = false;
+    private volatile boolean warnWhenSniNotMatching = false;
     private int throttlingDelayMils = 0;
 
     /**
@@ -316,11 +316,11 @@ public class HttpServer {
 
     /**
      * @param shouldFail
-     *            - when set to TRUE, server will fail handshake if ClientHello includes Server Name Indication
-     *            extension (this makes sense only when this server is used for testing SSL clients)
+     *            - when set to TRUE, server will send unrecognized_name alert if ClientHello includes Server Name
+     *            Indication extension, but it does not match any host-specific keystores.
      */
-    public void shouldFailOnSni(boolean shouldFail) {
-        failWhenSniReceived = shouldFail;
+    public void shouldWarnWhenSniNotMatching(boolean warnWhenSniNotMatching) {
+        this.warnWhenSniNotMatching = warnWhenSniNotMatching;
     }
 
     /**
@@ -440,7 +440,6 @@ public class HttpServer {
                 if (ssl) {
                     sslConnection = setupSsl(socket);
                     if (sslConnection == null) {
-                        writeUnrecognizedNameAlert(socket.getOutputStream());
                         connections.remove(connNo);
                         socket.close();
                         finished = true;
@@ -513,12 +512,11 @@ public class HttpServer {
             socket = new SocketWrapper(socket, inputStream, socket.getOutputStream());
             ClientHello clientHello = ClientHello.read(inputStream);
             if (requireSni && clientHello.getSniHostName().isEmpty()) {
+                writeHandshakeFailureAlert(socket.getOutputStream());
                 return null;
             }
-            if (failWhenSniReceived && !clientHello.getSniHostName().isEmpty()) {
-                return null;
-            }
-            SSLSocketFactory socketFactory = getSslSocketFactory(clientHello.getSniHostName());
+            SSLSocketFactory socketFactory = getSslSocketFactory(clientHello.getSniHostName(), warnWhenSniNotMatching,
+                    socket.getOutputStream());
             socket = socketFactory.createSocket(socket, socket.getLocalSocketAddress().toString(),
                     socket.getPort(), true);
             SSLSocket sslSocket = (SSLSocket)socket;
@@ -534,12 +532,6 @@ public class HttpServer {
             result.socket = sslSocket;
             result.clientHello = clientHello;
             return result;
-        }
-
-        private void writeUnrecognizedNameAlert(OutputStream outputStream) throws IOException {
-            byte[] data = {0x15, 0x03, 0x00, 0x00, 0x02, 0x02, 0x28};
-            outputStream.write(data);
-            outputStream.flush();
         }
 
     }
@@ -635,15 +627,31 @@ public class HttpServer {
 
     }
 
-    SSLSocketFactory getSslSocketFactory(String serverName) throws IOException {
+    SSLSocketFactory getSslSocketFactory(String serverName, boolean warnWhenSniNotMatching, OutputStream outputStream)
+            throws IOException {
         if (!serverName.isEmpty()) {
             for (KeyStoreData keyStore : keyStores) {
                 if (keyStore.getServerName().equals(serverName)) {
                     return keyStore.getSslSocketFactory();
                 }
             }
+            if (warnWhenSniNotMatching) {
+                writeUnrecognizedNameAlert(outputStream);
+            }
         }
         return defaultKeyStore.getSslSocketFactory();
+    }
+
+    private void writeUnrecognizedNameAlert(OutputStream outputStream) throws IOException {
+        byte[] data = {0x15, 0x03, 0x00, 0x00, 0x02, 0x01, 0x70};
+        outputStream.write(data);
+        outputStream.flush();
+    }
+
+    private void writeHandshakeFailureAlert(OutputStream outputStream) throws IOException {
+        byte[] data = {0x15, 0x03, 0x00, 0x00, 0x02, 0x02, 0x28};
+        outputStream.write(data);
+        outputStream.flush();
     }
 
 }
