@@ -315,7 +315,7 @@ public class HttpServer {
     }
 
     /**
-     * @param shouldFail
+     * @param warnWhenSniNotMatching
      *            - when set to TRUE, server will send unrecognized_name alert if ClientHello includes Server Name
      *            Indication extension, but it does not match any host-specific keystores.
      */
