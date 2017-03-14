@@ -482,6 +482,7 @@ public class HttpClientConnection implements Closeable {
         newSocket.setReuseAddress(true);
         newSocket.setSoLinger(false, 1);
         newSocket.setSoTimeout(timeout);
+        newSocket.setTcpNoDelay(true);
         newSocket.connect(serverAddress, timeout);
         return newSocket;
     }
