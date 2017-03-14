@@ -65,6 +65,7 @@ public class HttpServer {
     private volatile boolean requireSni = false;
     private volatile boolean warnWhenSniNotMatching = false;
     private int throttlingDelayMils = 0;
+    private boolean tcpNoDelay;
 
     /**
      * Creating an instance of HttpServer listening to one ports (this does not actually start the server - call start()
@@ -345,6 +346,20 @@ public class HttpServer {
         this.throttlingDelayMils = throttlingDelayMils;
     }
 
+    /**
+     * Switch TCP_NODELAY
+     * 
+     * When it is TCP_NODELAY is on, Nagle's algorithm is switched off
+     * 
+     * This will affect new connections only
+     * 
+     * @param tcpNoDelay
+     *            - when true then Nagle's algorithm is off (default)
+     */
+    public void setTcpNoDelay(boolean tcpNoDelay) {
+        this.tcpNoDelay = tcpNoDelay;
+    }
+
     protected HttpServerRequestHandler getRequestHandler() {
         return requestHandler;
     }
@@ -383,6 +398,7 @@ public class HttpServer {
             while (!finished) {
                 try {
                     Socket socket = serverSocket.accept();
+                    socket.setTcpNoDelay(tcpNoDelay);
                     SocketRunner socketRunner = new SocketRunner(socket, ssl);
                     threadPool.execute(socketRunner);
                 } catch (IOException e) {

@@ -45,6 +45,7 @@ public class HttpClientConnection implements Closeable {
     private TlsVersion negotiatedTlsProtocol;
     private String negotiatedCipher;
     private int timeout = 0;
+    private boolean tcpNoDelay;
 
     /**
      * Create an instance of HttpClientConnection. We don't connect to the server yet at this point.
@@ -469,6 +470,22 @@ public class HttpClientConnection implements Closeable {
         }
     }
 
+    /**
+     * Switch TCP_NODELAY
+     * 
+     * When it is TCP_NODELAY is on, Nagle's algorithm is switched off
+     * 
+     * @param tcpNoDelay
+     *            - when true then Nagle's algorithm is off (default)
+     * @throws SocketException
+     */
+    public void setTcpNoDelay(boolean tcpNoDelay) throws SocketException {
+        this.tcpNoDelay = tcpNoDelay;
+        if (socket != null) {
+            socket.setTcpNoDelay(tcpNoDelay);
+        }
+    }
+
     private void connectIfNecessary() throws IOException {
         if (socket == null) {
             socket = connectSocket();
@@ -482,7 +499,7 @@ public class HttpClientConnection implements Closeable {
         newSocket.setReuseAddress(true);
         newSocket.setSoLinger(false, 1);
         newSocket.setSoTimeout(timeout);
-        newSocket.setTcpNoDelay(true);
+        newSocket.setTcpNoDelay(tcpNoDelay);
         newSocket.connect(serverAddress, timeout);
         return newSocket;
     }
