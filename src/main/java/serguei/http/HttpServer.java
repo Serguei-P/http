@@ -668,7 +668,6 @@ public class HttpServer {
     private void writeHandshakeFailureAlert(OutputStream outputStream) throws IOException {
         byte[] data = {0x15, 0x03, 0x00, 0x00, 0x02, 0x02, 0x28};
         outputStream.write(data);
-        outputStream.flush();
     }
 
 }
