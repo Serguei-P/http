@@ -10,7 +10,7 @@ public interface HttpServerOnRequestHeadersProcess {
      * 
      * @param connectionContext
      *            - context of the client connection
-     * @param request
+     * @param requestHeaders
      *            - an incoming request
      * @param outputStream
      *            - output stream where a response needs to be written, do not close this stream unless you wish to
