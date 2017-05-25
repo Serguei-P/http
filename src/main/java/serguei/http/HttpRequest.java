@@ -21,12 +21,12 @@ public class HttpRequest {
     private final boolean chunked;
     private final URL url;
 
-    HttpRequest(InputStream inputStream) throws IOException {
-        this.headers = new HttpRequestHeaders(inputStream);
+    HttpRequest(HttpRequestHeaders requestHeaders, InputStream inputStream) throws IOException {
+        this.headers = requestHeaders;
         this.url = headers.getUrl();
         contentLength = headers.getContentLength();
         chunked = contentLength < 0 && headers.hasChunkedBody();
-        String encoding = headers.getHeader("content-encoding");
+        String encoding = headers.getHeader("Content-Encoding");
         String method = headers.getMethod();
         if (!method.equals("GET") && !method.equals("CONNECT")) {
             body = new HttpBody(inputStream, contentLength, chunked, encoding, false);

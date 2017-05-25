@@ -55,6 +55,7 @@ public class HttpServer {
     private final int numberOfPorts;
     private int timeoutMils;
 
+    private HttpServerOnRequestHeadersProcess onRequestHeadersHandler;
     private TlsVersion[] enabledTlsProtocols;
     private String[] enabledCipherSuites;
     private List<ServerSocketRunner> serverSocketRunners = new ArrayList<>();
@@ -360,6 +361,17 @@ public class HttpServer {
         this.tcpNoDelay = tcpNoDelay;
     }
 
+    /**
+     * Sets a handler that will be called immediately after the request headers are read but before reading the request
+     * body (if any)
+     * 
+     * @param onRequestHeadersHandler
+     *            - the handler, if null (default) - no processing will take place
+     */
+    public void setOnRequestHeadersHandler(HttpServerOnRequestHeadersProcess onRequestHeadersHandler) {
+        this.onRequestHeadersHandler = onRequestHeadersHandler;
+    }
+
     protected HttpServerRequestHandler getRequestHandler() {
         return requestHandler;
     }
@@ -476,7 +488,14 @@ public class HttpServer {
                 while (!finished) {
                     HttpRequest request;
                     try {
-                        request = new HttpRequest(inputStream);
+                        HttpRequestHeaders requestHeaders = new HttpRequestHeaders(inputStream);
+                        if (onRequestHeadersHandler != null) {
+                            if (!onRequestHeadersHandler.process(connectionContext, requestHeaders,
+                                    postponedCloseOutputStream)) {
+                                break;
+                            }
+                        }
+                        request = new HttpRequest(requestHeaders, inputStream);
                     } catch (HttpException | SocketTimeoutException | SocketException e) {
                         // this happens when connection is closed by the client or
                         // client sends non-HTTP data

@@ -3,7 +3,9 @@ package serguei.http;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 
 import org.junit.After;
 import org.junit.Before;
@@ -29,6 +31,7 @@ public class ClientAndServerTest {
     public void setup() throws Exception {
         server = new TestServer();
         clientConnection = new HttpClientConnection(HOST, server.getPort());
+        server.setOnRequestHeadersHandler(null);
     }
 
     @After
@@ -164,6 +167,25 @@ public class ClientAndServerTest {
         assertEquals(responseBody, response.readBodyAsString());
     }
 
+    @Test(timeout = 10000)
+    public void shouldRespond100Continue() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes("UTF-8"));
+        server.setOnRequestHeadersHandler(new On_100_Continue());
+        byte[] requestBodyAsBytes = requestBody.getBytes("UTF-8");
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost", "Expect: 100-continue",
+                "Content-Length: " + requestBodyAsBytes.length);
+
+        HttpResponse response = clientConnection.send(headers);
+
+        assertEquals(100, response.getStatusCode());
+        
+        response = clientConnection.send(requestBodyAsBytes);
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(responseBody, response.readBodyAsString());
+    }
+
     private static String makeBody(String msg) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < 200; i++) {
@@ -171,6 +193,22 @@ public class ClientAndServerTest {
             builder.append(System.lineSeparator());
         }
         return builder.toString();
+    }
+
+    private class On_100_Continue implements HttpServerOnRequestHeadersProcess {
+
+        @Override
+        public boolean process(ConnectionContext connectionContext, HttpRequestHeaders requestHeaders,
+                OutputStream outputStream) throws IOException {
+            String expectHeader = requestHeaders.getHeader("Expect");
+            if (expectHeader != null && expectHeader.toLowerCase().equals("100-continue")) {
+                HttpResponseHeaders response = new HttpResponseHeaders("HTTP/1.1 100 Continue");
+                response.write(outputStream);
+                outputStream.flush();
+            }
+            return true;
+        }
+
     }
 
 }

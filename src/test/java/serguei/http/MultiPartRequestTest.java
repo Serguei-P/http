@@ -43,7 +43,8 @@ public class MultiPartRequestTest {
     @Test
     public void serverShouldProcessMultipartRequest() throws Exception {
         InputStream inputStream = getRequestAsStream();
-        HttpRequest request = new HttpRequest(inputStream);
+        HttpRequestHeaders requestHeaders = new HttpRequestHeaders(inputStream);
+        HttpRequest request = new HttpRequest(requestHeaders, inputStream);
 
         assertTrue(request.hasMultipartBody());
 
