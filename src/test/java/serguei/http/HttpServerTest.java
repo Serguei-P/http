@@ -3,9 +3,11 @@ package serguei.http;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.security.KeyStore;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -59,6 +61,34 @@ public class HttpServerTest {
         CountDownLatch latch = new CountDownLatch(requestNumber);
         RequestHandler requestHandler = new RequestHandler(latch, 1000);
         HttpServer server = new HttpServer(requestHandler, PORT, SSL_PORT, keyStorePath(), "password", "test01");
+        @SuppressWarnings("unchecked")
+        Future<HttpResponse>[] responses = new Future[requestNumber];
+
+        server.start();
+
+        for (int i = 0; i < requestNumber; i++) {
+            responses[i] = threadPool.submit(new SslRequestProcess());
+        }
+        latch.await();
+
+        server.stop();
+
+        assertEquals(requestNumber, started.get());
+        assertEquals(requestNumber, stopped.get());
+        for (int i = 0; i < requestNumber; i++) {
+            assertEquals(200, responses[i].get().getStatusCode());
+        }
+    }
+
+    @Test(timeout = 60000)
+    public void shouldStartAndStopServerWithSslAndKeystorePassed() throws Exception {
+        int requestNumber = 2;
+        CountDownLatch latch = new CountDownLatch(requestNumber);
+        RequestHandler requestHandler = new RequestHandler(latch, 1000);
+        KeyStore keyStore = KeyStore.getInstance("JKS");
+        InputStream inputStream = this.getClass().getResourceAsStream("/test.jks");
+        keyStore.load(inputStream, "password".toCharArray());
+        HttpServer server = new HttpServer(requestHandler, PORT, SSL_PORT, keyStore, "test01");
         @SuppressWarnings("unchecked")
         Future<HttpResponse>[] responses = new Future[requestNumber];
 
