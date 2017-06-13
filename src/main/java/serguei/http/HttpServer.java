@@ -193,8 +193,6 @@ public class HttpServer {
      *            handshake)
      * @param keyStore
      *            - Java keystore
-     * @param keyStorePassword
-     *            - password for Java keystore file
      * @param certificatePassword
      *            - password for certificates in Java keystore
      */
