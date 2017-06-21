@@ -83,6 +83,8 @@ public class HttpClientConnection implements Closeable {
      */
     public HttpResponse sendRequest(String requestLine, String... headers) throws IOException {
         connectIfNecessary();
+        outputStream.write(requestLine.getBytes());
+        outputStream.write(HttpHeaders.LINE_SEPARATOR_BYTES);
         for (String line : headers) {
             outputStream.write(line.getBytes());
             outputStream.write(HttpHeaders.LINE_SEPARATOR_BYTES);

@@ -57,6 +57,20 @@ public class ClientAndServerTest {
     }
 
     @Test
+    public void shouldSendAndReceiveFromServerUsingSendRequestMethod() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+
+        HttpResponse response = clientConnection.sendRequest("GET " + PATH + " HTTP/1.1", "Host: localhost");
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals(200, response.getStatusCode());
+        assertNull(response.getHeader("Content-Encoding"));
+        assertEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
+        assertFalse(response.isContentChunked());
+        assertEquals(responseBody, response.readBodyAsString());
+    }
+
+    @Test
     public void shouldSendAndReceiveGZippedDataFromServer() throws Exception {
         server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.GZIP);
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
