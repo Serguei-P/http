@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.zip.GZIPInputStream;
+import java.util.zip.InflaterInputStream;
 
 import serguei.http.utils.Utils;
 
@@ -31,6 +32,10 @@ class HttpBody {
             // GZIPInputStream returns -1 before all bytes from input stream read
             streamToDrainOfData = stream;
             stream = new GZIPInputStream(stream);
+        } else if (encoding != null && encoding.equals("deflate")) {
+            // DeflateInputStream returns -1 before all bytes from input stream read
+            streamToDrainOfData = stream;
+            stream = new InflaterInputStream(stream);
         } else {
             streamToDrainOfData = null;
         }

@@ -88,6 +88,23 @@ public class ClientAndServerTest {
     }
 
     @Test
+    public void shouldSendAndReceiveDeflatedDataFromServer() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.DEFLATE);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers, requestBody, BodyCompression.DEFLATE);
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertEquals("deflate", response.getHeader("Content-Encoding"));
+        assertTrue(response.getContentLength() > 0);
+        assertNotEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
+        assertFalse(response.isContentChunked());
+        assertEquals(responseBody, response.readBodyAsString());
+    }
+
+    @Test
     public void shouldSendAndReceiveFromServerChunked() throws Exception {
         server.setChunkedResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");

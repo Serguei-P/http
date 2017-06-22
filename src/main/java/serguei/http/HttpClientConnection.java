@@ -15,6 +15,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
 
 import javax.net.ssl.SSLContext;
@@ -185,6 +186,9 @@ public class HttpClientConnection implements Closeable {
             if (compression == BodyCompression.GZIP) {
                 body = gzip(body);
                 requestHeaders.setHeader("Content-Encoding", "gzip");
+            } else if (compression == BodyCompression.DEFLATE) {
+                body = deflate(body);
+                requestHeaders.setHeader("Content-Encoding", "deflate");
             }
             requestHeaders.setHeader("Content-Length", Integer.toString(body.length));
         }
@@ -240,6 +244,9 @@ public class HttpClientConnection implements Closeable {
         if (compression == BodyCompression.GZIP) {
             requestHeaders.setHeader("Content-Encoding", "gzip");
             bodyStream = new GZIPOutputStream(bodyStream);
+        } else if (compression == BodyCompression.DEFLATE) {
+            requestHeaders.setHeader("Content-Encoding", "deflate");
+            bodyStream = new DeflaterOutputStream(bodyStream);
         }
         requestHeaders.setHeader("Transfer-Encoding", "chunked");
         requestHeaders.write(outputStream);
@@ -561,6 +568,14 @@ public class HttpClientConnection implements Closeable {
     private byte[] gzip(byte[] data) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         GZIPOutputStream gzipOutput = new GZIPOutputStream(output);
+        gzipOutput.write(data);
+        gzipOutput.close();
+        return output.toByteArray();
+    }
+
+    private byte[] deflate(byte[] data) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        DeflaterOutputStream gzipOutput = new DeflaterOutputStream(output);
         gzipOutput.write(data);
         gzipOutput.close();
         return output.toByteArray();

@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
 
 public class TestServer extends HttpServer {
@@ -58,6 +59,19 @@ public class TestServer extends HttpServer {
             responseBody = output.toByteArray();
             headers.setHeader("Content-Length", Integer.toString(responseBody.length));
             headers.setHeader("Content-Encoding", "gzip");
+        } else if (compression == BodyCompression.DEFLATE) {
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            try {
+                DeflaterOutputStream deflaterStream = new DeflaterOutputStream(output);
+                deflaterStream.write(body);
+                deflaterStream.close();
+            } catch (IOException e) {
+                // this is used for tests only
+                throw new RuntimeException("Error compressing body", e);
+            }
+            responseBody = output.toByteArray();
+            headers.setHeader("Content-Length", Integer.toString(responseBody.length));
+            headers.setHeader("Content-Encoding", "deflate");
         } else {
             responseBody = body;
             headers.setHeader("Content-Length", Integer.toString(body.length));
