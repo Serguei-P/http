@@ -141,6 +141,25 @@ public class ClientAndServerTest {
     }
 
     @Test
+    public void shouldSendAndReceivePlainTextPretendingToBeGzipped() throws Exception {
+        HttpResponseHeaders responseHeaders = HttpResponseHeaders.ok();
+        responseHeaders.setHeader("Content-Encoding", "gzip");
+        server.setResponse(responseHeaders, responseBody.getBytes(BODY_CHARSET));
+        HttpRequestHeaders requestHeaders = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost", "Content-Encoding: gzip");
+
+        HttpResponse response = clientConnection.send(requestHeaders, requestBody);
+        System.out.println(response);
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals("gzip", server.getLatestRequestHeaders().getHeader("Content-Encoding"));
+        assertEquals(200, response.getStatusCode());
+        assertEquals("gzip", response.getHeader("Content-Encoding"));
+        assertTrue(response.getContentLength() > 0);
+        assertEquals(responseBody, response.readBodyAsString());
+    }
+
+    @Test
     public void shouldSendTwoChunkedRequestsOnSameConnection() throws Exception {
         server.setChunkedResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");

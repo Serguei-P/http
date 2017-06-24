@@ -8,6 +8,7 @@ class LimitedLengthInputStream extends InputStream {
     private final InputStream inputStream;
     private final long maxLength;
     private long totalRead = 0;
+    private long marked = -1;
 
     LimitedLengthInputStream(InputStream inputStream, long maxLength) {
         this.inputStream = inputStream;
@@ -73,15 +74,20 @@ class LimitedLengthInputStream extends InputStream {
     @Override
     public void mark(int readlimit) {
         inputStream.mark(readlimit);
+        marked = totalRead;
     }
 
     @Override
     public void reset() throws IOException {
+        inputStream.reset();
+        if (marked >= 0) {
+            totalRead = marked;
+        }
     }
 
     @Override
     public boolean markSupported() {
-        return false;
+        return inputStream.markSupported();
     }
 
 }

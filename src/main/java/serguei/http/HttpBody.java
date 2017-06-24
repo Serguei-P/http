@@ -1,6 +1,7 @@
 package serguei.http;
 
 import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -21,6 +22,7 @@ class HttpBody {
     HttpBody(InputStream inputStream, long contentLength, boolean chunked, String encoding, boolean allowUnknownBodyLength)
             throws IOException {
         InputStream stream = inputStream;
+        System.out.println("supported: " + stream.markSupported() + "  class=" + stream.getClass().getName());
         if (chunked) {
             stream = new ChunkedInputStream(inputStream);
         } else if (contentLength > 0) {
@@ -30,8 +32,17 @@ class HttpBody {
         }
         if (encoding != null && encoding.equals("gzip")) {
             // GZIPInputStream returns -1 before all bytes from input stream read
-            streamToDrainOfData = stream;
-            stream = new GZIPInputStream(stream);
+            stream = new MarkAndResetInputStream(stream);
+            stream.mark(0);
+            // authors of some sites forget to actually gzip the body while adding a header
+            if (isGzip(stream)) {
+                stream.reset();
+                stream = new GZIPInputStream(stream);
+                streamToDrainOfData = stream;
+            } else {
+                stream.reset();
+                streamToDrainOfData = null;
+            }
         } else if (encoding != null && encoding.equals("deflate")) {
             // DeflateInputStream returns -1 before all bytes from input stream read
             streamToDrainOfData = stream;
@@ -89,6 +100,19 @@ class HttpBody {
             Utils.readFully(streamToDrainOfData);
         }
         return result;
+    }
+
+    private boolean isGzip(InputStream input) throws IOException {
+        int ch1 = input.read();
+        if (ch1 == -1) {
+            throw new EOFException();
+        }
+        int ch2 = input.read();
+        if (ch2 == -1) {
+            throw new EOFException();
+        }
+        int number = (ch2 << 8) | ch1;
+        return number == GZIPInputStream.GZIP_MAGIC;
     }
 
 }
