@@ -148,7 +148,6 @@ public class ClientAndServerTest {
         HttpRequestHeaders requestHeaders = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost", "Content-Encoding: gzip");
 
         HttpResponse response = clientConnection.send(requestHeaders, requestBody);
-        System.out.println(response);
 
         assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
         assertEquals(requestBody, server.getLatestRequestBodyAsString());

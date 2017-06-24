@@ -22,7 +22,6 @@ class HttpBody {
     HttpBody(InputStream inputStream, long contentLength, boolean chunked, String encoding, boolean allowUnknownBodyLength)
             throws IOException {
         InputStream stream = inputStream;
-        System.out.println("supported: " + stream.markSupported() + "  class=" + stream.getClass().getName());
         if (chunked) {
             stream = new ChunkedInputStream(inputStream);
         } else if (contentLength > 0) {
@@ -37,8 +36,8 @@ class HttpBody {
             // authors of some sites forget to actually gzip the body while adding a header
             if (isGzip(stream)) {
                 stream.reset();
-                stream = new GZIPInputStream(stream);
                 streamToDrainOfData = stream;
+                stream = new GZIPInputStream(stream);
             } else {
                 stream.reset();
                 streamToDrainOfData = null;
