@@ -12,7 +12,7 @@ To include the latest stable version from Maven Repository add the following to 
 <dependency>
     <groupId>com.github.serguei-p</groupId>
     <artifactId>http</artifactId>
-    <version>1.0.16</version>
+    <version>1.0.17</version>
 </dependency>
 ```
 
