@@ -121,6 +121,10 @@ public class TestServer extends HttpServer {
         return requestHandler.getLatestConnectionContext();
     }
 
+    public boolean isLatestRequestBodyCompressed() {
+        return requestHandler.isLatestRequestBodyCompressed();
+    }
+
     public String getLatestRequestBodyAsString() {
         try {
             return new String(getLatestRequestBody(), BODY_CODEPAGE);
@@ -138,11 +142,13 @@ public class TestServer extends HttpServer {
         private volatile HttpRequestHeaders latestRequestHeaders;
         private volatile byte[] latestRequestBody;
         private volatile ConnectionContext latestConnectionContext;
+        private volatile boolean latestRequestBodyCompressed;
 
         @Override
         public void process(ConnectionContext connectionContext, HttpRequest request, OutputStream outputStream) {
             latestRequestHeaders = request.headers();
             latestConnectionContext = connectionContext;
+            latestRequestBodyCompressed = request.isBodyCompressed();
             try {
                 latestRequestBody = request.readBodyAsBytes();
                 response.getHeaders().write(outputStream);
@@ -165,6 +171,10 @@ public class TestServer extends HttpServer {
 
         public ConnectionContext getLatestConnectionContext() {
             return latestConnectionContext;
+        }
+
+        public boolean isLatestRequestBodyCompressed() {
+            return latestRequestBodyCompressed;
         }
 
         public void setResponse(Response response) {

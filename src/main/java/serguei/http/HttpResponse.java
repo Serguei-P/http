@@ -96,6 +96,20 @@ public class HttpResponse {
         return body.readAsBytes();
     }
 
+    /**
+     * @return true if request has a body and the body is compressed
+     */
+    public boolean isBodyCompressed() {
+        if (body != null) {
+            return body.isCompressed();
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * @return HTTP headers (without copying)
+     */
     public HttpResponseHeaders getHeaders() {
         return new HttpResponseHeaders(headers);
     }

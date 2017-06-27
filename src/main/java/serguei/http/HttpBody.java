@@ -18,6 +18,7 @@ class HttpBody {
     private final InputStream bodyInputStream;
     private final InputStream streamToDrainOfData;
     private final boolean hasBody;
+    private final boolean compressed;
 
     HttpBody(InputStream inputStream, long contentLength, boolean chunked, String encoding, boolean allowUnknownBodyLength)
             throws IOException {
@@ -38,16 +39,20 @@ class HttpBody {
                 stream.reset();
                 streamToDrainOfData = stream;
                 stream = new GZIPInputStream(stream);
+                compressed = true;
             } else {
                 stream.reset();
                 streamToDrainOfData = null;
+                compressed = false;
             }
         } else if (encoding != null && encoding.equals("deflate")) {
             // DeflateInputStream returns -1 before all bytes from input stream read
             streamToDrainOfData = stream;
             stream = new InflaterInputStream(stream);
+            compressed = true;
         } else {
             streamToDrainOfData = null;
+            compressed = false;
         }
         this.bodyInputStream = stream;
         this.hasBody = contentLength > 0 || chunked || (allowUnknownBodyLength && contentLength < 0);
@@ -68,6 +73,10 @@ class HttpBody {
 
     InputStream getBodyInputStream() {
         return bodyInputStream;
+    }
+
+    boolean isCompressed() {
+        return compressed;
     }
 
     static byte[] stringAsBytes(String value) {

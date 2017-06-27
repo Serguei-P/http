@@ -138,6 +138,8 @@ public class ClientAndServerTest {
         assertEquals(-1, response.getContentLength());
         assertTrue(response.isContentChunked());
         assertEquals(responseBody, response.readBodyAsString());
+        assertTrue(response.isBodyCompressed());
+        assertTrue(server.isLatestRequestBodyCompressed());
     }
 
     @Test
@@ -156,6 +158,8 @@ public class ClientAndServerTest {
         assertEquals("gzip", response.getHeader("Content-Encoding"));
         assertTrue(response.getContentLength() > 0);
         assertEquals(responseBody, response.readBodyAsString());
+        assertFalse(response.isBodyCompressed());
+        assertFalse(server.isLatestRequestBodyCompressed());
     }
 
     @Test
