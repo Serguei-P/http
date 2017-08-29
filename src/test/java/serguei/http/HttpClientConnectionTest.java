@@ -22,7 +22,7 @@ public class HttpClientConnectionTest {
 
     @Test
     public void testHttp() throws Exception {
-        String hostName = "www.cisco.com";
+        String hostName = "www.fitltd.com";
         connection = new HttpClientConnection(hostName, 80);
 
         HttpRequestHeaders request = HttpRequestHeaders.getRequest("http://" + hostName + "/");
@@ -37,7 +37,7 @@ public class HttpClientConnectionTest {
 
     @Test
     public void testHttpWithGzip() throws Exception {
-        String hostName = "www.cisco.com";
+        String hostName = "www.fitltd.com";
         connection = new HttpClientConnection(hostName, 80);
 
         HttpRequestHeaders request = HttpRequestHeaders.getRequest("http://" + hostName + "/");
@@ -45,6 +45,7 @@ public class HttpClientConnectionTest {
         HttpResponse response = connection.send(request);
 
         assertEquals(200, response.getStatusCode());
+        assertEquals("gzip", response.getHeader("Content-Encoding"));
         
         String body = response.readBodyAsString();
         assertTrue(body.toUpperCase().contains("</HTML>"));
