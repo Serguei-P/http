@@ -42,6 +42,7 @@ public class ClientAndServerTest {
 
     @Test
     public void shouldSendAndReceiveFromServer() throws Exception {
+        long connectionsBefore = server.getConnectionsCreated();
         server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
 
@@ -54,6 +55,7 @@ public class ClientAndServerTest {
         assertEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
         assertFalse(response.isContentChunked());
         assertEquals(responseBody, response.readBodyAsString());
+        assertEquals(1, server.getConnectionsCreated() - connectionsBefore);
     }
 
     @Test

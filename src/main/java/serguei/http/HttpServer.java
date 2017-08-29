@@ -287,6 +287,13 @@ public class HttpServer {
     }
 
     /**
+     * @return Total number of created client connections
+     */
+    public long getConnectionsCreated() {
+        return connectionNo.get();
+    }
+
+    /**
      * @return true if the server started successfully and accepting incoming connections
      */
     public boolean isRunning() {
