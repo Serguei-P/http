@@ -96,7 +96,7 @@ abstract class HttpHeaders {
             int numberOfEncodings = transferEncoding.size();
             if (numberOfEncodings > 0) {
                 String lastEncoding = transferEncoding.get(numberOfEncodings - 1);
-                return lastEncoding.equals("chunked");
+                return lastEncoding.equalsIgnoreCase("chunked");
             }
         }
         return false;

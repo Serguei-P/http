@@ -82,6 +82,14 @@ public class HttpResponseHeadersTest {
     }
 
     @Test
+    public void shouldReturnChunkedBodyWhenWrongCase() throws Exception {
+        HttpResponseHeaders response = new HttpResponseHeaders("HTTP/1.1 200 OK", "Transfer-Encoding: Chunked");
+
+        assertTrue(response.hasChunkedBody());
+        assertEquals(-1, response.getContentLength());
+    }
+
+    @Test
     public void shouldReturnContentLength() throws Exception {
         HttpResponseHeaders response = new HttpResponseHeaders("HTTP/1.1 200 OK", "Content-Length: 100");
 
