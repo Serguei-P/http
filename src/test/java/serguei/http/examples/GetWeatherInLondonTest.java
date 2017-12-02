@@ -4,8 +4,6 @@ import static org.junit.Assert.*;
 
 import java.io.ByteArrayOutputStream;
 
-import org.junit.Test;
-
 public class GetWeatherInLondonTest {
 
     private static final String RESULT_PREFIX = "Temperature in London is ";

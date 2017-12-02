@@ -129,7 +129,7 @@ public class HttpServerTest {
         }
     }
 
-    @Test(timeout=60000)
+    @Test(timeout = 60000)
     public void shouldCloseAllConnections() throws Exception {
         int requestNumber = 2;
         CountDownLatch latch = new CountDownLatch(requestNumber);
@@ -167,11 +167,11 @@ public class HttpServerTest {
             byte[] body = Utils.buildDataArray(10000);
             byte[] headers = ("POST / HTTP/1.1\r\nHost: www.fitltd.com\r\nContent-Length: " + body.length + "\r\n\r\n")
                     .getBytes("ASCII");
-            
+
             long start = System.currentTimeMillis();
             HttpResponse response = client.send(Utils.concat(headers, body));
             long end = System.currentTimeMillis();
-            
+
             assertEquals(200, response.getStatusCode());
             assertArrayEquals(body, requestHandler.getLatestRequestBody());
             assertTrue("Time was " + (end - start) + " which is shorter then expected 5 secs", end - start > 3000);
@@ -179,6 +179,30 @@ public class HttpServerTest {
             client.close();
             server.stop();
         }
+    }
+
+    @Test(timeout = 60000)
+    public void shouldStartServerWhenSocketIsSlowToFree() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+        HttpServer server1 = new HttpServer(new SimpleRequestHandler(), PORT);
+        HttpServer server2 = new HttpServer(new SimpleRequestHandler(), PORT);
+        ServerStartRunnable runnable = new ServerStartRunnable(server2, latch);
+        try {
+            server1.start();
+            assertCanMakeSimpleRequest();
+            threadPool.execute(runnable);
+            latch.await();
+            Thread.sleep(10);
+            server1.stop();
+            while (!runnable.finished) {
+                Thread.sleep(100);
+            }
+            assertCanMakeSimpleRequest();
+        } finally {
+            server1.stop();
+            server2.stop();
+        }
+        assertTrue(runnable.success);
     }
 
     private class RequestHandler implements HttpServerRequestHandler {
@@ -292,8 +316,42 @@ public class HttpServerTest {
         }
     }
 
+    private class ServerStartRunnable implements Runnable {
+
+        private final HttpServer server;
+        private final CountDownLatch latch;
+        private volatile boolean success;
+        private volatile boolean finished = false;
+
+        public ServerStartRunnable(HttpServer server, CountDownLatch latch) {
+            this.server = server;
+            this.latch = latch;
+        }
+
+        @Override
+        public void run() {
+            try {
+                latch.countDown();
+                server.start(3, 100);
+                success = true;
+                System.out.println("done");
+            } catch (IOException e) {
+                e.printStackTrace();
+                success = false;
+            }
+            finished = true;
+        }
+    }
+
     private String keyStorePath() {
         return getClass().getResource("/test.jks").getFile();
+    }
+
+    private void assertCanMakeSimpleRequest() throws IOException {
+        try (HttpClientConnection connection = new HttpClientConnection("localhost", PORT)) {
+            HttpResponse response = connection.sendRequest("GET / HTTP/1.1", "Host: localhost:" + PORT);
+            assertEquals(200, response.getStatusCode());
+        }
     }
 
 }

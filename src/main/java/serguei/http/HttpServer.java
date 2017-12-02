@@ -220,6 +220,25 @@ public class HttpServer {
      *             we don't have authority to find to it).
      */
     public void start() throws IOException {
+        start(1, 0);
+    }
+
+    /**
+     * Starts the server making several attempts. This operation will return after server sockets are bound to ports but
+     * before the server actually starts listening on sockets
+     * 
+     * This method of starting a server can be useful when this server is used in testing as on some OSs a socket closed
+     * by previous test might linger for a bit resulting in the next test to fail
+     * 
+     * @param attempts
+     *            - number of attempts
+     * @param timeoutMillis
+     *            - pause between two attempts in milliseconds
+     * @throws IOException
+     *             - often indicate that we can't bind to a port (e.g. because it is used by a different application or
+     *             we don't have authority to find to it).
+     */
+    public void start(int attempts, int timeoutMillis) throws IOException {
         if (serverSocketRunners.size() > 0) {
             throw new RuntimeException("Server is already running");
         }
@@ -227,11 +246,11 @@ public class HttpServer {
         List<ServerSocket> serverSockets = new ArrayList<>();
         List<Boolean> ssl = new ArrayList<>();
         try {
-            ServerSocket serverSocket = createServerSocket(socketAddress);
+            ServerSocket serverSocket = createServerSocket(socketAddress, attempts, timeoutMillis);
             serverSockets.add(serverSocket);
             ssl.add(false);
             if (sslSocketAddress != null) {
-                serverSocket = createServerSocket(sslSocketAddress);
+                serverSocket = createServerSocket(sslSocketAddress, attempts, timeoutMillis);
                 serverSockets.add(serverSocket);
                 ssl.add(true);
             }
@@ -458,6 +477,25 @@ public class HttpServer {
 
     protected HttpServerRequestHandler getRequestHandler() {
         return requestHandler;
+    }
+
+    private ServerSocket createServerSocket(SocketAddress socketAddress, int attempts, int timeoutMillis) throws IOException {
+        int count = 0;
+        while (true) {
+            try {
+                return createServerSocket(socketAddress);
+            } catch (IOException e) {
+                count++;
+                if (count >= attempts) {
+                    throw e;
+                }
+                try {
+                    Thread.sleep(timeoutMillis);
+                } catch (InterruptedException e1) {
+                    throw new IOException("Wait interrupted", e1);
+                }
+            }
+        }
     }
 
     private ServerSocket createServerSocket(SocketAddress socketAddress) throws IOException {
