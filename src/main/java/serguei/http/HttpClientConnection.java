@@ -1,5 +1,7 @@
 package serguei.http;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
@@ -35,6 +37,8 @@ import serguei.http.utils.Utils;
  *
  */
 public class HttpClientConnection implements Closeable {
+
+    private static final int BUFFER_SIZE = 8192;
 
     private final InetSocketAddress serverAddress;
     private Socket socket;
@@ -250,7 +254,7 @@ public class HttpClientConnection implements Closeable {
         }
         requestHeaders.setHeader("Transfer-Encoding", "chunked");
         requestHeaders.write(outputStream);
-        byte[] buffer = new byte[8192];
+        byte[] buffer = new byte[BUFFER_SIZE];
         int read;
         while ((read = body.read(buffer)) != -1) {
             bodyStream.write(buffer, 0, read);
@@ -358,9 +362,7 @@ public class HttpClientConnection implements Closeable {
             sslSocket.setEnabledCipherSuites(enabledCipherSuites);
         }
         sslSocket.startHandshake();
-        socket = sslSocket;
-        inputStream = socket.getInputStream();
-        outputStream = socket.getOutputStream();
+        setSocket(sslSocket);
         SSLSession session = sslSocket.getSession();
         Certificate[] certificates = session.getPeerCertificates();
         tlsCertificates = new X509Certificate[certificates.length];
@@ -459,9 +461,7 @@ public class HttpClientConnection implements Closeable {
      */
     public void connect() throws IOException {
         close();
-        socket = connectSocket();
-        inputStream = socket.getInputStream();
-        outputStream = socket.getOutputStream();
+        setSocket(connectSocket());
     }
 
     /**
@@ -497,9 +497,7 @@ public class HttpClientConnection implements Closeable {
 
     private void connectIfNecessary() throws IOException {
         if (socket == null) {
-            socket = connectSocket();
-            inputStream = socket.getInputStream();
-            outputStream = socket.getOutputStream();
+            setSocket(connectSocket());
         }
     }
 
@@ -579,6 +577,12 @@ public class HttpClientConnection implements Closeable {
         gzipOutput.write(data);
         gzipOutput.close();
         return output.toByteArray();
+    }
+
+    private void setSocket(Socket socket) throws IOException {
+        this.socket = socket;
+        this.inputStream = new BufferedInputStream(socket.getInputStream(), BUFFER_SIZE);
+        this.outputStream = new BufferedOutputStream(socket.getOutputStream(), BUFFER_SIZE);
     }
 
 }
