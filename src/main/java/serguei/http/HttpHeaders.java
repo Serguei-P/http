@@ -3,6 +3,7 @@ package serguei.http;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +24,7 @@ abstract class HttpHeaders {
     private static final byte[] KEY_VALUE_SEPARATOR_BYTES = KEY_VALUE_SEPARATOR.getBytes();
     private static final int MAX_HEADER_NUMBER = 1000;
     private static final int UPPER_LOW_DIFF = 'a' - 'A';
+    private static final BodyEncoding NO_BODY_ENCODING = new BodyEncoding(false, null);
 
     private final Map<String, HeaderValues> headers = new LinkedHashMap<>();
 
@@ -91,15 +93,8 @@ abstract class HttpHeaders {
         if (getContentLength() >= 0) {
             return false;
         }
-        List<String> transferEncoding = getHeaders("Transfer-Encoding");
-        if (transferEncoding != null) {
-            int numberOfEncodings = transferEncoding.size();
-            if (numberOfEncodings > 0) {
-                String lastEncoding = transferEncoding.get(numberOfEncodings - 1);
-                return lastEncoding.equalsIgnoreCase("chunked");
-            }
-        }
-        return false;
+        BodyEncoding bodyEncoding = getBodyEncoding();
+        return bodyEncoding.isChunked;
     }
 
     /**
@@ -125,12 +120,12 @@ abstract class HttpHeaders {
      * Adds a header, if header header with this name already exists, it adds a new entry without deleting existing
      */
     public void addHeader(String headerName, String headerValue) {
-        String normilizedHeaderName = normalize(headerName);
-        HeaderValues values = headers.get(normilizedHeaderName);
+        String normalizedHeaderName = normalize(headerName);
+        HeaderValues values = headers.get(normalizedHeaderName);
         if (values == null) {
-            headers.put(normilizedHeaderName, new HeaderValues(headerName, headerValue));
+            headers.put(normalizedHeaderName, new HeaderValues(headerName, headerValue));
         } else {
-            headers.put(normilizedHeaderName, values.addValue(headerValue));
+            headers.put(normalizedHeaderName, values.addValue(headerValue));
         }
     }
 
@@ -304,11 +299,13 @@ abstract class HttpHeaders {
             if (values != null) {
                 return values;
             } else {
-                List<String> result = new ArrayList<>();
                 if (value != null) {
+                    List<String> result = new ArrayList<>();
                     result.add(value);
+                    return result;
+                } else {
+                    return Collections.emptyList();
                 }
-                return result;
             }
         }
 
@@ -371,4 +368,88 @@ abstract class HttpHeaders {
         }
         return null;
     }
+
+    BodyEncoding getBodyEncoding() {
+        List<String> list = encodingData();
+        if (list.size() == 0) {
+            return NO_BODY_ENCODING;
+        }
+        boolean isChunked = false;
+        String encoding = null;
+        int lastIndex = list.size() - 1;
+        String lastEncoding = list.get(lastIndex);
+        if (lastEncoding.equalsIgnoreCase("chunked")) {
+            isChunked = true;
+            lastIndex--;
+            if (lastIndex >= 0) {
+                encoding = list.get(lastIndex);
+            }
+        } else {
+            encoding = lastEncoding;
+        }
+        return new BodyEncoding(isChunked, encoding);
+    }
+
+    List<String> encodingData() {
+        List<String> result = null;
+        HeaderValues header = headers.get("Content-Encoding");
+        if (header != null) {
+            result = new ArrayList<>();
+            result.add(header.getValue());
+        }
+        header = headers.get("Transfer-Encoding");
+        if (header != null) {
+            if (result == null) {
+                result = new ArrayList<>();
+            }
+            if (header.values != null) {
+                for (String value : header.values) {
+                    addCommaDelimitedValues(value, result);
+                }
+            } else {
+                addCommaDelimitedValues(header.value, result);
+            }
+        }
+        if (result != null) {
+            return result;
+        } else {
+            return Collections.emptyList();
+        }
+    }
+
+    private void addCommaDelimitedValues(String line, List<String> list) {
+        int start = 0;
+        for (int i = 0; i < line.length(); i++) {
+            char ch = line.charAt(i);
+            if (ch == ' ' || ch == ',') {
+                if (i > start) {
+                    list.add(line.substring(start, i));
+                }
+                start = i + 1;
+            }
+        }
+        if (start < line.length()) {
+            list.add(line.substring(start));
+        }
+    }
+
+    static class BodyEncoding {
+
+        private boolean isChunked;
+        private String encoding;
+
+        private BodyEncoding(boolean isChunked, String encoding) {
+            this.isChunked = isChunked;
+            this.encoding = encoding;
+        }
+
+        public boolean isChunked() {
+            return isChunked;
+        }
+
+        public String geEncoding() {
+            return encoding;
+        }
+    }
+
 }

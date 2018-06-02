@@ -7,6 +7,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.List;
 
 import org.junit.Test;
 
@@ -147,6 +148,16 @@ public class HttpResponseHeadersTest {
         assertEquals("HTTP/1.1", headers.getVersion());
         assertEquals(200, headers.getStatusCode());
         assertEquals("", headers.getReason());
+    }
+
+    @Test
+    public void shouldReturnEncodings() throws HttpException {
+        HttpResponseHeaders headers = new HttpResponseHeaders("HTTP/1.1 200", "CONTENT-encoding: test1",
+                "TRANSFER-encoding: test2, test3, test4", "TRANSFER-ENCODING: test5");
+
+        List<String> result = headers.encodingData();
+
+        assertEquals(Arrays.asList("test1", "test2", "test3", "test4", "test5"), result);
     }
 
 }

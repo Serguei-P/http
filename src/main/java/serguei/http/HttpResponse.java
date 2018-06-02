@@ -22,9 +22,9 @@ public class HttpResponse {
     HttpResponse(InputStream inputStream) throws IOException {
         this.headers = new HttpResponseHeaders(inputStream);
         contentLength = headers.getContentLength();
-        chunked = contentLength < 0 && headers.hasChunkedBody();
-        String encoding = headers.getHeader("content-encoding");
-        body = new HttpBody(inputStream, contentLength, chunked, encoding, true);
+        HttpHeaders.BodyEncoding bodyEncoding = headers.getBodyEncoding();
+        chunked = contentLength < 0 && bodyEncoding.isChunked();
+        body = new HttpBody(inputStream, contentLength, chunked, bodyEncoding.geEncoding(), true);
     }
 
     /**
@@ -108,7 +108,7 @@ public class HttpResponse {
     }
 
     /**
-     * @return HTTP headers (without copying)
+     * @return HTTP headers
      */
     public HttpResponseHeaders getHeaders() {
         return new HttpResponseHeaders(headers);

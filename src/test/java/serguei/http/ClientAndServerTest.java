@@ -145,6 +145,25 @@ public class ClientAndServerTest {
     }
 
     @Test
+    public void shouldReceiveGZippedDataFromServerChunkedUsingTransferEncoding() throws Exception {
+        server.setChunkedGzippeddResponseUsingTransferEncordingOnly(HttpResponseHeaders.ok(),
+                responseBody.getBytes(BODY_CHARSET));
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost", "Accept-Encoding: gzip");
+        InputStream inputStream = new ByteArrayInputStream(requestBody.getBytes(BODY_CHARSET));
+
+        HttpResponse response = clientConnection.send(headers, inputStream);
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertEquals("gzip, chunked", response.getHeader("Transfer-Encoding"));
+        assertEquals(-1, response.getContentLength());
+        assertTrue(response.isContentChunked());
+        assertTrue(response.isBodyCompressed());
+        assertEquals(responseBody, response.readBodyAsString());
+    }
+
+    @Test
     public void shouldSendAndReceivePlainTextPretendingToBeGzipped() throws Exception {
         HttpResponseHeaders responseHeaders = HttpResponseHeaders.ok();
         responseHeaders.setHeader("Content-Encoding", "gzip");

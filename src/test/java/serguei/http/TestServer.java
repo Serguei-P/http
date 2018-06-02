@@ -89,7 +89,7 @@ public class TestServer extends HttpServer {
         try {
             if (compression == BodyCompression.GZIP) {
                 stream = new GZIPOutputStream(stream);
-                headers.setHeader("Content-Encoding", "gzip");
+                headers.setHeader("content-encoding", "gzip");
             }
             stream.write(body);
             stream.close();
@@ -97,7 +97,22 @@ public class TestServer extends HttpServer {
             // this is used for tests only
             throw new RuntimeException("Error compressing body", e);
         }
-        headers.addHeader("Transfer-Encoding", "chunked");
+        headers.addHeader("transfer-encoding", "chunked");
+        requestHandler.setResponse(new Response(headers, output.toByteArray()));
+    }
+
+    public void setChunkedGzippeddResponseUsingTransferEncordingOnly(HttpResponseHeaders headers, byte[] body) {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        OutputStream stream = new ChunkedOutputStream(output, true);
+        try {
+            stream = new GZIPOutputStream(stream);
+            stream.write(body);
+            stream.close();
+        } catch (IOException e) {
+            // this is used for tests only
+            throw new RuntimeException("Error compressing body", e);
+        }
+        headers.addHeader("Transfer-Encoding", "gzip, chunked");
         requestHandler.setResponse(new Response(headers, output.toByteArray()));
     }
 
