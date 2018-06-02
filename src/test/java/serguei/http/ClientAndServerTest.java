@@ -3,9 +3,11 @@ package serguei.http;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.zip.GZIPOutputStream;
 
 import org.junit.After;
 import org.junit.Before;
@@ -145,7 +147,7 @@ public class ClientAndServerTest {
     }
 
     @Test
-    public void shouldReceiveGZippedDataFromServerChunkedUsingTransferEncoding() throws Exception {
+    public void shouldReceiveGZippedDataFromServerChunkedUsingTransferEncodingHeader() throws Exception {
         server.setChunkedGzippeddResponseUsingTransferEncordingOnly(HttpResponseHeaders.ok(),
                 responseBody.getBytes(BODY_CHARSET));
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost", "Accept-Encoding: gzip");
@@ -160,6 +162,23 @@ public class ClientAndServerTest {
         assertEquals(-1, response.getContentLength());
         assertTrue(response.isContentChunked());
         assertTrue(response.isBodyCompressed());
+        assertEquals(responseBody, response.readBodyAsString());
+    }
+
+    @Test
+    public void serverShouldUnderstandGZippedDataFromClientChunkedUsingTransferEncodingHeader() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET));
+        byte[] headers = (REQUEST_LINE + EOL + "Host: localhost" + EOL + "Transfer-Encoding: gzip, chunked" + EOL + EOL)
+                .getBytes();
+        byte[] body = chunkBody(gzipBody(requestBody.getBytes(BODY_CHARSET)));
+
+        HttpResponse response = clientConnection.send(Utils.concat(headers, body));
+
+        HttpRequestHeaders receivedRequest = server.getLatestRequestHeaders();
+        assertEquals("http://localhost" + PATH, receivedRequest.getUrl().toString());
+        assertEquals("gzip, chunked", receivedRequest.getHeader("Transfer-Encoding"));
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
         assertEquals(responseBody, response.readBodyAsString());
     }
 
@@ -283,6 +302,32 @@ public class ClientAndServerTest {
             return true;
         }
 
+    }
+
+    private byte[] gzipBody(byte[] body) {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try {
+            GZIPOutputStream gzipStream = new GZIPOutputStream(output);
+            gzipStream.write(body);
+            gzipStream.close();
+        } catch (IOException e) {
+            // this is used for tests only
+            throw new RuntimeException("Error compressing body", e);
+        }
+        return output.toByteArray();
+    }
+
+    private byte[] chunkBody(byte[] body) {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try {
+            OutputStream stream = new ChunkedOutputStream(output, false);
+            stream.write(body);
+            stream.close();
+        } catch (IOException e) {
+            // this is used for tests only
+            throw new RuntimeException("Error compressing body", e);
+        }
+        return output.toByteArray();
     }
 
 }

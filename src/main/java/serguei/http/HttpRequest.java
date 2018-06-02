@@ -24,13 +24,15 @@ public class HttpRequest {
     HttpRequest(HttpRequestHeaders requestHeaders, InputStream inputStream) throws IOException {
         this.headers = requestHeaders;
         this.url = headers.getUrl();
-        contentLength = headers.getContentLength();
-        chunked = contentLength < 0 && headers.hasChunkedBody();
-        String encoding = headers.getHeader("Content-Encoding");
         String method = headers.getMethod();
         if (!method.equals("GET") && !method.equals("CONNECT")) {
-            body = new HttpBody(inputStream, contentLength, chunked, encoding, false);
+            HttpHeaders.BodyEncoding bodyEncoding = headers.getBodyEncoding();
+            contentLength = headers.getContentLength();
+            chunked = contentLength < 0 && bodyEncoding.isChunked();
+            body = new HttpBody(inputStream, contentLength, chunked, bodyEncoding.geEncoding(), false);
         } else {
+            contentLength = 0;
+            chunked = false;
             body = null;
         }
     }
