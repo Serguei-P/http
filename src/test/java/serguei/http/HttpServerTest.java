@@ -56,6 +56,31 @@ public class HttpServerTest {
     }
 
     @Test(timeout = 60000)
+    public void shouldStartAndAbruptlyStopServer() throws Exception {
+        int requestNumber = 2;
+        CountDownLatch latch = new CountDownLatch(requestNumber);
+        RequestHandler requestHandler = new RequestHandler(latch, 1000);
+        HttpServer server = new HttpServer(requestHandler, PORT);
+        @SuppressWarnings("unchecked")
+        Future<HttpResponse>[] responses = new Future[requestNumber];
+
+        server.start();
+
+        for (int i = 0; i < requestNumber; i++) {
+            responses[i] = threadPool.submit(new RequestProcess());
+        }
+        latch.await();
+
+        server.stopNow();
+
+        assertEquals(requestNumber, started.get());
+        assertEquals(0, stopped.get()); // there was IOExeption while waiting in Thread.sleep()
+        for (int i = 0; i < requestNumber; i++) {
+            assertEquals(200, responses[i].get().getStatusCode());
+        }
+    }
+
+    @Test(timeout = 60000)
     public void shouldStartAndStopServerWithSsl() throws Exception {
         int requestNumber = 2;
         CountDownLatch latch = new CountDownLatch(requestNumber);

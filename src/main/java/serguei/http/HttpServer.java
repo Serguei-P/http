@@ -271,7 +271,7 @@ public class HttpServer {
 
     /**
      * Stops the server. This will stop listening to ports and attempt to wait until all current requests finish
-     * execution (subject to a timeout)
+     * execution (subject to a timeout).
      */
     public void stop() {
         try {
@@ -284,6 +284,7 @@ public class HttpServer {
             for (SocketRunner runner : connections.values()) {
                 runner.stop();
             }
+            threadPool.shutdown();
             long time = System.currentTimeMillis();
             while (connections.size() > 0 && System.currentTimeMillis() - time < WAIT_FOR_PROCESSES_TO_FINISH_MILS) {
                 try {
@@ -291,6 +292,27 @@ public class HttpServer {
                 } catch (InterruptedException e) {
                     break;
                 }
+            }
+            isStopped = true;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Stops the server. This will stop listening to ports and close all sockets immediately.
+     */
+    public void stopNow() {
+        try {
+            synchronized (serverSocketRunners) {
+                for (ServerSocketRunner serverSocketRunner : serverSocketRunners) {
+                    serverSocketRunner.stop();
+                }
+                serverSocketRunners.clear();
+            }
+            threadPool.shutdown();
+            for (SocketRunner runner : connections.values()) {
+                runner.abort();
             }
             isStopped = true;
         } catch (IOException e) {
