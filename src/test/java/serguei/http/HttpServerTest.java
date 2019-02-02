@@ -230,6 +230,81 @@ public class HttpServerTest {
         assertTrue(runnable.success);
     }
 
+    @Test(timeout = 60000)
+    public void shouldCallOnConnect() throws Exception {
+        TestOnConnectProcess onConnectProcess = new TestOnConnectProcess(true);
+        SimpleRequestHandler requestHandler = new SimpleRequestHandler();
+        HttpServer server = new HttpServer(requestHandler, PORT);
+        server.setOnConnectHandler(onConnectProcess);
+        HttpClientConnection client = new HttpClientConnection("localhost", PORT);
+        try {
+            server.start();
+            byte[] body = Utils.buildDataArray(10000);
+            byte[] headers = ("POST / HTTP/1.1\r\nHost: www.fitltd.com\r\nContent-Length: " + body.length + "\r\n\r\n")
+                    .getBytes("ASCII");
+
+            HttpResponse response = client.send(Utils.concat(headers, body));
+
+            assertEquals(200, response.getStatusCode());
+            assertArrayEquals(body, requestHandler.getLatestRequestBody());
+            assertEquals(1, onConnectProcess.callCount.get());
+        } finally {
+            client.close();
+            server.stop();
+        }
+    }
+
+    @Test(timeout = 60000)
+    public void shouldCallOnConnectThatDisconnects() throws Exception {
+        TestOnConnectProcess onConnectProcess = new TestOnConnectProcess(false);
+        SimpleRequestHandler requestHandler = new SimpleRequestHandler();
+        HttpServer server = new HttpServer(requestHandler, PORT);
+        server.setOnConnectHandler(onConnectProcess);
+        HttpClientConnection client = new HttpClientConnection("localhost", PORT);
+        try {
+            server.start();
+            byte[] body = Utils.buildDataArray(10000);
+            byte[] headers = ("POST / HTTP/1.1\r\nHost: www.fitltd.com\r\nContent-Length: " + body.length + "\r\n\r\n")
+                    .getBytes("ASCII");
+
+            client.send(Utils.concat(headers, body));
+
+            fail("Expected exception");
+        } catch (IOException e) {
+            assertEquals(1, onConnectProcess.callCount.get());
+        } finally {
+            client.close();
+            server.stop();
+        }
+    }
+
+    @Test(timeout = 60000)
+    public void shouldCallOnConnectWithSsl() throws Exception {
+        String sni = "www.test.com";
+        TestOnConnectProcess onConnectProcess = new TestOnConnectProcess(true);
+        SimpleRequestHandler requestHandler = new SimpleRequestHandler();
+        HttpServer server = new HttpServer(requestHandler, PORT, SSL_PORT, keyStorePath(), "password", "test01");
+        server.setOnConnectHandler(onConnectProcess);
+        HttpClientConnection client = new HttpClientConnection("localhost", SSL_PORT);
+        try {
+            server.start();
+            byte[] body = Utils.buildDataArray(10000);
+            byte[] headers = ("POST / HTTP/1.1\r\nHost: www.fitltd.com\r\nContent-Length: " + body.length + "\r\n\r\n")
+                    .getBytes("ASCII");
+
+            client.startHandshake(sni);
+            HttpResponse response = client.send(Utils.concat(headers, body));
+
+            assertEquals(200, response.getStatusCode());
+            assertArrayEquals(body, requestHandler.getLatestRequestBody());
+            assertEquals(1, onConnectProcess.callCount.get());
+            assertEquals(sni, onConnectProcess.latestClientHello.getSniHostName());
+        } finally {
+            client.close();
+            server.stop();
+        }
+    }
+
     private class RequestHandler implements HttpServerRequestHandler {
 
         private final CountDownLatch latch;
@@ -377,6 +452,25 @@ public class HttpServerTest {
             HttpResponse response = connection.sendRequest("GET / HTTP/1.1", "Host: localhost:" + PORT);
             assertEquals(200, response.getStatusCode());
         }
+    }
+
+    private static class TestOnConnectProcess implements HttpServerOnConnectProcess {
+
+        private final boolean resultToReturn;
+        private AtomicInteger callCount = new AtomicInteger(0);
+        private ClientHello latestClientHello;
+
+        public TestOnConnectProcess(boolean resultToReturn) {
+            this.resultToReturn = resultToReturn;
+        }
+
+        @Override
+        public boolean process(Socket socket, ClientHello clientHello) {
+            this.latestClientHello = clientHello;
+            callCount.incrementAndGet();
+            return resultToReturn;
+        }
+
     }
 
 }

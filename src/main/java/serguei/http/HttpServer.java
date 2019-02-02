@@ -56,6 +56,7 @@ public class HttpServer {
     private int timeoutMils;
 
     private HttpServerOnRequestHeadersProcess onRequestHeadersHandler;
+    private HttpServerOnConnectProcess onConnectHandler;
     private TlsVersion[] enabledTlsProtocols;
     private String[] enabledCipherSuites;
     private List<ServerSocketRunner> serverSocketRunners = new ArrayList<>();
@@ -497,6 +498,17 @@ public class HttpServer {
         this.onRequestHeadersHandler = onRequestHeadersHandler;
     }
 
+    /**
+     * Sets a handler that will be called immediately after the connection to the server is made, in case of TLS
+     * connection, also after the handshake took place
+     * 
+     * @param onConnectHandler
+     *            - the handler, if null (default) - no processing will take place
+     */
+    public void setOnConnectHandler(HttpServerOnConnectProcess onConnectHandler) {
+        this.onConnectHandler = onConnectHandler;
+    }
+
     protected HttpServerRequestHandler getRequestHandler() {
         return requestHandler;
     }
@@ -606,9 +618,9 @@ public class HttpServer {
             InputStream inputStream = null;
             OutputStream outputStream = null;
             PostponedCloseOutputStream postponedCloseOutputStream = null;
+            SslConnection sslConnection;
             try {
                 socket.setSoTimeout(timeoutMils);
-                SslConnection sslConnection;
                 if (ssl) {
                     sslConnection = setupSsl(socket);
                     if (sslConnection == null) {
@@ -620,6 +632,14 @@ public class HttpServer {
                     socket = sslConnection.socket;
                 } else {
                     sslConnection = null;
+                }
+                if (onConnectHandler != null) {
+                    if (!onConnectHandler.process(socket, sslConnection != null ? sslConnection.clientHello : null)) {
+                        connections.remove(connNo);
+                        socket.close();
+                        finished = true;
+                        return;
+                    }
                 }
                 inputStream = socket.getInputStream();
                 if (throttlingDelayMils > 0) {
