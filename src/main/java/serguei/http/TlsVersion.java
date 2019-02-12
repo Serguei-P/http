@@ -1,8 +1,5 @@
 package serguei.http;
 
-import sun.security.ssl.ProtocolVersion;
-
-@SuppressWarnings("restriction")
 public class TlsVersion {
 
     protected static final TlsVersion UNDEFINED = new TlsVersion(0, 0);
@@ -10,6 +7,7 @@ public class TlsVersion {
     public static final TlsVersion TLSv10 = new TlsVersion(3, 1);
     public static final TlsVersion TLSv11 = new TlsVersion(3, 2);
     public static final TlsVersion TLSv12 = new TlsVersion(3, 3);
+    public static final TlsVersion TLSv13 = new TlsVersion(3, 4);
 
     public static final TlsVersion SSLv2Hello = new TlsVersion(2, 0) {
 
@@ -26,7 +24,7 @@ public class TlsVersion {
     public TlsVersion(int major, int minor) {
         this.major = major;
         this.minor = minor;
-        this.jdkString = ProtocolVersion.valueOf(major, minor).toString();
+        this.jdkString = protocolVersionStr(major, minor);
     }
 
     public int getMajor() {
@@ -90,7 +88,9 @@ public class TlsVersion {
     }
 
     public static TlsVersion fromJdkString(String protocolName) {
-        if (protocolName.equals(TLSv12.toJdkString())) {
+        if (protocolName.equals(TLSv13.toJdkString())) {
+            return TLSv13;
+        } else if (protocolName.equals(TLSv12.toJdkString())) {
             return TLSv12;
         } else if (protocolName.equals(TLSv11.toJdkString())) {
             return TLSv11;
@@ -110,6 +110,22 @@ public class TlsVersion {
             }
         } else {
             return UNDEFINED;
+        }
+    }
+
+    private String protocolVersionStr(int major, int minor) {
+        if (major == 3) {
+            if (minor == 0) {
+                return "SSLv3";
+            } else if (minor == 1) {
+                return "TLSv1";
+            } else {
+                return "TLSv1." + (minor - 1);
+            }
+        } else if (major == 2 && minor == 0) {
+            return "SSLv2Hello";
+        } else {
+            return "Unknown-" + major + "." + minor;
         }
     }
 
