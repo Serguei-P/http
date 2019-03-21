@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 
-class ClientHello {
+public class ClientHello {
 
     private static final int TLS_HEADER_LENGTH = 5;
     private static final int CH_HEADER_LEN = 6;
@@ -21,6 +21,10 @@ class ClientHello {
 
     private byte[] buffer = new byte[512];
     private int bufferSize = 0;
+
+    private ClientHello() {
+
+    }
 
     static ClientHello read(MarkAndResetInputStream inputStream) throws IOException {
         ClientHello clientHello = new ClientHello(inputStream);
