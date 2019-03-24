@@ -68,6 +68,7 @@ public class HttpServer {
     private volatile boolean warnWhenSniNotMatching = false;
     private int throttlingDelayMils = 0;
     private boolean tcpNoDelay;
+    private boolean needClientAuthentication;
 
     /**
      * Creating an instance of HttpServer listening to one ports (this does not actually start the server - call start()
@@ -380,6 +381,16 @@ public class HttpServer {
 
     public void useJdkDefaultCipherSuites() {
         this.enabledCipherSuites = null;
+    }
+
+    /**
+     * This requests a client to provide authentication certificate (TLS only)
+     * 
+     * @param needClientAuthentication
+     *            - true if authentication required, false if not
+     */
+    public void setNeedClientAuthentication(boolean needClientAuthentication) {
+        this.needClientAuthentication = needClientAuthentication;
     }
 
     /**
@@ -725,6 +736,9 @@ public class HttpServer {
             }
             if (enabledCipherSuites != null) {
                 sslSocket.setEnabledCipherSuites(enabledCipherSuites);
+            }
+            if (needClientAuthentication) {
+                sslSocket.setNeedClientAuth(true);
             }
             sslSocket.startHandshake();
             SslConnection result = new SslConnection();

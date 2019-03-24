@@ -3,7 +3,10 @@ package serguei.http;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 
+import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 
@@ -25,6 +28,7 @@ public class ConnectionContext {
     private final TlsVersion negotiatedTlsProtocol;
     private final String negotiatedCipher;
     private final String sni;
+    private final X509Certificate[] tlsCertificates;
 
     private CloseAction closeAction = CloseAction.NONE;
 
@@ -42,11 +46,27 @@ public class ConnectionContext {
             } else {
                 this.sni = "";
             }
+            Certificate[] certificates;
+            try {
+                certificates = sslSession.getPeerCertificates();
+            } catch (SSLPeerUnverifiedException e) {
+                certificates = null;
+            }
+            if (certificates != null) {
+                X509Certificate[] x509Certificates = new X509Certificate[certificates.length];
+                for (int i = 0; i < certificates.length; i++) {
+                    x509Certificates[i] = (X509Certificate)certificates[i];
+                }
+                tlsCertificates = x509Certificates;
+            } else {
+                tlsCertificates = null;
+            }
         } else {
             ssl = false;
             this.negotiatedTlsProtocol = null;
             this.negotiatedCipher = null;
             this.sni = null;
+            this.tlsCertificates = null;
         }
     }
 
@@ -101,6 +121,14 @@ public class ConnectionContext {
      */
     public String getSni() {
         return sni;
+    }
+
+    /**
+     * @return list of certificates received from a client if client-side authentication was used, null if not TLS or if
+     *         client did not send any certificates
+     */
+    public X509Certificate[] getTlsCertificates() {
+        return tlsCertificates;
     }
 
     CloseAction getCloseAction() {

@@ -4,6 +4,7 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -14,12 +15,15 @@ import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
 
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
@@ -309,7 +313,7 @@ public class HttpClientConnection implements Closeable {
      * @throws IOException
      */
     public void startHandshake() throws IOException {
-        startHandshake(serverAddress.getHostString());
+        startHandshake(serverAddress.getHostString(), false, null, null, null);
     }
 
     /**
@@ -318,11 +322,31 @@ public class HttpClientConnection implements Closeable {
      * 
      * @param hostName
      *            - host name to be sent in SNI in ClientHello. This is needed for the server to choose a correct
-     *            certificate.
+     *            certificate, if null - do not set SNI
      * @throws IOException
      */
     public void startHandshake(String hostName) throws IOException {
-        startHandshake(hostName, false);
+        startHandshake(hostName, false, null, null, null);
+    }
+
+    /**
+     * Start TLS connection without validating certificates received from the server sending specified host name as part
+     * of ClientHello and a certificate for client validation. A connection will be created if required.
+     * 
+     * @param hostName
+     *            - host name to be sent in SNI in ClientHello. This is needed for the server to choose a correct
+     *            certificate, if null - do not set SNI
+     * @param keyStorePath
+     *            - path to Java keystore file (JKS file)
+     * @param keyStorePassword
+     *            - password for Java keystore file
+     * @param certificatePassword
+     *            - password for certificates in Java keystore
+     * @throws IOException
+     */
+    public void startHandshakeWithClientAuth(String hostName, String keyStorePath, String keyStorePassword,
+            String certificatePassword) throws IOException {
+        startHandshake(hostName, false, keyStorePath, keyStorePassword, certificatePassword);
     }
 
     /**
@@ -334,7 +358,7 @@ public class HttpClientConnection implements Closeable {
      * @throws IOException
      */
     public void startHandshakeAndValidate() throws IOException {
-        startHandshake(serverAddress.getHostString(), true);
+        startHandshake(serverAddress.getHostString(), true, null, null, null);
     }
 
     /**
@@ -347,12 +371,33 @@ public class HttpClientConnection implements Closeable {
      * @throws IOException
      */
     public void startHandshakeAndValidate(String hostName) throws IOException {
-        startHandshake(hostName, true);
+        startHandshake(hostName, true, null, null, null);
     }
 
-    private void startHandshake(String hostName, boolean validateCertificates) throws IOException {
+    /**
+     * Start TLS connection validating certificates received from the server sending specified host name as part of
+     * ClientHello and a certificate for client validation. A connection will be created if required.
+     * 
+     * @param hostName
+     *            - host name to be sent in SNI in ClientHello. This is needed for the server to choose a correct
+     *            certificate, if null - do not set SNI
+     * @param keyStorePath
+     *            - path to Java keystore file (JKS file)
+     * @param keyStorePassword
+     *            - password for Java keystore file
+     * @param certificatePassword
+     *            - password for certificates in Java keystore
+     * @throws IOException
+     */
+    public void startHandshakeWithClientAuthAndValidate(String hostName, String keyStorePath, String keyStorePassword,
+            String certificatePassword) throws IOException {
+        startHandshake(hostName, false, keyStorePath, keyStorePassword, certificatePassword);
+    }
+
+    private void startHandshake(String hostName, boolean validateCertificates, String keyStorePath, String keyStorePassword,
+            String certificatePassword) throws IOException {
         connectIfNecessary();
-        SSLContext sslContext = createSslContext(validateCertificates);
+        SSLContext sslContext = createSslContext(validateCertificates, keyStorePath, keyStorePassword, certificatePassword);
         SSLSocketFactory socketFactory = sslContext.getSocketFactory();
         SSLSocket sslSocket = (SSLSocket)socketFactory.createSocket(socket, hostName, serverAddress.getPort(), true);
         if (enabledTlsProtocols != null) {
@@ -511,13 +556,21 @@ public class HttpClientConnection implements Closeable {
         return newSocket;
     }
 
-    private SSLContext createSslContext(boolean validateCertificates) {
+    private SSLContext createSslContext(boolean validateCertificates, String keyStorePath, String keyStorePassword,
+            String certificatePassword) {
         SSLContext sslContext;
         try {
+            KeyManager[] keyManagers;
+            if (keyStorePath != null) {
+                keyManagers = createKeyManagers(keyStorePath, keyStorePassword, certificatePassword);
+            } else {
+                keyManagers = null;
+            }
             X509TrustManager trustManager = new TrustManagerWrapper(validateCertificates ? getDefaultTrustManager() : null);
             sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(null, new TrustManager[]{trustManager}, null);
-        } catch (NoSuchAlgorithmException | KeyManagementException | KeyStoreException e) {
+            sslContext.init(keyManagers, new TrustManager[]{trustManager}, null);
+        } catch (NoSuchAlgorithmException | KeyManagementException | KeyStoreException | UnrecoverableKeyException
+                | CertificateException | IOException e) {
             throw new RuntimeException(e);
         }
         return sslContext;
@@ -532,6 +585,16 @@ public class HttpClientConnection implements Closeable {
             }
         }
         return null;
+    }
+
+    private KeyManager[] createKeyManagers(String keyStorePath, String keyStorePassword, String certificatePassword)
+            throws UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
+        KeyStore keyStore = KeyStore.getInstance("JKS");
+        keyStore.load(new FileInputStream(keyStorePath), keyStorePassword.toCharArray());
+        String algorithm = KeyManagerFactory.getDefaultAlgorithm();
+        KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(algorithm);
+        keyManagerFactory.init(keyStore, certificatePassword.toCharArray());
+        return keyManagerFactory.getKeyManagers();
     }
 
     private class TrustManagerWrapper implements X509TrustManager {

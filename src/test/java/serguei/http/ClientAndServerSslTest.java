@@ -124,6 +124,35 @@ public class ClientAndServerSslTest {
         clientConnection.startHandshake(sni);
     }
 
+    @Test
+    public void shouldRequestClientAuthentication() throws Exception {
+        String sni = "www.fitltd.com";
+        server.setNeedClientAuthentication(true);
+        server.setResponse(HttpResponseHeaders.ok(), new byte[0]);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        clientConnection.startHandshakeWithClientAuth(sni, keyStorePath(), "password", "test01");
+        HttpResponse response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals(sni, server.getLatestConnectionContext().getSni());
+        assertEquals(1, server.getLatestConnectionContext().getTlsCertificates().length);
+    }
+
+    @Test
+    public void shouldFailWhenClientDidNotProvideAuthenticationWhenRequested() throws Exception {
+        String sni = "www.fitltd.com";
+        server.setNeedClientAuthentication(true);
+        server.setResponse(HttpResponseHeaders.ok(), new byte[0]);
+
+        try {
+            clientConnection.startHandshake(sni);
+            fail("Exception expected");
+        } catch (SSLHandshakeException e) {
+            assertTrue(e.getMessage().contains("bad_certificate"));
+        }
+    }
+
     private static String makeBody(String msg) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < 200; i++) {
@@ -133,4 +162,7 @@ public class ClientAndServerSslTest {
         return builder.toString();
     }
 
+    private static String keyStorePath() {
+        return TestServer.class.getResource("/test.jks").getFile();
+    }
 }
