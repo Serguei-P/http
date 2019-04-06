@@ -7,6 +7,8 @@ import java.io.UnsupportedEncodingException;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
 
+import javax.net.ssl.TrustManager;
+
 public class TestServer extends HttpServer {
 
     private static final int PORT = 8080;
@@ -16,7 +18,11 @@ public class TestServer extends HttpServer {
     private final TestRequestHandler requestHandler;
 
     public TestServer() throws IOException {
-        super(new TestRequestHandler(), PORT, SSL_PORT, keyStorePath(), "password", "test01");
+        this(null);
+    }
+
+    public TestServer(TrustManager clientAuthTrustManager) throws IOException {
+        super(new TestRequestHandler(), PORT, SSL_PORT, keyStorePath(), "password", "test01", clientAuthTrustManager);
         requestHandler = (TestRequestHandler)getRequestHandler();
         start();
         long startTime = System.currentTimeMillis();

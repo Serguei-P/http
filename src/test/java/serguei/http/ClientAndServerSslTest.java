@@ -2,8 +2,12 @@ package serguei.http;
 
 import static org.junit.Assert.*;
 
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLProtocolException;
+import javax.net.ssl.X509TrustManager;
 
 import org.junit.After;
 import org.junit.Before;
@@ -153,6 +157,26 @@ public class ClientAndServerSslTest {
         }
     }
 
+    @Test
+    public void shouldRequestClientAuthenticationWithUserDefinedTrustManager() throws Exception {
+        String sni = "www.fitltd.com";
+        TestTrustManager trustManager = new TestTrustManager();
+        server.stop();
+        server = new TestServer(trustManager);
+        server.setNeedClientAuthentication(true);
+        server.setResponse(HttpResponseHeaders.ok(), new byte[0]);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        clientConnection.startHandshakeWithClientAuth(sni, keyStorePath(), "password", "test01");
+        HttpResponse response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals(sni, server.getLatestConnectionContext().getSni());
+        assertEquals(1, server.getLatestConnectionContext().getTlsCertificates().length);
+        assertNotNull(trustManager.clientCertificates);
+        assertNull(trustManager.serverCertificates);
+    }
+
     private static String makeBody(String msg) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < 200; i++) {
@@ -164,5 +188,27 @@ public class ClientAndServerSslTest {
 
     private static String keyStorePath() {
         return TestServer.class.getResource("/test.jks").getFile();
+    }
+
+    private class TestTrustManager implements X509TrustManager {
+
+        private X509Certificate[] clientCertificates;
+        private X509Certificate[] serverCertificates;
+
+        @Override
+        public void checkClientTrusted(X509Certificate[] certificates, String authType) throws CertificateException {
+            this.clientCertificates = certificates;
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] certificates, String authType) throws CertificateException {
+            this.serverCertificates = certificates;
+        }
+
+        @Override
+        public X509Certificate[] getAcceptedIssuers() {
+            return new X509Certificate[0];
+        }
+
     }
 }

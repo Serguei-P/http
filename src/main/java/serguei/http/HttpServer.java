@@ -28,6 +28,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
 import serguei.http.utils.Utils;
@@ -80,7 +81,7 @@ public class HttpServer {
      *            - port for HTTP requests
      */
     public HttpServer(HttpServerRequestHandler requestHandler, int port) {
-        this(requestHandler, allLocalAddresses(), port, -1, null, null, null);
+        this(requestHandler, allLocalAddresses(), port, -1, null, null, null, null);
     }
 
     /**
@@ -96,7 +97,7 @@ public class HttpServer {
      *            - port for HTTP requests
      */
     public HttpServer(HttpServerRequestHandler requestHandler, InetAddress inetAddress, int port) {
-        this(requestHandler, inetAddress, port, -1, null, null, null);
+        this(requestHandler, inetAddress, port, -1, null, null, null, null);
     }
 
     /**
@@ -119,7 +120,54 @@ public class HttpServer {
      */
     public HttpServer(HttpServerRequestHandler requestHandler, int port, int sslPort, String keyStorePath,
             String keyStorePassword, String certificatePassword) {
-        this(requestHandler, allLocalAddresses(), port, sslPort, keyStorePath, keyStorePassword, certificatePassword);
+        this(requestHandler, allLocalAddresses(), port, sslPort, keyStorePath, keyStorePassword, certificatePassword, null);
+    }
+
+    /**
+     * Creating an instance of HttpServer listening to two ports (this does not actually start the server - call start()
+     * for that). This listens to connection to all IP addresses (bind to 0.0.0.0).
+     * 
+     * @param requestHandler
+     *            - an implementation of HttpServerRequestHandler that will processes all requests
+     * @param port
+     *            - port for HTTP requests
+     * @param sslPort
+     *            - port for HTTPS requests (on connection to this port the server will expect the client to start SSL
+     *            handshake)
+     * @param keyStorePath
+     *            - path to Java keystore file (JKS file)
+     * @param keyStorePassword
+     *            - password for Java keystore file
+     * @param certificatePassword
+     *            - password for certificates in Java keystore
+     * @param clientAuthTrustManager
+     *            - trust manager for client authentication (when requested)
+     */
+    public HttpServer(HttpServerRequestHandler requestHandler, int port, int sslPort, String keyStorePath,
+            String keyStorePassword, String certificatePassword, TrustManager clientAuthTrustManager) {
+        this(requestHandler, allLocalAddresses(), port, sslPort, keyStorePath, keyStorePassword, certificatePassword,
+                clientAuthTrustManager);
+    }
+
+    /**
+     * Creating an instance of HttpServer listening to two ports (this does not actually start the server - call start()
+     * for that). This listens to connection to all IP addresses (bind to 0.0.0.0).
+     * 
+     * @param requestHandler
+     *            - an implementation of HttpServerRequestHandler that will processes all requests
+     * @param port
+     *            - port for HTTP requests
+     * @param sslPort
+     *            - port for HTTPS requests (on connection to this port the server will expect the client to start SSL
+     *            handshake)
+     * @param keyStore
+     *            - Java keystore
+     * @param certificatePassword
+     *            - password for certificates in Java keystore
+     */
+    public HttpServer(HttpServerRequestHandler requestHandler, int port, int sslPort, KeyStore keyStore,
+            String certificatePassword, TrustManager clientAuthTrustManager) {
+        this(requestHandler, allLocalAddresses(), port, sslPort, keyStore, certificatePassword, clientAuthTrustManager);
     }
 
     /**
@@ -140,7 +188,7 @@ public class HttpServer {
      */
     public HttpServer(HttpServerRequestHandler requestHandler, int port, int sslPort, KeyStore keyStore,
             String certificatePassword) {
-        this(requestHandler, allLocalAddresses(), port, sslPort, keyStore, certificatePassword);
+        this(requestHandler, allLocalAddresses(), port, sslPort, keyStore, certificatePassword, null);
     }
 
     /**
@@ -166,17 +214,7 @@ public class HttpServer {
      */
     public HttpServer(HttpServerRequestHandler requestHandler, InetAddress inetAddress, int port, int sslPort,
             String keyStorePath, String keyStorePassword, String certificatePassword) {
-        socketAddress = new InetSocketAddress(inetAddress, port);
-        if (sslPort > 0) {
-            sslSocketAddress = new InetSocketAddress(inetAddress, sslPort);
-            numberOfPorts = 2;
-        } else {
-            sslSocketAddress = null;
-            numberOfPorts = 1;
-        }
-        timeoutMils = DEFAULT_TIMEOUT_MILS;
-        this.requestHandler = requestHandler;
-        this.defaultKeyStore = new KeyStoreData("*", keyStorePath, keyStorePassword, certificatePassword);
+        this(requestHandler, inetAddress, port, sslPort, keyStorePath, keyStorePassword, certificatePassword, null);
     }
 
     /**
@@ -200,6 +238,34 @@ public class HttpServer {
      */
     public HttpServer(HttpServerRequestHandler requestHandler, InetAddress inetAddress, int port, int sslPort,
             KeyStore keyStore, String certificatePassword) {
+        this(requestHandler, inetAddress, port, sslPort, keyStore, certificatePassword, null);
+    }
+
+    /**
+     * Creating an instance of HttpServer listening to two ports (this does not actually start the server - call start()
+     * for that).
+     * 
+     * @param requestHandler
+     *            - an implementation of HttpServerRequestHandler that will processes all requests
+     * @param inetAddress
+     *            - an IP address to which the server is bound. You can use this constructor if you wish to limit your
+     *            server to a particular local interface, if it is null, then we binding on 0.0.0.0
+     * @param port
+     *            - port for HTTP requests
+     * @param sslPort
+     *            - port for HTTPS requests (on connection to this port the server will expect the client to start SSL
+     *            handshake)
+     * @param keyStorePath
+     *            - path to Java keystore file (JKS file)
+     * @param keyStorePassword
+     *            - password for Java keystore file
+     * @param certificatePassword
+     *            - password for certificates in Java keystore
+     * @param clientAuthTrustManager
+     *            - trust manager for client authentication (when requested)
+     */
+    public HttpServer(HttpServerRequestHandler requestHandler, InetAddress inetAddress, int port, int sslPort,
+            String keyStorePath, String keyStorePassword, String certificatePassword, TrustManager clientAuthTrustManager) {
         socketAddress = new InetSocketAddress(inetAddress, port);
         if (sslPort > 0) {
             sslSocketAddress = new InetSocketAddress(inetAddress, sslPort);
@@ -210,7 +276,44 @@ public class HttpServer {
         }
         timeoutMils = DEFAULT_TIMEOUT_MILS;
         this.requestHandler = requestHandler;
-        this.defaultKeyStore = new KeyStoreData("*", keyStore, certificatePassword);
+        this.defaultKeyStore = new KeyStoreData("*", keyStorePath, keyStorePassword, certificatePassword,
+                clientAuthTrustManager);
+    }
+
+    /**
+     * Creating an instance of HttpServer listening to two ports (this does not actually start the server - call start()
+     * for that).
+     * 
+     * @param requestHandler
+     *            - an implementation of HttpServerRequestHandler that will processes all requests
+     * @param inetAddress
+     *            - an IP address to which the server is bound. You can use this constructor if you wish to limit your
+     *            server to a particular local interface, if it is null, then we binding on 0.0.0.0
+     * @param port
+     *            - port for HTTP requests
+     * @param sslPort
+     *            - port for HTTPS requests (on connection to this port the server will expect the client to start SSL
+     *            handshake)
+     * @param keyStore
+     *            - Java keystore
+     * @param certificatePassword
+     *            - password for certificates in Java keystore
+     * @param clientAuthTrustManager
+     *            - trust manager for client authentication (when requested)
+     */
+    public HttpServer(HttpServerRequestHandler requestHandler, InetAddress inetAddress, int port, int sslPort,
+            KeyStore keyStore, String certificatePassword, TrustManager clientAuthTrustManager) {
+        socketAddress = new InetSocketAddress(inetAddress, port);
+        if (sslPort > 0) {
+            sslSocketAddress = new InetSocketAddress(inetAddress, sslPort);
+            numberOfPorts = 2;
+        } else {
+            sslSocketAddress = null;
+            numberOfPorts = 1;
+        }
+        timeoutMils = DEFAULT_TIMEOUT_MILS;
+        this.requestHandler = requestHandler;
+        this.defaultKeyStore = new KeyStoreData("*", keyStore, certificatePassword, clientAuthTrustManager);
     }
 
     /**
@@ -408,7 +511,7 @@ public class HttpServer {
      */
     public void addHostSpecificKeystore(String serverName, String keyStorePath, String keyStorePassword,
             String certificatePassword) {
-        KeyStoreData keyStore = new KeyStoreData(serverName, keyStorePath, keyStorePassword, certificatePassword);
+        KeyStoreData keyStore = new KeyStoreData(serverName, keyStorePath, keyStorePassword, certificatePassword, null);
         keyStores.add(keyStore);
         if (serverName.equals("*")) {
             defaultKeyStore = keyStore;
@@ -427,7 +530,7 @@ public class HttpServer {
      *            - password for certificates in Java keystore
      */
     public void addHostSpecificKeystore(String serverName, KeyStore keyStore, String certificatePassword) {
-        KeyStoreData store = new KeyStoreData(serverName, keyStore, certificatePassword);
+        KeyStoreData store = new KeyStoreData(serverName, keyStore, certificatePassword, null);
         keyStores.add(store);
         if (serverName.equals("*")) {
             defaultKeyStore = store;
@@ -798,22 +901,27 @@ public class HttpServer {
         private final String keyStorePassword;
         private final KeyStore keyStore;
         private final String certificatePassword;
+        private final TrustManager clientAuthTrustManager;
         private SSLSocketFactory sslSocketFactory;
 
-        public KeyStoreData(String serverName, String keyStorePath, String keyStorePassword, String certificatePassword) {
+        public KeyStoreData(String serverName, String keyStorePath, String keyStorePassword, String certificatePassword,
+                TrustManager clientAuthTrustManager) {
             this.serverName = serverName;
             this.keyStorePath = keyStorePath;
             this.keyStorePassword = keyStorePassword;
             this.keyStore = null;
             this.certificatePassword = certificatePassword;
+            this.clientAuthTrustManager = clientAuthTrustManager;
         }
 
-        public KeyStoreData(String serverName, KeyStore keyStore, String certificatePassword) {
+        public KeyStoreData(String serverName, KeyStore keyStore, String certificatePassword,
+                TrustManager clientAuthTrustManager) {
             this.serverName = serverName;
             this.keyStorePath = null;
             this.keyStorePassword = null;
             this.keyStore = keyStore;
             this.certificatePassword = certificatePassword;
+            this.clientAuthTrustManager = clientAuthTrustManager;
         }
 
         public SSLSocketFactory getSslSocketFactory() throws IOException {
@@ -846,10 +954,17 @@ public class HttpServer {
             String algorithm = KeyManagerFactory.getDefaultAlgorithm();
             KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(algorithm);
             keyManagerFactory.init(keyStore, certificatePassword.toCharArray());
-            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(algorithm);
-            trustManagerFactory.init(keyStore);
+            TrustManager[] trustManagers;
+            if (clientAuthTrustManager != null) {
+                trustManagers = new TrustManager[1];
+                trustManagers[0] = clientAuthTrustManager;
+            } else {
+                TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(algorithm);
+                trustManagerFactory.init(keyStore);
+                trustManagers = trustManagerFactory.getTrustManagers();
+            }
             SSLContext sslContext = SSLContext.getInstance("SSL");
-            sslContext.init(keyManagerFactory.getKeyManagers(), trustManagerFactory.getTrustManagers(), null);
+            sslContext.init(keyManagerFactory.getKeyManagers(), trustManagers, null);
             return sslContext.getSocketFactory();
         }
 
