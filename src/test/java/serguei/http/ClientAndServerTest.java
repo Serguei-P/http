@@ -279,6 +279,169 @@ public class ClientAndServerTest {
         assertEquals(responseBody, response.readBodyAsString());
     }
 
+    @Test
+    public void shouldReadResponseBodyAsStream() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers, requestBody);
+        String body;
+        try (InputStream inputStream = response.getBodyAsStream()) {
+            body = readFromStreamByBuffer(response.getBodyAsStream());
+        }
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertEquals(responseBody, body);
+    }
+
+    @Test
+    public void shouldReadTwoResponsesAsInputStreams() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers, requestBody);
+        try (InputStream inputStream = response.getBodyAsStream()) {
+            String body = readFromStreamByBuffer(response.getBodyAsStream());
+            assertEquals(requestBody, server.getLatestRequestBodyAsString());
+            assertEquals(200, response.getStatusCode());
+            assertEquals(responseBody, body);
+        }
+
+        response = clientConnection.send(headers, requestBody);
+        try (InputStream inputStream = response.getBodyAsStream()) {
+            String body = readFromStreamByBuffer(response.getBodyAsStream());
+            assertEquals(requestBody, server.getLatestRequestBodyAsString());
+            assertEquals(200, response.getStatusCode());
+            assertEquals(responseBody, body);
+        }
+    }
+
+    @Test
+    public void shouldReadTwoResponsesAsInputStreamsWithoutClosing() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers, requestBody);
+        assertEquals(200, response.getStatusCode());
+        String body = readFromStreamByBuffer(response.getBodyAsStream());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(responseBody, body);
+
+        response = clientConnection.send(headers, requestBody);
+        assertEquals(200, response.getStatusCode());
+        body = readFromStreamByBuffer(response.getBodyAsStream());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(responseBody, body);
+    }
+
+    @Test
+    public void shouldReadTwoResponsesAsInputStreamsWithCompression() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.GZIP);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers, requestBody);
+        try (InputStream inputStream = response.getBodyAsStream()) {
+            String body = readFromStreamByBuffer(response.getBodyAsStream());
+            assertEquals(requestBody, server.getLatestRequestBodyAsString());
+            assertEquals(200, response.getStatusCode());
+            assertEquals(responseBody, body);
+        }
+
+        response = clientConnection.send(headers, requestBody);
+        try (InputStream inputStream = response.getBodyAsStream()) {
+            String body = readFromStreamByBuffer(response.getBodyAsStream());
+            assertEquals(requestBody, server.getLatestRequestBodyAsString());
+            assertEquals(200, response.getStatusCode());
+            assertEquals(responseBody, body);
+        }
+    }
+
+    @Test
+    public void shouldReadTwoResponsesAsInputStreamsWithoutClosingWithCompression() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.GZIP);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers, requestBody);
+        assertEquals(200, response.getStatusCode());
+        String body = readFromStreamByBuffer(response.getBodyAsStream());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(responseBody, body);
+
+        response = clientConnection.send(headers, requestBody);
+        assertEquals(200, response.getStatusCode());
+        body = readFromStreamByBuffer(response.getBodyAsStream());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(responseBody, body);
+    }
+
+    @Test
+    public void shouldReadResponseAfterResponseNotFinishedResponse() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers, requestBody);
+        try (InputStream inputStream = response.getBodyAsStream()) {
+            byte[] buffer = new byte[100];
+            inputStream.read(buffer);
+            String partOfBody = new String(buffer);
+            assertEquals(partOfBody, responseBody.substring(0, partOfBody.length()));
+        }
+        response = clientConnection.send(headers, requestBody);
+        String body;
+        try (InputStream inputStream = response.getBodyAsStream()) {
+            body = readFromStreamByBuffer(response.getBodyAsStream());
+        }
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertEquals(responseBody, body);
+    }
+
+    @Test
+    public void shouldReadTwoResponsesAsInputStreamsWithoutClosingWithCompressionByByte() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.GZIP);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers, requestBody);
+        assertEquals(200, response.getStatusCode());
+        String body = readFromStreamByByte(response.getBodyAsStream());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(responseBody, body);
+
+        response = clientConnection.send(headers, requestBody);
+        assertEquals(200, response.getStatusCode());
+        body = readFromStreamByByte(response.getBodyAsStream());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(responseBody, body);
+    }
+
+    @Test
+    public void shouldReadResponseAfterResponseNotFinishedResponseByByte() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers, requestBody);
+        try (InputStream inputStream = response.getBodyAsStream()) {
+            byte[] buffer = new byte[100];
+            inputStream.read(buffer);
+            String partOfBody = new String(buffer);
+            assertEquals(partOfBody, responseBody.substring(0, partOfBody.length()));
+        }
+        response = clientConnection.send(headers, requestBody);
+        String body;
+        try (InputStream inputStream = response.getBodyAsStream()) {
+            body = readFromStreamByByte(response.getBodyAsStream());
+        }
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertEquals(responseBody, body);
+    }
+
     private static String makeBody(String msg) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < 200; i++) {
@@ -330,4 +493,22 @@ public class ClientAndServerTest {
         return output.toByteArray();
     }
 
+    private String readFromStreamByBuffer(InputStream inputStream) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[256];
+        int read;
+        while ((read = inputStream.read(buffer)) != -1) {
+            output.write(buffer, 0, read);
+        }
+        return output.toString();
+    }
+
+    private String readFromStreamByByte(InputStream inputStream) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        int read;
+        while ((read = inputStream.read()) != -1) {
+            output.write(read);
+        }
+        return output.toString();
+    }
 }

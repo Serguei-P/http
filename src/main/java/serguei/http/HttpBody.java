@@ -19,6 +19,7 @@ class HttpBody {
     private final InputStream streamToDrainOfData;
     private final boolean hasBody;
     private final boolean compressed;
+    private InputStream userFacingStream;
 
     HttpBody(InputStream inputStream, long contentLength, boolean chunked, String encoding, boolean allowUnknownBodyLength)
             throws IOException {
@@ -72,7 +73,10 @@ class HttpBody {
     }
 
     InputStream getBodyInputStream() {
-        return bodyInputStream;
+        if (userFacingStream == null) {
+            userFacingStream = new UserFacingInputStream(bodyInputStream, streamToDrainOfData);
+        }
+        return userFacingStream;
     }
 
     boolean isCompressed() {

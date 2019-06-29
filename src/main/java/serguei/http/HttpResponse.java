@@ -97,6 +97,15 @@ public class HttpResponse {
     }
 
     /**
+     * This returns the body of the request as a stream
+     * 
+     * Please note it is the user needs to close this stream if connection is to be reused
+     */
+    public InputStream getBodyAsStream() {
+        return body.getBodyInputStream();
+    }
+
+    /**
      * @return true if request has a body and the body is compressed
      */
     public boolean isBodyCompressed() {
