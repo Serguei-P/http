@@ -161,6 +161,15 @@ public class HttpRequest {
     }
 
     /**
+     * This returns the body of the request as a stream
+     * 
+     * Please note it is the user needs to close this stream if connection is to be reused
+     */
+    public InputStream getBodyAsStream() {
+        return body.getBodyInputStream();
+    }
+
+    /**
      * @return copy of the HTTP headers
      */
     public HttpRequestHeaders getHeaders() {

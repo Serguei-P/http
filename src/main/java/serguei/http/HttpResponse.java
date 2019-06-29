@@ -97,7 +97,7 @@ public class HttpResponse {
     }
 
     /**
-     * This returns the body of the request as a stream
+     * This returns the body of the response as a stream
      * 
      * Please note it is the user needs to close this stream if connection is to be reused
      */
