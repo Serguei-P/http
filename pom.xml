@@ -5,7 +5,7 @@
   <name>http</name>
   <description>Simple HTTP client and HTTP server. Easy to use and small. No dependencies.</description>
   <url>https://github.com/Serguei-P/http</url>
-  <version>1.0.29-SNAPSHOT</version>
+  <version>1.0.30-SNAPSHOT</version>
   <licenses>
     <license>
       <name>MIT Licence</name>
