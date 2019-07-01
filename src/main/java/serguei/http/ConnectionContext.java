@@ -29,6 +29,7 @@ public class ConnectionContext {
     private final String negotiatedCipher;
     private final String sni;
     private final X509Certificate[] tlsCertificates;
+    private final byte[] tlsSessionId;
 
     private CloseAction closeAction = CloseAction.NONE;
 
@@ -41,6 +42,7 @@ public class ConnectionContext {
             SSLSession sslSession = sslSocket.getSession();
             this.negotiatedTlsProtocol = TlsVersion.fromJdkString(sslSession.getProtocol());
             this.negotiatedCipher = sslSession.getCipherSuite();
+            this.tlsSessionId = sslSession.getId();
             if (clientHello != null) {
                 this.sni = clientHello.getSniHostName();
             } else {
@@ -67,6 +69,7 @@ public class ConnectionContext {
             this.negotiatedCipher = null;
             this.sni = null;
             this.tlsCertificates = null;
+            this.tlsSessionId = null;
         }
     }
 
@@ -114,6 +117,13 @@ public class ConnectionContext {
      */
     public String getNegotiatedCipher() {
         return negotiatedCipher;
+    }
+
+    /**
+     * @return A session id or null if TLS handshake did not happen
+     */
+    public byte[] getTlsSessionId() {
+        return tlsSessionId;
     }
 
     /**

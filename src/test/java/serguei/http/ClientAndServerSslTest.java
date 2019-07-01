@@ -177,6 +177,22 @@ public class ClientAndServerSslTest {
         assertNull(trustManager.serverCertificates);
     }
 
+    @Test
+    public void shouldReturnSessionId() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        clientConnection.startHandshake();
+        HttpResponse response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertTrue(clientConnection.getTlsSessionId().length > 0);
+        assertTrue(server.getLatestConnectionContext().isSsl());
+        assertNotNull(server.getLatestConnectionContext().getNegotiatedTlsProtocol());
+        assertTrue(server.getLatestConnectionContext().getNegotiatedCipher().length() > 0);
+        assertTrue(server.getLatestConnectionContext().getTlsSessionId().length > 0);
+    }
+
     private static String makeBody(String msg) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < 200; i++) {

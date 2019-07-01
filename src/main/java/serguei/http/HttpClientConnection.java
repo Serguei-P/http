@@ -53,6 +53,7 @@ public class HttpClientConnection implements Closeable {
     private String[] enabledCipherSuites;
     private TlsVersion negotiatedTlsProtocol;
     private String negotiatedCipher;
+    private byte[] tlsSessionId;
     private int timeout = 0;
     private boolean tcpNoDelay;
 
@@ -416,6 +417,7 @@ public class HttpClientConnection implements Closeable {
         }
         negotiatedTlsProtocol = TlsVersion.fromJdkString(session.getProtocol());
         negotiatedCipher = session.getCipherSuite();
+        tlsSessionId = session.getId();
     }
 
     /**
@@ -431,6 +433,7 @@ public class HttpClientConnection implements Closeable {
         tlsCertificates = null;
         negotiatedTlsProtocol = null;
         negotiatedCipher = null;
+        tlsSessionId = null;
     }
 
     /**
@@ -466,6 +469,13 @@ public class HttpClientConnection implements Closeable {
      */
     public String getNegotiatedCipher() {
         return negotiatedCipher;
+    }
+
+    /**
+     * @return A TLS session id if the server supports session resumption (null if not TLS connection)
+     */
+    public byte[] getTlsSessionId() {
+        return tlsSessionId;
     }
 
     /**
