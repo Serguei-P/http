@@ -21,6 +21,10 @@ public class HttpRequest {
     private final boolean chunked;
     private final URL url;
 
+    public HttpRequest(InputStream inputStream) throws IOException {
+        this(new HttpRequestHeaders(inputStream), inputStream);
+    }
+
     HttpRequest(HttpRequestHeaders requestHeaders, InputStream inputStream) throws IOException {
         this.headers = requestHeaders;
         this.url = headers.getUrl();

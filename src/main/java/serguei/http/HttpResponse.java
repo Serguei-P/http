@@ -19,7 +19,7 @@ public class HttpResponse {
     private final long contentLength;
     private final boolean chunked;
 
-    HttpResponse(InputStream inputStream) throws IOException {
+    public HttpResponse(InputStream inputStream) throws IOException {
         this.headers = new HttpResponseHeaders(inputStream);
         contentLength = headers.getContentLength();
         HttpHeaders.BodyEncoding bodyEncoding = headers.getBodyEncoding();
