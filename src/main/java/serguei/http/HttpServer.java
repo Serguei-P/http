@@ -36,10 +36,10 @@ import serguei.http.utils.Utils;
 /**
  * This is HTTP Server. When started it will listen on one (usually HTTP port) or two (plus HTTPS port - this will do
  * SSL handshake on the connection)
- * 
+ *
  * This class provides all necessary scaffolding including listening on a port and creating threads for processing
  * requests. The actual job of processing request is done in HttpServerRequestHandler object passed in a constructor
- * 
+ *
  * @author Serguei Poliakov
  *
  */
@@ -244,7 +244,7 @@ public class HttpServer {
     /**
      * Creating an instance of HttpServer listening to two ports (this does not actually start the server - call start()
      * for that).
-     * 
+     *
      * @param requestHandler
      *            - an implementation of HttpServerRequestHandler that will processes all requests
      * @param inetAddress
@@ -283,7 +283,7 @@ public class HttpServer {
     /**
      * Creating an instance of HttpServer listening to two ports (this does not actually start the server - call start()
      * for that).
-     * 
+     *
      * @param requestHandler
      *            - an implementation of HttpServerRequestHandler that will processes all requests
      * @param inetAddress
@@ -319,13 +319,32 @@ public class HttpServer {
     /**
      * Starts the server. This operation will return after server sockets are bound to ports but before the server
      * actually starts listening on sockets
-     * 
+     *
      * @throws IOException
      *             - often indicate that we can't bind to a port (e.g. because it is used by a different application or
      *             we don't have authority to find to it).
      */
     public void start() throws IOException {
-        start(1, 0);
+        start(1, 0, -1);
+    }
+
+    /**
+     * Starts the server making several attempts. This operation will return after server sockets are bound to ports but
+     * before the server actually starts listening on sockets
+     *
+     * This method of starting a server can be useful when this server is used in testing as on some OSs a socket closed
+     * by previous test might linger for a bit resulting in the next test to fail
+     *
+     * @param attempts
+     *            - number of attempts
+     * @param timeoutMillis
+     *            - pause between two attempts in milliseconds
+     * @throws IOException
+     *             - often indicate that we can't bind to a port (e.g. because it is used by a different application or
+     *             we don't have authority to find to it).
+     */
+    public void start(int attempts, int timeoutMillis) throws IOException {
+        start(attempts, timeoutMillis, -1);
     }
 
     /**
@@ -339,11 +358,13 @@ public class HttpServer {
      *            - number of attempts
      * @param timeoutMillis
      *            - pause between two attempts in milliseconds
+     * @param backlog
+     *            - requested maximum length of the queue of incoming connections
      * @throws IOException
      *             - often indicate that we can't bind to a port (e.g. because it is used by a different application or
      *             we don't have authority to find to it).
      */
-    public void start(int attempts, int timeoutMillis) throws IOException {
+    public void start(int attempts, int timeoutMillis, int backlog) throws IOException {
         if (serverSocketRunners.size() > 0) {
             throw new RuntimeException("Server is already running");
         }
@@ -351,11 +372,11 @@ public class HttpServer {
         List<ServerSocket> serverSockets = new ArrayList<>();
         List<Boolean> ssl = new ArrayList<>();
         try {
-            ServerSocket serverSocket = createServerSocket(socketAddress, attempts, timeoutMillis);
+            ServerSocket serverSocket = createServerSocket(socketAddress, attempts, timeoutMillis, backlog);
             serverSockets.add(serverSocket);
             ssl.add(false);
             if (sslSocketAddress != null) {
-                serverSocket = createServerSocket(sslSocketAddress, attempts, timeoutMillis);
+                serverSocket = createServerSocket(sslSocketAddress, attempts, timeoutMillis, backlog);
                 serverSockets.add(serverSocket);
                 ssl.add(true);
             }
@@ -627,11 +648,12 @@ public class HttpServer {
         return requestHandler;
     }
 
-    private ServerSocket createServerSocket(SocketAddress socketAddress, int attempts, int timeoutMillis) throws IOException {
+    private ServerSocket createServerSocket(SocketAddress socketAddress, int attempts, int timeoutMillis, int backlog)
+            throws IOException {
         int count = 0;
         while (true) {
             try {
-                return createServerSocket(socketAddress);
+                return createServerSocket(socketAddress, backlog);
             } catch (IOException e) {
                 count++;
                 if (count >= attempts) {
@@ -646,9 +668,9 @@ public class HttpServer {
         }
     }
 
-    private ServerSocket createServerSocket(SocketAddress socketAddress) throws IOException {
+    private ServerSocket createServerSocket(SocketAddress socketAddress, int backlog) throws IOException {
         ServerSocket serverSocket = new ServerSocket();
-        serverSocket.bind(socketAddress);
+        serverSocket.bind(socketAddress, backlog);
         serverSocket.setSoTimeout(0);
         return serverSocket;
     }
@@ -680,7 +702,6 @@ public class HttpServer {
             while (!finished) {
                 try {
                     Socket socket = serverSocket.accept();
-                    socket.setTcpNoDelay(tcpNoDelay);
                     SocketRunner socketRunner = new SocketRunner(socket, ssl);
                     threadPool.execute(socketRunner);
                 } catch (IOException e) {
@@ -734,6 +755,7 @@ public class HttpServer {
             PostponedCloseOutputStream postponedCloseOutputStream = null;
             SslConnection sslConnection;
             try {
+                socket.setTcpNoDelay(tcpNoDelay);
                 socket.setSoTimeout(timeoutMils);
                 if (ssl) {
                     sslConnection = setupSsl(socket);
