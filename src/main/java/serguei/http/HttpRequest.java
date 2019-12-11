@@ -181,6 +181,17 @@ public class HttpRequest {
     }
 
     /**
+     * @return true if response has a body
+     */
+    public boolean hasBody() {
+        if (body != null) {
+            return body.hasBody();
+        } else {
+            return false;
+        }
+    }
+
+    /**
      * @return true if request has a body and the body is compressed
      */
     public boolean isBodyCompressed() {

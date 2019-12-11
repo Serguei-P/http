@@ -1,6 +1,6 @@
 package serguei.http;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -21,5 +21,18 @@ public class HttpRequestTest {
 
         assertEquals("localhost", request.getHeader("Host"));
         assertEquals(requestBody, request.readBodyAsString());
+        assertTrue(request.hasBody());
+    }
+
+    @Test
+    public void shouldParseRequestWithoutABody() throws IOException {
+        String requestData = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n";
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(requestData.getBytes());
+
+        HttpRequest request = new HttpRequest(inputStream);
+
+        assertEquals("localhost", request.getHeader("Host"));
+        assertEquals("", request.readBodyAsString());
+        assertFalse(request.hasBody());
     }
 }

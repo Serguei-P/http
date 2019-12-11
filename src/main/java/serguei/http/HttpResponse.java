@@ -106,7 +106,18 @@ public class HttpResponse {
     }
 
     /**
-     * @return true if request has a body and the body is compressed
+     * @return true if response has a body
+     */
+    public boolean hasBody() {
+        if (body != null) {
+            return body.hasBody();
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * @return true if response has a body and the body is compressed
      */
     public boolean isBodyCompressed() {
         if (body != null) {
@@ -121,14 +132,6 @@ public class HttpResponse {
      */
     public HttpResponseHeaders getHeaders() {
         return new HttpResponseHeaders(headers);
-    }
-
-    public boolean hasBody() {
-        if (body != null) {
-            return body.hasBody();
-        } else {
-            return false;
-        }
     }
 
     @Override
