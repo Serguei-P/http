@@ -123,6 +123,14 @@ public class HttpResponse {
         return new HttpResponseHeaders(headers);
     }
 
+    public boolean hasBody() {
+        if (body != null) {
+            return body.hasBody();
+        } else {
+            return false;
+        }
+    }
+
     @Override
     public String toString() {
         return headers.toString();

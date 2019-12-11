@@ -59,6 +59,10 @@ class HttpBody {
         this.hasBody = contentLength > 0 || chunked || (allowUnknownBodyLength && contentLength < 0);
     }
 
+    boolean hasBody() {
+        return hasBody;
+    }
+
     String readAsString() throws IOException {
         byte[] buffer = readAsBytes();
         return new String(buffer, BODY_CODEPAGE);

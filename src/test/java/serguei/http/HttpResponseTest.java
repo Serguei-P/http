@@ -1,6 +1,6 @@
 package serguei.http;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -20,5 +20,18 @@ public class HttpResponseTest {
 
         assertEquals(200, response.getStatusCode());
         assertEquals(responseBody, response.readBodyAsString());
+        assertTrue(response.hasBody());
+    }
+
+    @Test
+    public void shouldProcessResponseWithoutBody() throws IOException {
+        String responseData = "HTTP/1.1 204 OK\r\nContent-Length: 0\r\n\r\n";
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(responseData.getBytes());
+
+        HttpResponse response = new HttpResponse(inputStream);
+
+        assertEquals(204, response.getStatusCode());
+        assertEquals("", response.readBodyAsString());
+        assertFalse(response.hasBody());
     }
 }
