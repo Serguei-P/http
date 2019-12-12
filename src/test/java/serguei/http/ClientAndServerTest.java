@@ -442,6 +442,66 @@ public class ClientAndServerTest {
         assertEquals(responseBody, body);
     }
 
+    @Test
+    public void shouldDrainResponse() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+
+        HttpResponse response = clientConnection.sendRequest("GET / HTTP/1.1", "Host: localhost");
+
+        assertEquals(200, response.getStatusCode());
+
+        response.drainBody();
+
+        response = clientConnection.sendRequest("GET / HTTP/1.1", "Host: localhost");
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals(responseBody, response.readBodyAsString());
+    }
+
+    @Test
+    public void shouldDrainHalfReadResponse() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+
+        HttpResponse response = clientConnection.sendRequest("GET / HTTP/1.1", "Host: localhost");
+
+        assertEquals(200, response.getStatusCode());
+        long len = response.getContentLength();
+        assertTrue(len > 20);
+
+        InputStream inputStream = response.getBodyAsStream();
+        byte[] data = new byte[16];
+        inputStream.read(data);
+
+        response.drainBody();
+
+        response = clientConnection.sendRequest("GET / HTTP/1.1", "Host: localhost");
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals(responseBody, response.readBodyAsString());
+    }
+
+    @Test
+    public void shouldDrainHalfReadResponseWithCompression() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.GZIP);
+
+        HttpResponse response = clientConnection.sendRequest("GET / HTTP/1.1", "Host: localhost");
+
+        assertEquals(200, response.getStatusCode());
+        long len = response.getContentLength();
+        assertTrue(len > 20);
+
+        InputStream inputStream = response.getBodyAsStream();
+        byte[] data = new byte[16];
+        inputStream.read(data);
+
+        response.drainBody();
+
+        response = clientConnection.sendRequest("GET / HTTP/1.1", "Host: localhost");
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals(responseBody, response.readBodyAsString());
+    }
+
     private static String makeBody(String msg) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < 200; i++) {

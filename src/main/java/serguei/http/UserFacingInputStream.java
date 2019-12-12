@@ -39,9 +39,9 @@ class UserFacingInputStream extends FilterInputStream {
     @Override
     public void close() throws IOException {
         if (streamToDrainOfData != null) {
-            Utils.readFully(streamToDrainOfData);
+            Utils.drainStream(streamToDrainOfData);
         } else if (!eof) {
-            Utils.readFully(in);
+            Utils.drainStream(in);
             eof = true;
         }
     }

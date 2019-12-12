@@ -134,6 +134,17 @@ public class HttpResponse {
         return new HttpResponseHeaders(headers);
     }
 
+    /**
+     * This reads what left of the response body, so that the connection is ready to read a next request
+     * 
+     * @throws IOException
+     */
+    public void drainBody() throws IOException {
+        if (body != null) {
+            body.drain();
+        }
+    }
+
     @Override
     public String toString() {
         return headers.toString();

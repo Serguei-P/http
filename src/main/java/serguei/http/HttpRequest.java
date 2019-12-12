@@ -209,6 +209,17 @@ public class HttpRequest {
         return headers;
     }
 
+    /**
+     * This reads what left of the request body, so that the connection is ready to read a next request
+     * 
+     * @throws IOException
+     */
+    public void drainBody() throws IOException {
+        if (body != null) {
+            body.drain();
+        }
+    }
+
     @Override
     public String toString() {
         return headers.toString();

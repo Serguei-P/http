@@ -83,6 +83,18 @@ class HttpBody {
         return userFacingStream;
     }
 
+    void drain() throws IOException {
+        if (hasBody) {
+            if (userFacingStream != null) {
+                userFacingStream.close();
+            } else if (streamToDrainOfData != null) {
+                Utils.drainStream(streamToDrainOfData);
+            } else {
+                Utils.drainStream(bodyInputStream);
+            }
+        }
+    }
+
     boolean isCompressed() {
         return compressed;
     }
