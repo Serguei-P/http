@@ -7,6 +7,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.SocketTimeoutException;
 import java.util.zip.GZIPOutputStream;
 
 import org.junit.After;
@@ -128,8 +129,7 @@ public class ClientAndServerTest {
     @Test
     public void shouldSendAndReceiveGZippedDataFromServerChunked() throws Exception {
         server.setChunkedResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.GZIP);
-        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost",
-                "Accept-Encoding: gzip");
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost", "Accept-Encoding: gzip");
         InputStream inputStream = new ByteArrayInputStream(requestBody.getBytes(BODY_CHARSET));
 
         HttpResponse response = clientConnection.send(headers, inputStream, BodyCompression.GZIP);
@@ -271,7 +271,7 @@ public class ClientAndServerTest {
         HttpResponse response = clientConnection.send(headers);
 
         assertEquals(100, response.getStatusCode());
-        
+
         response = clientConnection.send(requestBodyAsBytes);
 
         assertEquals(200, response.getStatusCode());
@@ -500,6 +500,34 @@ public class ClientAndServerTest {
 
         assertEquals(200, response.getStatusCode());
         assertEquals(responseBody, response.readBodyAsString());
+    }
+
+    @Test
+    public void clientShouldTimeout() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+        server.setOnRequestHeadersHandler(
+                (ConnectionContext connectionContext, HttpRequestHeaders requestHeaders, OutputStream outputStream) -> {
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    return true;
+                });
+        long start = System.currentTimeMillis();
+
+        clientConnection.setTimeoutMillis(1000);
+        clientConnection.setConnectTimeoutMillis(3000); // set too high
+        try {
+            clientConnection.send(headers, requestBody);
+            fail("Expected exception");
+        } catch (SocketTimeoutException e) {
+            // expected
+        }
+
+        long end = System.currentTimeMillis();
+        assertTrue("Time taken is " + (end - start) + " which is too long", end - start < 1200);
     }
 
     private static String makeBody(String msg) {

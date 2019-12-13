@@ -54,7 +54,8 @@ public class HttpClientConnection implements Closeable {
     private TlsVersion negotiatedTlsProtocol;
     private String negotiatedCipher;
     private byte[] tlsSessionId;
-    private int timeout = 0;
+    private int timeoutMs = 0;
+    private int connectTimeoutMs = 0;
     private boolean tcpNoDelay;
 
     /**
@@ -511,27 +512,39 @@ public class HttpClientConnection implements Closeable {
 
     /**
      * Connects to the server. Usually one does not need to call it as it will be called automatically when required.
-     * 
+     *
      * @throws IOException
      */
     public void connect() throws IOException {
         close();
-        setSocket(connectSocket());
+        setSocket(connectSocket(connectTimeoutMs > 0 ? connectTimeoutMs : timeoutMs));
     }
 
     /**
      * Sets timeout for IO operations on socket
-     * 
-     * @param timeout
-     *            - timeout in milliseconds
+     *
+     * @param timeoutMs
+     *            - socket timeout in milliseconds
      * @throws SocketException
      *             - when there is an error in TCP protocol
      */
-    public void setTimeoutMillis(int timeout) throws SocketException {
-        this.timeout = timeout;
+    public void setTimeoutMillis(int timeoutMs) throws SocketException {
+        this.timeoutMs = timeoutMs;
         if (socket != null) {
-            socket.setSoTimeout(timeout);
+            socket.setSoTimeout(timeoutMs);
         }
+    }
+
+    /**
+     * Sets timeout for connecting to the socket
+     * 
+     * @param connectTimeoutMs
+     *            - connect timeout in milliseconds
+     * @throws SocketException
+     *             - when there is an error in TCP protocol
+     */
+    public void setConnectTimeoutMillis(int connectTimeoutMs) throws SocketException {
+        this.connectTimeoutMs = connectTimeoutMs;
     }
 
     /**
@@ -552,17 +565,17 @@ public class HttpClientConnection implements Closeable {
 
     private void connectIfNecessary() throws IOException {
         if (socket == null) {
-            setSocket(connectSocket());
+            setSocket(connectSocket(connectTimeoutMs > 0 ? connectTimeoutMs : timeoutMs));
         }
     }
 
-    private Socket connectSocket() throws IOException {
+    private Socket connectSocket(int connectTimeoutMs) throws IOException {
         Socket newSocket = new Socket();
         newSocket.setReuseAddress(true);
         newSocket.setSoLinger(false, 1);
-        newSocket.setSoTimeout(timeout);
+        newSocket.setSoTimeout(timeoutMs);
         newSocket.setTcpNoDelay(tcpNoDelay);
-        newSocket.connect(serverAddress, timeout);
+        newSocket.connect(serverAddress, connectTimeoutMs);
         return newSocket;
     }
 

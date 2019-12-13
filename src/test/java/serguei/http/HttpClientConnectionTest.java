@@ -46,7 +46,7 @@ public class HttpClientConnectionTest {
 
         assertEquals(200, response.getStatusCode());
         assertEquals("gzip", response.getHeader("Content-Encoding"));
-        
+
         String body = response.readBodyAsString();
         assertTrue(body.toUpperCase().contains("</HTML>"));
     }
@@ -95,7 +95,25 @@ public class HttpClientConnectionTest {
     }
 
     @Test
-    public void shouldTimeout() throws Exception {
+    public void shouldTimeoutOnConnection() throws Exception {
+        String hostName = "127.0.0.2"; // nothing is there
+        connection = new HttpClientConnection(hostName, 80);
+        connection.setConnectTimeoutMillis(1000);
+
+        long start = System.currentTimeMillis();
+        try {
+            connection.connect();
+            fail("Should not connect");
+        } catch (IOException e) {
+            // expected
+        }
+        long end = System.currentTimeMillis();
+
+        assertTrue("Time taken is " + (end - start) + " which is too long", end - start < 1200);
+    }
+
+    @Test
+    public void shouldTimeoutOnConnectionWhenSocketTimeoutSet() throws Exception {
         String hostName = "127.0.0.2"; // nothing is there
         connection = new HttpClientConnection(hostName, 80);
         connection.setTimeoutMillis(1000);
@@ -105,7 +123,7 @@ public class HttpClientConnectionTest {
             connection.connect();
             fail("Should not connect");
         } catch (IOException e) {
-
+            // expected
         }
         long end = System.currentTimeMillis();
 
