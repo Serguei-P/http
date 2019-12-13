@@ -72,10 +72,15 @@ public class HttpResponse {
 
     /**
      * This returns headers by name, if there are more then one header with this name, all of them will be returned, if
-     * headers with this name don't exist, an empty list is returned The name is not case-sensitive.
+     * headers with this name don't exist, an empty list is returned. The name is not case-sensitive.
      */
     public List<String> getHeaders(String headerName) {
-        return Collections.unmodifiableList(headers.getHeaders(headerName));
+        List<String> list = headers.getHeaders(headerName);
+        if (list != null) {
+            return Collections.unmodifiableList(list);
+        } else {
+            return Collections.emptyList();
+        }
     }
 
     /**

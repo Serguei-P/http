@@ -4,6 +4,9 @@ import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import org.junit.Test;
 
@@ -35,4 +38,27 @@ public class HttpRequestTest {
         assertEquals("", request.readBodyAsString());
         assertFalse(request.hasBody());
     }
+
+    @Test
+    public void shouldReturnHeadersWhenPresent() throws IOException {
+        String requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nHeader1: test1\r\nHeader1: test2\r\n\r\n";
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(requestData.getBytes());
+        HttpRequest response = new HttpRequest(inputStream);
+
+        List<String> headers = response.getHeaders("Header1");
+
+        assertEquals(Arrays.asList("test1", "test2"), headers);
+    }
+
+    @Test
+    public void shouldReturnEmptyHeaderListWhenMissing() throws IOException {
+        String requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nHeader1: test1\r\nHeader1: test2\r\n\r\n";
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(requestData.getBytes());
+        HttpRequest response = new HttpRequest(inputStream);
+
+        List<String> headers = response.getHeaders("Not-Present");
+
+        assertEquals(Collections.emptyList(), headers);
+    }
+
 }
