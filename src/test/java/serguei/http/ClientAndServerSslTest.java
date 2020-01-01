@@ -261,6 +261,33 @@ public class ClientAndServerSslTest {
         assertFalse(server.getLatestConnectionContext().getRequestedTlsSessionId().length > 0);
     }
 
+    @Test
+    public void shouldNotReuseSessionIfDifferentSniSpecified() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        clientConnection.close();
+        clientConnection = new HttpClientConnection("127.0.0.1", server.getSslPort());
+
+        clientConnection.startHandshake("www.mimecast.com");
+        HttpResponse response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertTrue(server.getLatestConnectionContext().getTlsSessionId().length > 0);
+        assertFalse(server.getLatestConnectionContext().getRequestedTlsSessionId().length > 0);
+
+        clientConnection.close();
+        clientConnection = new HttpClientConnection("127.0.0.1", server.getSslPort());
+
+        clientConnection.startHandshake("www.cisco.com");
+        response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertTrue(server.getLatestConnectionContext().getTlsSessionId().length > 0);
+        // no sessionId passed with ClientHello as SNIs were different
+        assertFalse(server.getLatestConnectionContext().getRequestedTlsSessionId().length > 0);
+    }
+
     private static String makeBody(String msg) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < 200; i++) {
