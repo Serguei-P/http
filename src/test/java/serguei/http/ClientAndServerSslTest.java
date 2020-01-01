@@ -36,6 +36,7 @@ public class ClientAndServerSslTest {
     public void clear() {
         clientConnection.close();
         server.stop();
+        HttpClientConnection.clearSslContexts();
     }
 
     @Test
@@ -191,6 +192,73 @@ public class ClientAndServerSslTest {
         assertNotNull(server.getLatestConnectionContext().getNegotiatedTlsProtocol());
         assertTrue(server.getLatestConnectionContext().getNegotiatedCipher().length() > 0);
         assertTrue(server.getLatestConnectionContext().getTlsSessionId().length > 0);
+    }
+
+    @Test
+    public void shouldReturnSessionIdFromClientHello() throws Exception {
+        String sniName = "www.mimecast.com";
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        clientConnection.close();
+        clientConnection = new HttpClientConnection("127.0.0.1", server.getSslPort());
+
+        clientConnection.startHandshake(sniName);
+        HttpResponse response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertTrue(clientConnection.getTlsSessionId().length > 0);
+        assertTrue(server.getLatestConnectionContext().isSsl());
+        assertNotNull(server.getLatestConnectionContext().getNegotiatedTlsProtocol());
+        assertTrue(server.getLatestConnectionContext().getNegotiatedCipher().length() > 0);
+        assertTrue(server.getLatestConnectionContext().getTlsSessionId().length > 0);
+        assertFalse(server.getLatestConnectionContext().getRequestedTlsSessionId().length > 0);
+        byte[] tlsSessionId = server.getLatestConnectionContext().getTlsSessionId();
+
+        clientConnection.close();
+        clientConnection = new HttpClientConnection("127.0.0.1", server.getSslPort());
+
+        clientConnection.startHandshake(sniName);
+        response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertTrue(clientConnection.getTlsSessionId().length > 0);
+        assertTrue(server.getLatestConnectionContext().isSsl());
+        assertNotNull(server.getLatestConnectionContext().getNegotiatedTlsProtocol());
+        assertTrue(server.getLatestConnectionContext().getNegotiatedCipher().length() > 0);
+        assertTrue(server.getLatestConnectionContext().getTlsSessionId().length > 0);
+        assertTrue(server.getLatestConnectionContext().getRequestedTlsSessionId().length > 0);
+        assertArrayEquals(tlsSessionId, server.getLatestConnectionContext().getRequestedTlsSessionId());
+        assertArrayEquals(tlsSessionId, server.getLatestConnectionContext().getTlsSessionId());
+    }
+
+    @Test
+    public void shouldClearSslContext() throws Exception {
+        String sniName = "www.mimecast.com";
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        clientConnection.close();
+        clientConnection = new HttpClientConnection("127.0.0.1", server.getSslPort());
+
+        clientConnection.startHandshake(sniName);
+        HttpResponse response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertTrue(server.getLatestConnectionContext().getTlsSessionId().length > 0);
+        assertFalse(server.getLatestConnectionContext().getRequestedTlsSessionId().length > 0);
+
+        clientConnection.close();
+        HttpClientConnection.clearSslContexts();
+        clientConnection = new HttpClientConnection("127.0.0.1", server.getSslPort());
+
+        clientConnection.startHandshake(sniName);
+        response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertTrue(server.getLatestConnectionContext().getTlsSessionId().length > 0);
+        // no sessionId passed with ClientHello as the context was cleaned
+        assertFalse(server.getLatestConnectionContext().getRequestedTlsSessionId().length > 0);
     }
 
     private static String makeBody(String msg) {

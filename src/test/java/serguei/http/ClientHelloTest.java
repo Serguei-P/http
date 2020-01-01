@@ -30,7 +30,8 @@ public class ClientHelloTest {
     private final static byte[] RANDOM = {5, 4, 3, 2, 1, 0};
     private final static byte[] SHORT_DATA = {1, 2};
 
-    private MarkAndResetInputStream googleHelloInputStream = new MarkAndResetInputStream(new ByteArrayInputStream(GOOGLE_HELLO));
+    private MarkAndResetInputStream googleHelloInputStream = new MarkAndResetInputStream(
+            new ByteArrayInputStream(GOOGLE_HELLO));
     private MarkAndResetInputStream sslv2InputStream = new MarkAndResetInputStream(
             new ByteArrayInputStream(SSLV2_CLIENT_HELLO));
     private MarkAndResetInputStream sslv2InputStreamWrongVersion = new MarkAndResetInputStream(
@@ -40,11 +41,14 @@ public class ClientHelloTest {
 
     @Test
     public void shouldReadClientHello() throws IOException {
+        byte[] expectedSessionId = {83, -48, -67, 44, -2, 12, 20, 109, -83, -126, 40, 100, 21, 112, -28, -34, -86, -50, 14,
+                -15, 123, 83, 76, 85, 103, -120, -52, -123, -22, 93, 74, -25};
         ClientHello clientHello = ClientHello.read(googleHelloInputStream);
 
         assertEquals("www.google.co.uk", clientHello.getSniHostName());
         assertEquals(Integer.valueOf(33), clientHello.getProtocolVersion().getCode());
         assertEquals(Integer.valueOf(31), clientHello.getRecordProtocolVersion().getCode());
+        assertArrayEquals(expectedSessionId, clientHello.getSessionId());
     }
 
     @Test

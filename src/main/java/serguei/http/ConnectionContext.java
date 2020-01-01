@@ -29,6 +29,7 @@ public class ConnectionContext {
     private final String negotiatedCipher;
     private final String sni;
     private final X509Certificate[] tlsCertificates;
+    private final byte[] requestedTlsSessionId;
     private final byte[] tlsSessionId;
 
     private CloseAction closeAction = CloseAction.NONE;
@@ -45,8 +46,10 @@ public class ConnectionContext {
             this.tlsSessionId = sslSession.getId();
             if (clientHello != null) {
                 this.sni = clientHello.getSniHostName();
+                this.requestedTlsSessionId = clientHello.getSessionId();
             } else {
                 this.sni = "";
+                this.requestedTlsSessionId = null;
             }
             Certificate[] certificates;
             try {
@@ -70,6 +73,7 @@ public class ConnectionContext {
             this.sni = null;
             this.tlsCertificates = null;
             this.tlsSessionId = null;
+            this.requestedTlsSessionId = null;
         }
     }
 
@@ -124,6 +128,13 @@ public class ConnectionContext {
      */
     public byte[] getTlsSessionId() {
         return tlsSessionId;
+    }
+
+    /**
+     * @return A session id as received in a ClientHello
+     */
+    public byte[] getRequestedTlsSessionId() {
+        return requestedTlsSessionId;
     }
 
     /**

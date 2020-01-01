@@ -44,6 +44,9 @@ public class HttpClientConnection implements Closeable {
 
     private static final int BUFFER_SIZE = 8192;
 
+    private static SSLContext noHostValidatingContext;
+    private static SSLContext hostValidatingContext;
+
     private final InetSocketAddress serverAddress;
     private Socket socket;
     private InputStream inputStream;
@@ -315,7 +318,7 @@ public class HttpClientConnection implements Closeable {
      * @throws IOException
      */
     public void startHandshake() throws IOException {
-        startHandshake(serverAddress.getHostString(), false, null, null, null);
+        startHandshake(serverAddress.getHostString(), getNoHostValidatingContext());
     }
 
     /**
@@ -328,7 +331,7 @@ public class HttpClientConnection implements Closeable {
      * @throws IOException
      */
     public void startHandshake(String hostName) throws IOException {
-        startHandshake(hostName, false, null, null, null);
+        startHandshake(hostName, getNoHostValidatingContext());
     }
 
     /**
@@ -348,7 +351,8 @@ public class HttpClientConnection implements Closeable {
      */
     public void startHandshakeWithClientAuth(String hostName, String keyStorePath, String keyStorePassword,
             String certificatePassword) throws IOException {
-        startHandshake(hostName, false, keyStorePath, keyStorePassword, certificatePassword);
+        SSLContext sslContext = createSslContext(false, keyStorePath, keyStorePassword, certificatePassword);
+        startHandshake(hostName, sslContext);
     }
 
     /**
@@ -360,7 +364,7 @@ public class HttpClientConnection implements Closeable {
      * @throws IOException
      */
     public void startHandshakeAndValidate() throws IOException {
-        startHandshake(serverAddress.getHostString(), true, null, null, null);
+        startHandshake(serverAddress.getHostString(), getHostValidatingContext());
     }
 
     /**
@@ -373,7 +377,7 @@ public class HttpClientConnection implements Closeable {
      * @throws IOException
      */
     public void startHandshakeAndValidate(String hostName) throws IOException {
-        startHandshake(hostName, true, null, null, null);
+        startHandshake(hostName, getHostValidatingContext());
     }
 
     /**
@@ -393,13 +397,12 @@ public class HttpClientConnection implements Closeable {
      */
     public void startHandshakeWithClientAuthAndValidate(String hostName, String keyStorePath, String keyStorePassword,
             String certificatePassword) throws IOException {
-        startHandshake(hostName, false, keyStorePath, keyStorePassword, certificatePassword);
+        SSLContext sslContext = createSslContext(false, keyStorePath, keyStorePassword, certificatePassword);
+        startHandshake(hostName, sslContext);
     }
 
-    private void startHandshake(String hostName, boolean validateCertificates, String keyStorePath, String keyStorePassword,
-            String certificatePassword) throws IOException {
+    private void startHandshake(String hostName, SSLContext sslContext) throws IOException {
         connectIfNecessary();
-        SSLContext sslContext = createSslContext(validateCertificates, keyStorePath, keyStorePassword, certificatePassword);
         SSLSocketFactory socketFactory = sslContext.getSocketFactory();
         SSLSocket sslSocket = (SSLSocket)socketFactory.createSocket(socket, hostName, serverAddress.getPort(), true);
         if (enabledTlsProtocols != null) {
@@ -563,6 +566,16 @@ public class HttpClientConnection implements Closeable {
         }
     }
 
+    /**
+     * Clear SslContext. This will clear all cached SSL sessions.
+     */
+    public static void clearSslContexts() {
+        synchronized (HttpClientConnection.class) {
+            noHostValidatingContext = null;
+            hostValidatingContext = null;
+        }
+    }
+
     private void connectIfNecessary() throws IOException {
         if (socket == null) {
             setSocket(connectSocket(connectTimeoutMs > 0 ? connectTimeoutMs : timeoutMs));
@@ -669,6 +682,34 @@ public class HttpClientConnection implements Closeable {
         this.socket = socket;
         this.inputStream = new BufferedInputStream(socket.getInputStream(), BUFFER_SIZE);
         this.outputStream = new BufferedOutputStream(socket.getOutputStream(), BUFFER_SIZE);
+    }
+
+    private SSLContext getNoHostValidatingContext() {
+        SSLContext result = noHostValidatingContext;
+        if (result == null) {
+            synchronized (HttpClientConnection.class) {
+                if (noHostValidatingContext == null) {
+                    noHostValidatingContext = createSslContext(false, null, null, null);
+                }
+                return noHostValidatingContext;
+            }
+        } else {
+            return result;
+        }
+    }
+
+    private SSLContext getHostValidatingContext() {
+        SSLContext result = hostValidatingContext;
+        if (result == null) {
+            synchronized (HttpClientConnection.class) {
+                if (hostValidatingContext == null) {
+                    hostValidatingContext = createSslContext(true, null, null, null);
+                }
+                return hostValidatingContext;
+            }
+        } else {
+            return result;
+        }
     }
 
 }

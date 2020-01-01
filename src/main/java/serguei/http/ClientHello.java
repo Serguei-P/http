@@ -12,12 +12,14 @@ public class ClientHello {
     private static final int SNI_EXTENSION_CODE = 0;
     private static final int SNI_HOST_NAME_CODE = 0;
     private static final int TLS_MESSAGE_BUFFER_SIZE = 16384;
+    private static final byte[] EMPTY = new byte[0];
 
     private InputStream inputStream;
 
     private String sniHostName = "";
     private TlsVersion protocolVersion = TlsVersion.UNDEFINED;
     private TlsVersion recordProtocolVersion = TlsVersion.UNDEFINED;
+    private byte[] sessionId = EMPTY;
 
     private byte[] buffer = new byte[512];
     private int bufferSize = 0;
@@ -49,6 +51,10 @@ public class ClientHello {
         return recordProtocolVersion;
     }
 
+    public byte[] getSessionId() {
+        return sessionId;
+    }
+
     private ClientHello(MarkAndResetInputStream inputStream) {
         this.inputStream = inputStream;
     }
@@ -73,6 +79,7 @@ public class ClientHello {
             return;
         }
         processProtocolVersion();
+        processSessionId();
         int extensionStartPos = calcExtensionsStartPos();
         if (extensionStartPos < messageLen) {
             processExtentions(extensionStartPos);
@@ -126,6 +133,15 @@ public class ClientHello {
         int major = getInt8(pos);
         int minor = getInt8(pos + 1);
         return new TlsVersion(major, minor);
+    }
+
+    private void processSessionId() {
+        int pos = TLS_HEADER_LENGTH + CH_HEADER_LEN + CH_RANDOM_LEN;
+        int sessionIdLen = getInt8(pos);
+        if (sessionIdLen > 0) {
+            sessionId = new byte[sessionIdLen];
+            System.arraycopy(buffer, pos + 1, sessionId, 0, sessionIdLen);
+        }
     }
 
     private int calcExtensionsStartPos() {
