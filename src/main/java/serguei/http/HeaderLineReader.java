@@ -8,7 +8,7 @@ class HeaderLineReader {
 
     // This class is a bit messy due to performance optimisation
 
-    private static final int MAX_LINE_LENGTH = 4096;
+    private static final int MAX_LINE_LENGTH = 10240;
     private static final int BUFFER_SIZE = 128;
     private static final String EMPTY_LINE = "";
     private static final String HEADER_CODEPAGE = "ISO_8859_1";
