@@ -132,6 +132,11 @@ public final class HttpResponseHeaders extends HttpHeaders {
         return reason;
     }
 
+    public void setStatusCode(int statusCode, String reason) {
+        this.statusCode = statusCode;
+        this.reason = reason;
+    }
+
     private final void parseResponseLine(String line) throws HttpException {
         int versionEndPos = line.indexOf(' ');
         if (versionEndPos > 0) {

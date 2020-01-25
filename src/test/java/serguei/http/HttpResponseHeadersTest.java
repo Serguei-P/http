@@ -160,4 +160,30 @@ public class HttpResponseHeadersTest {
         assertEquals(Arrays.asList("test1", "test2", "test3", "test4", "test5"), result);
     }
 
+    @Test
+    public void shouldUpdateStatusCode() throws IOException {
+        HttpResponseHeaders headers = new HttpResponseHeaders("HTTP/1.1 200 OK", "Content-Length: 100");
+        
+        String output = writeToString(headers);
+        assertEquals("HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n", output);
+        assertEquals(200, headers.getStatusCode());
+        assertEquals("OK", headers.getReason());
+        assertEquals("HTTP/1.1", headers.getVersion());
+
+        headers.setStatusCode(204, "No Content");
+
+        output = writeToString(headers);
+        assertEquals("HTTP/1.1 204 No Content\r\nContent-Length: 100\r\n\r\n", output);
+        assertEquals(204, headers.getStatusCode());
+        assertEquals("No Content", headers.getReason());
+        assertEquals("HTTP/1.1", headers.getVersion());
+    }
+
+    private String writeToString(HttpResponseHeaders headers) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        headers.write(outputStream);
+        return outputStream.toString();
+
+    }
+
 }
