@@ -163,9 +163,9 @@ public class HttpResponseHeadersTest {
     @Test
     public void shouldUpdateStatusCode() throws IOException {
         HttpResponseHeaders headers = new HttpResponseHeaders("HTTP/1.1 200 OK", "Content-Length: 100");
-        
+
         String output = writeToString(headers);
-        assertEquals("HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n", output);
+        assertEquals("HTTP/1.1 200 OK" + LINE_BREAK + "Content-Length: 100" + LINE_BREAK + LINE_BREAK, output);
         assertEquals(200, headers.getStatusCode());
         assertEquals("OK", headers.getReason());
         assertEquals("HTTP/1.1", headers.getVersion());
@@ -173,7 +173,7 @@ public class HttpResponseHeadersTest {
         headers.setStatusCode(204, "No Content");
 
         output = writeToString(headers);
-        assertEquals("HTTP/1.1 204 No Content\r\nContent-Length: 100\r\n\r\n", output);
+        assertEquals("HTTP/1.1 204 No Content" + LINE_BREAK + "Content-Length: 100" + LINE_BREAK + LINE_BREAK, output);
         assertEquals(204, headers.getStatusCode());
         assertEquals("No Content", headers.getReason());
         assertEquals("HTTP/1.1", headers.getVersion());
