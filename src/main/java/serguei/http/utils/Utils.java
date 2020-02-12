@@ -1,11 +1,27 @@
 package serguei.http.utils;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.util.Base64;
+import java.util.regex.Pattern;
 
 public final class Utils {
+
+    private static final String IPV4_PATTERN_STRING = "(([1-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){1}"
+            + "(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){2}" + "([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])";
+    private static final Pattern IPV4_PATTERN = Pattern.compile("^" + IPV4_PATTERN_STRING + "$");
+    private static final Pattern IPV6_STD_PATTERN = Pattern.compile("^[0-9a-fA-F]{1,4}(:[0-9a-fA-F]{1,4}){7}$");
+    private static final String IPV6_COMPRESSED_PATTERN_STR = "(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)::(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)";
+    private static final Pattern IPV6_COMPRESSED_PATTERN = Pattern.compile("^" + IPV6_COMPRESSED_PATTERN_STR + "$");
+    private static final int IPV6_COLON_COUNT = 7;
 
     private Utils() {
 
@@ -100,6 +116,42 @@ public final class Utils {
         while (read >= 0) {
             read = inputStream.read(buffer);
         }
+    }
+
+    public static boolean isIPv4Address(String value) {
+        return IPV4_PATTERN.matcher(value).matches();
+    }
+
+    public static boolean isIPv6Address(String value) {
+        String host = value;
+        if (host.startsWith("[") && host.endsWith("]")) {
+            host = host.substring(1, host.length() - 1);
+        }
+        return IPV6_STD_PATTERN.matcher(host).matches() || isIPv6HexCompressedAddress(host);
+    }
+
+    public static X509Certificate readPemFile(InputStream inputStream) throws IOException, CertificateException {
+        StringBuilder data = new StringBuilder();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+        String line;
+        while ((line = reader.readLine()) != null) {
+            if (!line.contains("BEGIN CERTIFICATE") && !line.contains("END CERTIFICATE")) {
+                data.append(line);
+            }
+        }
+        byte[] certBytes = Base64.getDecoder().decode(data.toString());
+        CertificateFactory factory = CertificateFactory.getInstance("X.509");
+        return (X509Certificate)factory.generateCertificate(new ByteArrayInputStream(certBytes));
+    }
+
+    private static boolean isIPv6HexCompressedAddress(String value) {
+        int colonCount = 0;
+        for (int i = 0; i < value.length(); i++) {
+            if (value.charAt(i) == ':') {
+                colonCount++;
+            }
+        }
+        return colonCount <= IPV6_COLON_COUNT && IPV6_COMPRESSED_PATTERN.matcher(value).matches();
     }
 
 }
