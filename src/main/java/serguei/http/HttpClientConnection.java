@@ -397,7 +397,7 @@ public class HttpClientConnection implements Closeable {
      */
     public void startHandshakeWithClientAuthAndValidate(String hostName, String keyStorePath, String keyStorePassword,
             String certificatePassword) throws IOException {
-        SSLContext sslContext = createSslContext(false, keyStorePath, keyStorePassword, certificatePassword);
+        SSLContext sslContext = createSslContext(true, keyStorePath, keyStorePassword, certificatePassword);
         startHandshake(hostName, sslContext);
     }
 

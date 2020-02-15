@@ -145,6 +145,20 @@ public class ClientAndServerSslTest {
     }
 
     @Test
+    public void shouldFailWhenClientAuthenticationPassedButServerCertificateNotValidated() throws Exception {
+        String sni = "www.fitltd.com";
+        server.setNeedClientAuthentication(true);
+        server.setResponse(HttpResponseHeaders.ok(), new byte[0]);
+
+        try {
+            clientConnection.startHandshakeWithClientAuthAndValidate(sni, keyStorePath(), "password", "test01");
+            fail("Expected exception");
+        } catch (SSLHandshakeException e) {
+            // expected
+        }
+    }
+
+    @Test
     public void shouldFailWhenClientDidNotProvideAuthenticationWhenRequested() throws Exception {
         String sni = "www.fitltd.com";
         server.setNeedClientAuthentication(true);
