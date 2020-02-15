@@ -25,6 +25,7 @@ import java.util.zip.GZIPOutputStream;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -318,7 +319,7 @@ public class HttpClientConnection implements Closeable {
      * @throws IOException
      */
     public void startHandshake() throws IOException {
-        startHandshake(serverAddress.getHostString(), getNoHostValidatingContext());
+        startHandshake(serverAddress.getHostString(), getNoHostValidatingContext(), false);
     }
 
     /**
@@ -331,7 +332,7 @@ public class HttpClientConnection implements Closeable {
      * @throws IOException
      */
     public void startHandshake(String hostName) throws IOException {
-        startHandshake(hostName, getNoHostValidatingContext());
+        startHandshake(hostName, getNoHostValidatingContext(), false);
     }
 
     /**
@@ -352,7 +353,7 @@ public class HttpClientConnection implements Closeable {
     public void startHandshakeWithClientAuth(String hostName, String keyStorePath, String keyStorePassword,
             String certificatePassword) throws IOException {
         SSLContext sslContext = createSslContext(false, keyStorePath, keyStorePassword, certificatePassword);
-        startHandshake(hostName, sslContext);
+        startHandshake(hostName, sslContext, false);
     }
 
     /**
@@ -364,7 +365,7 @@ public class HttpClientConnection implements Closeable {
      * @throws IOException
      */
     public void startHandshakeAndValidate() throws IOException {
-        startHandshake(serverAddress.getHostString(), getHostValidatingContext());
+        startHandshake(serverAddress.getHostString(), getHostValidatingContext(), true);
     }
 
     /**
@@ -377,7 +378,7 @@ public class HttpClientConnection implements Closeable {
      * @throws IOException
      */
     public void startHandshakeAndValidate(String hostName) throws IOException {
-        startHandshake(hostName, getHostValidatingContext());
+        startHandshake(hostName, getHostValidatingContext(), true);
     }
 
     /**
@@ -398,13 +399,13 @@ public class HttpClientConnection implements Closeable {
     public void startHandshakeWithClientAuthAndValidate(String hostName, String keyStorePath, String keyStorePassword,
             String certificatePassword) throws IOException {
         SSLContext sslContext = createSslContext(true, keyStorePath, keyStorePassword, certificatePassword);
-        startHandshake(hostName, sslContext);
+        startHandshake(hostName, sslContext, true);
     }
 
-    private void startHandshake(String hostName, SSLContext sslContext) throws IOException {
+    private void startHandshake(String hostname, SSLContext sslContext, boolean checkHostname) throws IOException {
         connectIfNecessary();
         SSLSocketFactory socketFactory = sslContext.getSocketFactory();
-        SSLSocket sslSocket = (SSLSocket)socketFactory.createSocket(socket, hostName, serverAddress.getPort(), true);
+        SSLSocket sslSocket = (SSLSocket)socketFactory.createSocket(socket, hostname, serverAddress.getPort(), true);
         if (enabledTlsProtocols != null) {
             sslSocket.setEnabledProtocols(TlsVersion.toJdkStrings(enabledTlsProtocols));
         }
@@ -422,6 +423,12 @@ public class HttpClientConnection implements Closeable {
         negotiatedTlsProtocol = TlsVersion.fromJdkString(session.getProtocol());
         negotiatedCipher = session.getCipherSuite();
         tlsSessionId = session.getId();
+        if (checkHostname) {
+            HostnameChecker hostnameChecker = new HostnameChecker();
+            if (!hostnameChecker.check(hostname, tlsCertificates[0])) {
+                throw new SSLException("Hostname " + hostname + " does not match certificate");
+            }
+        }
     }
 
     /**

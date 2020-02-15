@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 
 import java.io.IOException;
 
+import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 
 import org.junit.After;
@@ -71,6 +72,82 @@ public class HttpClientConnectionTest {
         connection = new HttpClientConnection(hostName, 443);
 
         connection.startHandshakeAndValidate(hostName);
+    }
+
+    @Test
+    public void shouldAllowWrongHostnameCertificate() throws Exception {
+        String hostName = "wrong.host.badssl.com";
+        connection = new HttpClientConnection(hostName, 443);
+
+        connection.startHandshake(hostName);
+        HttpResponse response = connection.send(HttpRequestHeaders.getRequest("http://" + hostName + "/"));
+
+        assertEquals(200, response.getStatusCode());
+
+        String body = response.readBodyAsString();
+        assertTrue(body.toUpperCase().contains("</HTML>"));
+    }
+
+    @Test
+    public void shouldFailOnWrongHostnameCertificate() throws Exception {
+        String hostName = "wrong.host.badssl.com";
+        connection = new HttpClientConnection(hostName, 443);
+
+        try {
+            connection.startHandshakeAndValidate(hostName);
+            fail("Exception expected");
+        } catch (SSLException e) {
+            assertEquals("Hostname wrong.host.badssl.com does not match certificate", e.getMessage());
+        }
+    }
+
+    @Test
+    public void shouldAllowWrongUntrustedRootCertificate() throws Exception {
+        String hostName = "untrusted-root.badssl.com";
+        connection = new HttpClientConnection(hostName, 443);
+
+        connection.startHandshake(hostName);
+        HttpResponse response = connection.send(HttpRequestHeaders.getRequest("http://" + hostName + "/"));
+
+        assertEquals(200, response.getStatusCode());
+
+        String body = response.readBodyAsString();
+        assertTrue(body.toUpperCase().contains("</HTML>"));
+    }
+
+    @Test(expected = SSLHandshakeException.class)
+    public void shouldFailOnUntrustedRootCertificate() throws Exception {
+        String hostName = "untrusted-root.badssl.com";
+        connection = new HttpClientConnection(hostName, 443);
+
+        connection.startHandshakeAndValidate(hostName);
+    }
+
+    @Test
+    public void shouldAllowExpiredCertificate() throws Exception {
+        String hostName = "expired.badssl.com";
+        connection = new HttpClientConnection(hostName, 443);
+
+        connection.startHandshake(hostName);
+        HttpResponse response = connection.send(HttpRequestHeaders.getRequest("http://" + hostName + "/"));
+
+        assertEquals(200, response.getStatusCode());
+
+        String body = response.readBodyAsString();
+        assertTrue(body.toUpperCase().contains("</HTML>"));
+    }
+
+    @Test
+    public void shouldFailOnExpiredCertificate() throws Exception {
+        String hostName = "expired.badssl.com";
+        connection = new HttpClientConnection(hostName, 443);
+
+        try {
+            connection.startHandshakeAndValidate(hostName);
+            fail("Exception expected");
+        } catch (SSLHandshakeException e) {
+            // expected
+        }
     }
 
     @Test
