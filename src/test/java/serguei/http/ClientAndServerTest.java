@@ -34,6 +34,7 @@ public class ClientAndServerTest {
     public void setup() throws Exception {
         server = new TestServer();
         clientConnection = new HttpClientConnection(HOST, server.getPort());
+        clientConnection.setTimeoutMillis(6000);
         server.setOnRequestHeadersHandler(null);
     }
 
@@ -143,6 +144,63 @@ public class ClientAndServerTest {
         assertTrue(response.isContentChunked());
         assertEquals(responseBody, response.readBodyAsString());
         assertTrue(response.isBodyCompressed());
+        assertTrue(server.isLatestRequestBodyCompressed());
+    }
+
+    @Test
+    public void shouldSendAndReceiveGZippedDataFromServerChunkedReturningInputStream() throws Exception {
+        server.setChunkedResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.GZIP);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost", "Accept-Encoding: gzip");
+        InputStream inputStream = new ByteArrayInputStream(requestBody.getBytes(BODY_CHARSET));
+
+        HttpResponse response = clientConnection.send(headers, inputStream, BodyCompression.GZIP);
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals("gzip", server.getLatestRequestHeaders().getHeader("Accept-Encoding"));
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertEquals("gzip", response.getHeader("Content-Encoding"));
+        assertEquals(-1, response.getContentLength());
+        assertTrue(response.isContentChunked());
+
+        byte[] responseData;
+        try (InputStream responseStream = response.getBodyAsStream()) {
+            responseData = Utils.readFully(responseStream);
+        }
+
+        assertEquals(responseBody, new String(responseData, BODY_CHARSET));
+        assertTrue(response.isBodyCompressed());
+        assertTrue(response.isContentChunked());
+        assertTrue(server.isLatestRequestBodyCompressed());
+    }
+
+    @Test
+    public void shouldSendAndReceiveGZippedDataFromServerChunkedReturningInputStreamReadingByByte() throws Exception {
+        server.setChunkedResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.GZIP);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost", "Accept-Encoding: gzip");
+        InputStream inputStream = new ByteArrayInputStream(requestBody.getBytes(BODY_CHARSET));
+
+        HttpResponse response = clientConnection.send(headers, inputStream, BodyCompression.GZIP);
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals("gzip", server.getLatestRequestHeaders().getHeader("Accept-Encoding"));
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertEquals("gzip", response.getHeader("Content-Encoding"));
+        assertEquals(-1, response.getContentLength());
+        assertTrue(response.isContentChunked());
+
+        ByteArrayOutputStream responseData = new ByteArrayOutputStream();
+        try (InputStream responseStream = response.getBodyAsStream()) {
+            int ch;
+            while ((ch = responseStream.read()) != -1) {
+                responseData.write(ch);
+            }
+        }
+
+        assertEquals(responseBody, responseData.toString(BODY_CHARSET));
+        assertTrue(response.isBodyCompressed());
+        assertTrue(response.isContentChunked());
         assertTrue(server.isLatestRequestBodyCompressed());
     }
 

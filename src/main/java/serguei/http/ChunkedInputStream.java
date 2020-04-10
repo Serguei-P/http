@@ -10,6 +10,7 @@ class ChunkedInputStream extends InputStream {
     private int leftInChunk = 0;
     private int chunkCount = 0;
     private Trailer trailer = new Trailer();
+    private boolean endOfStream = false;
 
     ChunkedInputStream(InputStream inputStream) {
         this.inputStream = inputStream;
@@ -17,9 +18,13 @@ class ChunkedInputStream extends InputStream {
 
     @Override
     public int read() throws IOException {
+        if (endOfStream) {
+            return -1;
+        }
         if (leftInChunk <= 0) {
             findChunk();
             if (leftInChunk <= 0) {
+                endOfStream = true;
                 return -1;
             }
         }
@@ -36,9 +41,13 @@ class ChunkedInputStream extends InputStream {
         } else if (len == 0) {
             return 0;
         }
+        if (endOfStream) {
+            return -1;
+        }
         if (leftInChunk <= 0) {
             findChunk();
             if (leftInChunk <= 0) {
+                endOfStream = true;
                 return -1;
             }
         }

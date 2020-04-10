@@ -105,6 +105,22 @@ public class ChunkedInputStreamTest {
         assertEquals(moreData.length, input.available());
     }
 
+    @Test
+    public void shouldBeAbleToGetMinusOneFromFinishedStringMultipleTimes() throws IOException {
+        String line1 = "This is the first chunk\r\n";
+        String line2 = "And another chunk\r\n";
+        byte[] data = Utils.concat(makeChunk(line1, ";extName1=extValue1;extName2=extValue2"), makeChunk(line2, ""),
+                makeLastChunk(""), makeTrailer("trailerName1: trailerValue1", "trailerName2: trailerValue2"), CRLF);
+        ByteArrayInputStream input = new ByteArrayInputStream(data);
+
+        ChunkedInputStream stream = new ChunkedInputStream(input);
+        String result = readToString(stream);
+
+        assertEquals(line1 + line2, result);
+        assertEquals(-1, stream.read());
+        assertEquals(-1, stream.read(new byte[10]));
+    }
+
     private byte[] makeChunk(String chunkBody, String extension) throws UnsupportedEncodingException {
         byte[] bodyBuffer = chunkBody.getBytes(DATA_CODEPAGE);
         String header = Integer.toHexString(bodyBuffer.length) + extension;
