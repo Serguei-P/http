@@ -8,7 +8,6 @@ class HeaderLineReader {
 
     // This class is a bit messy due to performance optimisation
 
-    private static final int MAX_LINE_LENGTH = 10240;
     private static final int BUFFER_SIZE = 128;
     private static final String EMPTY_LINE = "";
     private static final String HEADER_CODEPAGE = "ISO_8859_1";
@@ -63,8 +62,8 @@ class HeaderLineReader {
                     crFound = false;
                 }
             }
-            if (lineLength > MAX_LINE_LENGTH) {
-                throw new HttpException("Line is too long while reading headers, limit " + MAX_LINE_LENGTH);
+            if (lineLength > Http.getMaxHeaderLen()) {
+                throw new HttpException("Line is too long while reading headers, limit " + Http.getMaxHeaderLen());
             }
             if (buffPos >= buffer.length) {
                 int reduction = 0;

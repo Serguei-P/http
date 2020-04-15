@@ -52,8 +52,15 @@ class HttpBody {
             stream = new InflaterInputStream(stream);
             compressed = true;
         } else {
-            streamToDrainOfData = null;
-            compressed = false;
+            InputStreamWrapperFactory streamFactory = getNonstandardStreamFactory(encoding);
+            if (streamFactory != null) {
+                streamToDrainOfData = stream;
+                stream = streamFactory.wrap(stream);
+                compressed = true;
+            } else {
+                streamToDrainOfData = null;
+                compressed = false;
+            }
         }
         this.bodyInputStream = stream;
         this.hasBody = contentLength > 0 || chunked || (allowUnknownBodyLength && contentLength < 0);
@@ -141,6 +148,14 @@ class HttpBody {
         }
         int number = (ch2 << 8) | ch1;
         return number == GZIPInputStream.GZIP_MAGIC;
+    }
+
+    private InputStreamWrapperFactory getNonstandardStreamFactory(String encoding) {
+        if (encoding != null) {
+            return Http.getWrapperFactoryForContentEncoding(encoding);
+        } else {
+            return null;
+        }
     }
 
 }

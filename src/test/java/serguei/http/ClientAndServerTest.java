@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -280,6 +281,33 @@ public class ClientAndServerTest {
 
         assertEquals("gzip", response.getHeader("Content-Encoding"));
         assertTrue(response.isContentChunked());
+        assertEquals(responseBody, response.readBodyAsString());
+    }
+
+    @Test
+    public void shouldAllowForNonStandardContentEncodings() throws Exception {
+        String contentEncoding = "weird";
+        byte[] responseBytes = responseBody.getBytes(BODY_CHARSET);
+        byte[] encodedBytes = new byte[responseBytes.length];
+        for (int i = 0; i < responseBytes.length; i++) {
+            encodedBytes[i] = (byte)(responseBytes[i] ^ 0xFF);
+        }
+        HttpResponseHeaders headers = new HttpResponseHeaders("HTTP/1.1 200 OK", "Content-Encoding: " + contentEncoding);
+        
+        HttpResponse response;
+        try {
+            Http.setContentEncodingWrapper(contentEncoding, new XorStreamFactory());
+            server.setResponse(headers, encodedBytes);
+            response = clientConnection.sendRequest("GET / HTTP/1.1", "Host: localhost");
+        } finally {
+            Http.reset();
+        }
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals(contentEncoding, response.getHeader("Content-Encoding"));
+        assertEquals(encodedBytes.length, response.getContentLength());
+        assertFalse(response.isContentChunked());
+        assertTrue(response.isBodyCompressed());
         assertEquals(responseBody, response.readBodyAsString());
     }
 
@@ -657,4 +685,31 @@ public class ClientAndServerTest {
         }
         return output.toString();
     }
+
+    private static class XorStreamFactory implements InputStreamWrapperFactory {
+
+        @Override
+        public InputStream wrap(InputStream inputStream) {
+            return new XorInputStream(inputStream);
+        }
+
+    }
+
+    private static class XorInputStream extends FilterInputStream {
+
+        protected XorInputStream(InputStream in) {
+            super(in);
+        }
+
+        @Override
+        public int read(byte[] buffer, int off, int len) throws IOException {
+            int read = super.read(buffer, off, len);
+            for (int i = 0; i < read; i++) {
+                buffer[i + off] = (byte)(buffer[i + off] ^ 0xFF);
+            }
+            return read;
+        }
+
+    }
+
 }
