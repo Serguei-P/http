@@ -121,6 +121,31 @@ public class ChunkedInputStreamTest {
         assertEquals(-1, stream.read(new byte[10]));
     }
 
+    @Test
+    public void shouldReadDataFromNonZeroOffset() throws Exception {
+        String line1 = "This is the first chunk\r\n";
+        String line2 = "And another chunk\r\n";
+        byte[] data = Utils.concat(makeChunk(line1, ";extName1=extValue1;extName2=extValue2"), makeChunk(line2, ""),
+                makeLastChunk(""), makeTrailer("trailerName1: trailerValue1", "trailerName2: trailerValue2"), CRLF);
+        byte[] expected = (line1 + line2).getBytes();
+        ByteArrayInputStream input = new ByteArrayInputStream(data);
+        byte[] buffer = new byte[expected.length];
+
+        try (ChunkedInputStream stream = new ChunkedInputStream(input)) {
+            int pos = 0;
+            while (pos < buffer.length) {
+                int len = buffer.length - pos >= 10 ? 10 : buffer.length - pos;
+                int read = stream.read(buffer, pos, len);
+                if (read == -1) {
+                    break;
+                }
+                pos += read;
+            }
+        }
+
+        assertArrayEquals(expected, buffer);
+    }
+
     private byte[] makeChunk(String chunkBody, String extension) throws UnsupportedEncodingException {
         byte[] bodyBuffer = chunkBody.getBytes(DATA_CODEPAGE);
         String header = Integer.toHexString(bodyBuffer.length) + extension;

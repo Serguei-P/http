@@ -52,7 +52,7 @@ class ChunkedInputStream extends InputStream {
             }
         }
         int toRead = len > leftInChunk ? leftInChunk : len;
-        int result = inputStream.read(b, 0, toRead);
+        int result = inputStream.read(b, off, toRead);
         if (result >= 0) {
             leftInChunk -= result;
         }
