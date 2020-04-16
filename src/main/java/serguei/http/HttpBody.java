@@ -16,54 +16,24 @@ class HttpBody {
     private static final int BUFFER_SIZE = 1024 * 4;
 
     private final InputStream bodyInputStream;
-    private final InputStream streamToDrainOfData;
     private final boolean hasBody;
-    private final boolean compressed;
+    private boolean compressed;
+    private final String encoding;
     private InputStream userFacingStream;
 
     HttpBody(InputStream inputStream, long contentLength, boolean chunked, String encoding, boolean allowUnknownBodyLength)
             throws IOException {
-        InputStream stream = inputStream;
-        if (chunked) {
-            stream = new ChunkedInputStream(inputStream);
-        } else if (contentLength > 0) {
-            stream = new LimitedLengthInputStream(inputStream, contentLength);
-        } else {
-            stream = inputStream;
-        }
-        if (encoding != null && encoding.equals("gzip")) {
-            // GZIPInputStream returns -1 before all bytes from input stream read
-            stream = new MarkAndResetInputStream(stream);
-            stream.mark(0);
-            // authors of some sites forget to actually gzip the body while adding a header
-            if (isGzip(stream)) {
-                stream.reset();
-                streamToDrainOfData = stream;
-                stream = new GZIPInputStream(stream);
-                compressed = true;
-            } else {
-                stream.reset();
-                streamToDrainOfData = null;
-                compressed = false;
-            }
-        } else if (encoding != null && encoding.equals("deflate")) {
-            // DeflateInputStream returns -1 before all bytes from input stream read
-            streamToDrainOfData = stream;
-            stream = new InflaterInputStream(stream);
-            compressed = true;
-        } else {
-            InputStreamWrapperFactory streamFactory = getNonstandardStreamFactory(encoding);
-            if (streamFactory != null) {
-                streamToDrainOfData = stream;
-                stream = streamFactory.wrap(stream);
-                compressed = true;
-            } else {
-                streamToDrainOfData = null;
-                compressed = false;
-            }
-        }
-        this.bodyInputStream = stream;
+        this.encoding = encoding;
         this.hasBody = contentLength > 0 || chunked || (allowUnknownBodyLength && contentLength < 0);
+        if (chunked) {
+            bodyInputStream = new ChunkedInputStream(inputStream);
+        } else if (contentLength > 0) {
+            bodyInputStream = new LimitedLengthInputStream(inputStream, contentLength);
+        } else {
+            bodyInputStream = inputStream;
+        }
+        compressed = encoding != null
+                && (encoding.equals("gzip") || encoding.equals("deflate") || getNonstandardStreamFactory(encoding) != null);
     }
 
     boolean hasBody() {
@@ -77,15 +47,22 @@ class HttpBody {
 
     byte[] readAsBytes() throws IOException {
         if (hasBody) {
-            return readStream(bodyInputStream);
+            return readStream(getBodyInputStream());
         } else {
             return new byte[0];
         }
     }
 
-    InputStream getBodyInputStream() {
+    InputStream getBodyInputStream() throws IOException {
         if (userFacingStream == null) {
-            userFacingStream = new UserFacingInputStream(bodyInputStream, streamToDrainOfData);
+            userFacingStream = setupDecompressionIfRequired();
+        }
+        return userFacingStream;
+    }
+
+    InputStream getOriginalBodyInputStream() {
+        if (userFacingStream == null) {
+            userFacingStream = new UserFacingInputStream(bodyInputStream, null);
         }
         return userFacingStream;
     }
@@ -94,8 +71,6 @@ class HttpBody {
         if (hasBody) {
             if (userFacingStream != null) {
                 userFacingStream.close();
-            } else if (streamToDrainOfData != null) {
-                Utils.drainStream(streamToDrainOfData);
             } else {
                 Utils.drainStream(bodyInputStream);
             }
@@ -130,11 +105,7 @@ class HttpBody {
             outputStream.write(buffer, 0, read);
             read = stream.read(buffer);
         }
-        byte[] result = outputStream.toByteArray();
-        if (streamToDrainOfData != null) {
-            Utils.readFully(streamToDrainOfData);
-        }
-        return result;
+        return outputStream.toByteArray();
     }
 
     private boolean isGzip(InputStream input) throws IOException {
@@ -156,6 +127,39 @@ class HttpBody {
         } else {
             return null;
         }
+    }
+
+    private UserFacingInputStream setupDecompressionIfRequired() throws IOException {
+        InputStream streamToDrainOfData = null;
+        InputStream stream = bodyInputStream;
+        if (encoding != null && encoding.equals("gzip")) {
+            // GZIPInputStream returns -1 before all bytes from input stream read
+            stream = new MarkAndResetInputStream(stream);
+            stream.mark(0);
+            // authors of some sites forget to actually gzip the body while adding a header
+            if (isGzip(stream)) {
+                stream.reset();
+                streamToDrainOfData = stream;
+                stream = new GZIPInputStream(stream);
+            } else {
+                stream.reset();
+                streamToDrainOfData = null;
+                compressed = false;
+            }
+        } else if (encoding != null && encoding.equals("deflate")) {
+            // DeflateInputStream returns -1 before all bytes from input stream read
+            streamToDrainOfData = stream;
+            stream = new InflaterInputStream(stream);
+        } else {
+            InputStreamWrapperFactory streamFactory = getNonstandardStreamFactory(encoding);
+            if (streamFactory != null) {
+                streamToDrainOfData = stream;
+                stream = streamFactory.wrap(stream);
+            } else {
+                streamToDrainOfData = null;
+            }
+        }
+        return new UserFacingInputStream(stream, streamToDrainOfData);
     }
 
 }

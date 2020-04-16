@@ -91,6 +91,16 @@ public final class Utils {
         return result.toByteArray();
     }
 
+    public static String toString(InputStream inputStream, String charsetName) throws IOException {
+        ByteArrayOutputStream result = new ByteArrayOutputStream();
+        byte[] buffer = new byte[4096];
+        int length;
+        while ((length = inputStream.read(buffer)) != -1) {
+            result.write(buffer, 0, length);
+        }
+        return result.toString(charsetName);
+    }
+
     public static String multiplyString(String value, int number) {
         StringBuilder builder = new StringBuilder(value.length() * number);
         for (int i = 0; i < number; i++) {

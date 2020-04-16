@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.SocketTimeoutException;
+import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 import org.junit.After;
@@ -295,10 +296,12 @@ public class ClientAndServerTest {
         HttpResponseHeaders headers = new HttpResponseHeaders("HTTP/1.1 200 OK", "Content-Encoding: " + contentEncoding);
         
         HttpResponse response;
+        String actualResponseBody;
         try {
             Http.setContentEncodingWrapper(contentEncoding, new XorStreamFactory());
             server.setResponse(headers, encodedBytes);
             response = clientConnection.sendRequest("GET / HTTP/1.1", "Host: localhost");
+            actualResponseBody = response.readBodyAsString();
         } finally {
             Http.reset();
         }
@@ -308,7 +311,7 @@ public class ClientAndServerTest {
         assertEquals(encodedBytes.length, response.getContentLength());
         assertFalse(response.isContentChunked());
         assertTrue(response.isBodyCompressed());
-        assertEquals(responseBody, response.readBodyAsString());
+        assertEquals(responseBody, actualResponseBody);
     }
 
     @Test
@@ -614,6 +617,54 @@ public class ClientAndServerTest {
 
         long end = System.currentTimeMillis();
         assertTrue("Time taken is " + (end - start) + " which is too long", end - start < 1200);
+    }
+
+    @Test
+    public void shouldReceivePlainDataUsingUsingOriginalStream() throws Exception {
+        byte[] responseBodyBytes = responseBody.getBytes(BODY_CHARSET);
+        server.setResponse(HttpResponseHeaders.ok(), responseBodyBytes);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertNull(response.getHeader("Content-Encoding"));
+        assertTrue(response.getContentLength() > 0);
+        assertFalse(response.isBodyCompressed());
+        assertEquals(responseBodyBytes.length, response.getContentLength());
+        assertEquals(responseBody, Utils.toString(response.getBodyAsOriginalStream(), BODY_CHARSET));
+    }
+
+    @Test
+    public void shouldReceiveGZippedDataFromServerButUseUncompressedStreamToRead() throws Exception {
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.GZIP);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals("gzip", response.getHeader("Content-Encoding"));
+        assertTrue(response.getContentLength() > 0);
+        assertTrue(response.isBodyCompressed());
+        assertNotEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
+        InputStream inputStream = new GZIPInputStream(response.getBodyAsOriginalStream());
+        assertEquals(responseBody, Utils.toString(inputStream, BODY_CHARSET));
+    }
+
+    @Test
+    public void shouldReceiveGZippedAndChunkedDataFromServerButUseUncompressedStreamToRead() throws Exception {
+        server.setChunkedResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.GZIP);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals("gzip", response.getHeader("Content-Encoding"));
+        assertTrue(response.isContentChunked());
+        assertTrue(response.isBodyCompressed());
+        assertNotEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
+        InputStream inputStream = new GZIPInputStream(response.getBodyAsOriginalStream());
+        assertEquals(responseBody, Utils.toString(inputStream, BODY_CHARSET));
     }
 
     private static String makeBody(String msg) {

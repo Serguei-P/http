@@ -172,6 +172,8 @@ public class TestServer extends HttpServer {
             latestRequestBodyCompressed = request.isBodyCompressed();
             try {
                 latestRequestBody = request.readBodyAsBytes();
+                // updating in case it changed when on attempt to decompress the body was not compressed
+                latestRequestBodyCompressed = request.isBodyCompressed();
                 response.getHeaders().write(outputStream);
                 outputStream.write(response.getBody());
                 if (closeAfterResponse) {

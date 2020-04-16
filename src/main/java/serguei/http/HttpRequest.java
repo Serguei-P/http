@@ -173,9 +173,25 @@ public class HttpRequest {
      * This returns the body of the request as a stream
      * 
      * Please note it is the user needs to close this stream if connection is to be reused
+     * 
+     * @throws IOException
+     *             - thrown if decompression fails
      */
-    public InputStream getBodyAsStream() {
+    public InputStream getBodyAsStream() throws IOException {
         return body.getBodyInputStream();
+    }
+
+    /**
+     * This returns the body of the request before decompression is done to the stream (please note that un-chunking
+     * still takes place)
+     * 
+     * Please note it is the user needs to close this stream if connection is to be reused
+     * 
+     * Please also note that use of getBodyAsString() and getBodyAsOriginalStream() are incompatible. The first call
+     * decides if it is original or decompressed stream
+     */
+    public InputStream getBodyAsOriginalStream() {
+        return body.getOriginalBodyInputStream();
     }
 
     /**
