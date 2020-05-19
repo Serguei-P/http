@@ -113,6 +113,34 @@ public class ClientAndServerTest {
     }
 
     @Test
+    public void shouldSendAndReceiveDeflatedDataWrapped() throws Exception {
+        byte[] body = Utils.readFully(getClass().getResourceAsStream("/wrap-deflated.data"));
+        HttpResponseHeaders responseHeaders = new HttpResponseHeaders("HTTP/1.1 200 OK", "Content-Length: " + body.length,
+                "Content-Encoding: deflate");
+        server.setResponse(responseHeaders, body);
+        HttpRequestHeaders headers = new HttpRequestHeaders("GET / HTTP/1.1", "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers);
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals("<HTML><BODY>This is some response body</BODY></HTML>", response.readBodyAsString());
+    }
+
+    @Test
+    public void shouldSendAndReceiveDeflatedDataNotWrapped() throws Exception {
+        byte[] body = Utils.readFully(getClass().getResourceAsStream("/nowrap-deflated.data"));
+        HttpResponseHeaders responseHeaders = new HttpResponseHeaders("HTTP/1.1 200 OK", "Content-Length: " + body.length,
+                "Content-Encoding: deflate");
+        server.setResponse(responseHeaders, body);
+        HttpRequestHeaders headers = new HttpRequestHeaders("GET / HTTP/1.1", "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers);
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals("<HTML><BODY>This is some response body</BODY></HTML>", response.readBodyAsString());
+    }
+
+    @Test
     public void shouldSendAndReceiveFromServerChunked() throws Exception {
         server.setChunkedResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
@@ -294,7 +322,7 @@ public class ClientAndServerTest {
             encodedBytes[i] = (byte)(responseBytes[i] ^ 0xFF);
         }
         HttpResponseHeaders headers = new HttpResponseHeaders("HTTP/1.1 200 OK", "Content-Encoding: " + contentEncoding);
-        
+
         HttpResponse response;
         String actualResponseBody;
         try {

@@ -6,7 +6,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.zip.GZIPInputStream;
+import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
+import java.util.zip.ZipException;
 
 import serguei.http.utils.Utils;
 
@@ -148,8 +150,12 @@ class HttpBody {
             }
         } else if (encoding != null && encoding.equals("deflate")) {
             // DeflateInputStream returns -1 before all bytes from input stream read
+            stream = new MarkAndResetInputStream(stream);
+            stream.mark(0);
+            boolean wrapped = isDeflatedStreamWrapped(stream);
+            stream.reset();
             streamToDrainOfData = stream;
-            stream = new InflaterInputStream(stream);
+            stream = new InflaterInputStream(stream, new Inflater(!wrapped));
         } else {
             InputStreamWrapperFactory streamFactory = getNonstandardStreamFactory(encoding);
             if (streamFactory != null) {
@@ -160,6 +166,17 @@ class HttpBody {
             }
         }
         return new UserFacingInputStream(stream, streamToDrainOfData);
+    }
+
+    private boolean isDeflatedStreamWrapped(InputStream inputStream) throws IOException {
+        int b1 = inputStream.read() & 0xFF;
+        int b2 = inputStream.read() & 0xFF;
+        if (b1 == -1 || b2 == -1) {
+            throw new ZipException("Deflated stream is too short");
+        }
+        int method = b1 & 0x0F;
+        int info = b1 >> 4 & 0xF;
+        return method == 8 && info <= 7 && (b1 << 8 | b2) % 31 == 0;
     }
 
 }
