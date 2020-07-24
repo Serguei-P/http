@@ -52,6 +52,8 @@ public class HttpClientConnection implements Closeable {
     private Socket socket;
     private InputStream inputStream;
     private OutputStream outputStream;
+    private InputStreamWrapperFactory inputStreamWrapperFactory;
+    private OutputStreamWrapperFactory outputStreamWrapperFactory;
     private X509Certificate[] tlsCertificates;
     private TlsVersion[] enabledTlsProtocols;
     private String[] enabledCipherSuites;
@@ -402,9 +404,20 @@ public class HttpClientConnection implements Closeable {
         startHandshake(hostName, sslContext, true);
     }
 
+    public void setInputStreamWrapperFactory(InputStreamWrapperFactory inputStreamWrapperFactory) {
+        this.inputStreamWrapperFactory = inputStreamWrapperFactory;
+    }
+
+    public void setOutputStreamWrapperFactory(OutputStreamWrapperFactory outputStreamWrapperFactory) {
+        this.outputStreamWrapperFactory = outputStreamWrapperFactory;
+    }
+
     private void startHandshake(String hostname, SSLContext sslContext, boolean checkHostname) throws IOException {
         connectIfNecessary();
         SSLSocketFactory socketFactory = sslContext.getSocketFactory();
+        if (inputStreamWrapperFactory != null || outputStreamWrapperFactory != null) {
+            socket = new SocketWrapper(socket, inputStream, outputStream);
+        }
         SSLSocket sslSocket = (SSLSocket)socketFactory.createSocket(socket, hostname, serverAddress.getPort(), true);
         if (enabledTlsProtocols != null) {
             sslSocket.setEnabledProtocols(TlsVersion.toJdkStrings(enabledTlsProtocols));
@@ -413,7 +426,9 @@ public class HttpClientConnection implements Closeable {
             sslSocket.setEnabledCipherSuites(enabledCipherSuites);
         }
         sslSocket.startHandshake();
-        setSocket(sslSocket);
+        this.socket = sslSocket;
+        this.inputStream = sslSocket.getInputStream();
+        this.outputStream = sslSocket.getOutputStream();
         SSLSession session = sslSocket.getSession();
         Certificate[] certificates = session.getPeerCertificates();
         tlsCertificates = new X509Certificate[certificates.length];
@@ -687,8 +702,17 @@ public class HttpClientConnection implements Closeable {
 
     private void setSocket(Socket socket) throws IOException {
         this.socket = socket;
-        this.inputStream = new BufferedInputStream(socket.getInputStream(), BUFFER_SIZE);
-        this.outputStream = new BufferedOutputStream(socket.getOutputStream(), BUFFER_SIZE);
+        if (inputStreamWrapperFactory != null) {
+            this.inputStream = inputStreamWrapperFactory.wrap(new BufferedInputStream(socket.getInputStream(), BUFFER_SIZE));
+        } else {
+            this.inputStream = new BufferedInputStream(socket.getInputStream(), BUFFER_SIZE);
+        }
+        if (outputStreamWrapperFactory != null) {
+            this.outputStream = new BufferedOutputStream(outputStreamWrapperFactory.wrap(socket.getOutputStream()),
+                    BUFFER_SIZE);
+        } else {
+            this.outputStream = new BufferedOutputStream(socket.getOutputStream(), BUFFER_SIZE);
+        }
     }
 
     private SSLContext getNoHostValidatingContext() {

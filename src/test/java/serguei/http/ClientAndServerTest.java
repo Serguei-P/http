@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.SocketTimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -695,6 +696,32 @@ public class ClientAndServerTest {
         assertEquals(responseBody, Utils.toString(inputStream, BODY_CHARSET));
     }
 
+    @Test
+    public void shouldSendAndReceiveFromServerCountingBytes() throws Exception {
+        AtomicLong inputCounter = new AtomicLong();
+        AtomicLong outputCounter = new AtomicLong();
+        clientConnection.setInputStreamWrapperFactory((socket) -> new InputStreamCountingBytes(socket, inputCounter));
+        clientConnection.setOutputStreamWrapperFactory((socket) -> new OutputStreamCountingBytes(socket, outputCounter));
+        long connectionsBefore = server.getConnectionsCreated();
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers, requestBody);
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertNull(response.getHeader("Content-Encoding"));
+        assertEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
+        assertFalse(response.isContentChunked());
+        assertEquals(responseBody, response.readBodyAsString());
+        assertEquals(1, server.getConnectionsCreated() - connectionsBefore);
+        // 5490 - body, 63 + 6 + 2 - headers
+        assertEquals(5561, outputCounter.get());
+        // 5490 - body, 35 + 4 + 2 - headers
+        assertEquals(5531, inputCounter.get());
+    }
+
     private static String makeBody(String msg) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < 200; i++) {
@@ -771,7 +798,6 @@ public class ClientAndServerTest {
         public InputStream wrap(InputStream inputStream) {
             return new XorInputStream(inputStream);
         }
-
     }
 
     private static class XorInputStream extends FilterInputStream {
@@ -788,7 +814,6 @@ public class ClientAndServerTest {
             }
             return read;
         }
-
     }
 
 }

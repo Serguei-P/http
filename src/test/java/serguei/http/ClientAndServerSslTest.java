@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLProtocolException;
@@ -300,6 +301,34 @@ public class ClientAndServerSslTest {
         assertTrue(server.getLatestConnectionContext().getTlsSessionId().length > 0);
         // no sessionId passed with ClientHello as SNIs were different
         assertFalse(server.getLatestConnectionContext().getRequestedTlsSessionId().length > 0);
+    }
+
+    @Test
+    public void shouldSendAndReceiveFromServerCountingBytes() throws Exception {
+        AtomicLong inputCounter = new AtomicLong();
+        AtomicLong outputCounter = new AtomicLong();
+        clientConnection.setInputStreamWrapperFactory((socket) -> new InputStreamCountingBytes(socket, inputCounter));
+        clientConnection.setOutputStreamWrapperFactory((socket) -> new OutputStreamCountingBytes(socket, outputCounter));
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        clientConnection.startHandshake();
+        HttpResponse response = clientConnection.send(headers, requestBody);
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertTrue(server.getLatestConnectionContext().isSsl());
+        assertNotNull(server.getLatestConnectionContext().getNegotiatedTlsProtocol());
+        assertTrue(server.getLatestConnectionContext().getNegotiatedCipher().length() > 0);
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertNull(response.getHeader("Content-Encoding"));
+        assertEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
+        assertFalse(response.isContentChunked());
+        assertEquals(responseBody, response.readBodyAsString());
+        // 5490 - body, 63 + 6 + 2 - headers
+        assertTrue("Was: " + outputCounter.get() + " should be more than plain data length", outputCounter.get() > 5561);
+        // 5490 - body, 35 + 4 + 2 - headers
+        assertTrue("Was: " + inputCounter.get() + " should be more than plain data length", inputCounter.get() > 5490);
     }
 
     private static String makeBody(String msg) {
