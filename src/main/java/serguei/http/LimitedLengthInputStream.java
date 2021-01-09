@@ -72,13 +72,13 @@ class LimitedLengthInputStream extends InputStream {
     }
 
     @Override
-    public void mark(int readlimit) {
+    public synchronized void mark(int readlimit) {
         inputStream.mark(readlimit);
         marked = totalRead;
     }
 
     @Override
-    public void reset() throws IOException {
+    public synchronized void reset() throws IOException {
         inputStream.reset();
         if (marked >= 0) {
             totalRead = marked;
