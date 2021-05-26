@@ -17,6 +17,7 @@ import java.util.Map.Entry;
  */
 abstract class HttpHeaders {
 
+    public static final long MAX_FILE_SIZE = -1;
     static final String LINE_SEPARATOR = "\r\n";
     static final byte[] LINE_SEPARATOR_BYTES = LINE_SEPARATOR.getBytes();
     protected static final byte[] SPACE = " ".getBytes();
@@ -25,6 +26,7 @@ abstract class HttpHeaders {
     private static final int MAX_HEADER_NUMBER = 1000;
     private static final int UPPER_LOW_DIFF = 'a' - 'A';
     private static final BodyEncoding NO_BODY_ENCODING = new BodyEncoding(false, null);
+    public static final String MAX_FILE_DOWNLOAD = "X-Max-File-Download";
 
     private final Map<String, HeaderValues> headers = new LinkedHashMap<>();
 
@@ -369,6 +371,13 @@ abstract class HttpHeaders {
         return null;
     }
 
+    long getAllowedContentLength() {
+        HeaderValues header = headers.get(MAX_FILE_DOWNLOAD);
+        if (header == null) {
+            return MAX_FILE_SIZE;
+        }
+        return Long.valueOf(header.getValue());
+    }
     BodyEncoding getBodyEncoding() {
         List<String> list = encodingData();
         if (list.size() == 0) {

@@ -19,7 +19,7 @@ public class HttpResponseTest {
         String responseData = "HTTP/1.1 200 OK\r\nContent-Length: " + bodyLen + "\r\n\r\n" + responseBody + "extra data";
         ByteArrayInputStream inputStream = new ByteArrayInputStream(responseData.getBytes());
 
-        HttpResponse response = new HttpResponse(inputStream);
+        HttpResponse response = new HttpResponse(inputStream, null);
 
         assertEquals(200, response.getStatusCode());
         assertEquals(responseBody, response.readBodyAsString());
@@ -31,7 +31,7 @@ public class HttpResponseTest {
         String responseData = "HTTP/1.1 204 OK\r\nContent-Length: 0\r\n\r\n";
         ByteArrayInputStream inputStream = new ByteArrayInputStream(responseData.getBytes());
 
-        HttpResponse response = new HttpResponse(inputStream);
+        HttpResponse response = new HttpResponse(inputStream, null);
 
         assertEquals(204, response.getStatusCode());
         assertEquals("", response.readBodyAsString());
@@ -42,7 +42,7 @@ public class HttpResponseTest {
     public void shouldReturnHeadersWhenPresent() throws IOException {
         String responseData = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nHeader1: test1\r\nHeader1: test2\r\n\r\n";
         ByteArrayInputStream inputStream = new ByteArrayInputStream(responseData.getBytes());
-        HttpResponse response = new HttpResponse(inputStream);
+        HttpResponse response = new HttpResponse(inputStream, null);
 
         List<String> headers = response.getHeaders("Header1");
 
@@ -53,7 +53,7 @@ public class HttpResponseTest {
     public void shouldReturnEmptyHeaderListWhenMissing() throws IOException {
         String responseData = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nHeader1: test1\r\nHeader1: test2\r\n\r\n";
         ByteArrayInputStream inputStream = new ByteArrayInputStream(responseData.getBytes());
-        HttpResponse response = new HttpResponse(inputStream);
+        HttpResponse response = new HttpResponse(inputStream, null);
 
         List<String> headers = response.getHeaders("Not-Present");
 
