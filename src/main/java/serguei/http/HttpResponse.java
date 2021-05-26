@@ -19,9 +19,15 @@ public class HttpResponse {
     private final long contentLength;
     private final boolean chunked;
 
-    public HttpResponse(InputStream inputStream) throws IOException {
+    public HttpResponse(InputStream inputStream, HttpRequestHeaders requestHeaders) throws IOException {
         this.headers = new HttpResponseHeaders(inputStream);
-        contentLength = headers.getContentLength();
+
+        if (requestHeaders != null && requestHeaders.getAllowedContentLength() != -1) {
+            this.contentLength = requestHeaders.getAllowedContentLength();
+        } else {
+            this.contentLength = headers.getContentLength();
+        }
+
         HttpHeaders.BodyEncoding bodyEncoding = headers.getBodyEncoding();
         chunked = contentLength < 0 && bodyEncoding.isChunked();
         body = new HttpBody(inputStream, contentLength, chunked, bodyEncoding.geEncoding(), true);

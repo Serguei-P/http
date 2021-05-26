@@ -108,7 +108,7 @@ public class HttpClientConnection implements Closeable {
         }
         outputStream.write(HttpHeaders.LINE_SEPARATOR_BYTES);
         outputStream.flush();
-        return new HttpResponse(inputStream);
+        return new HttpResponse(inputStream, null);
     }
 
     /**
@@ -213,7 +213,7 @@ public class HttpClientConnection implements Closeable {
             outputStream.write(body);
         }
         outputStream.flush();
-        return new HttpResponse(inputStream);
+        return new HttpResponse(inputStream, requestHeaders);
     }
 
     /**
@@ -272,7 +272,7 @@ public class HttpClientConnection implements Closeable {
             bodyStream.write(buffer, 0, read);
         }
         bodyStream.close();
-        return new HttpResponse(inputStream);
+        return new HttpResponse(inputStream, requestHeaders);
     }
 
     /**
@@ -288,7 +288,7 @@ public class HttpClientConnection implements Closeable {
         connectIfNecessary();
         outputStream.write(data);
         outputStream.flush();
-        return new HttpResponse(inputStream);
+        return new HttpResponse(inputStream, null);
     }
 
     /**

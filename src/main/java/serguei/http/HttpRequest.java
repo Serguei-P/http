@@ -31,8 +31,9 @@ public class HttpRequest {
         String method = headers.getMethod();
         if (!method.equals("GET") && !method.equals("CONNECT")) {
             HttpHeaders.BodyEncoding bodyEncoding = headers.getBodyEncoding();
-            contentLength = headers.getContentLength();
+            contentLength = requestHeaders.getAllowedContentLength() == -1 ? headers.getContentLength() : requestHeaders.getAllowedContentLength();
             chunked = contentLength < 0 && bodyEncoding.isChunked();
+
             body = new HttpBody(inputStream, contentLength, chunked, bodyEncoding.geEncoding(), false);
         } else {
             contentLength = 0;
