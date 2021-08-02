@@ -1,5 +1,6 @@
 package serguei.http;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
@@ -56,17 +57,25 @@ class HttpBody {
     }
 
     InputStream getBodyInputStream() throws IOException {
-        if (userFacingStream == null) {
-            userFacingStream = setupDecompressionIfRequired();
+        if (hasBody) {
+            if (userFacingStream == null) {
+                userFacingStream = setupDecompressionIfRequired();
+            }
+            return userFacingStream;
+        } else {
+            return new ByteArrayInputStream(new byte[0]);
         }
-        return userFacingStream;
     }
 
     InputStream getOriginalBodyInputStream() {
-        if (userFacingStream == null) {
-            userFacingStream = new UserFacingInputStream(bodyInputStream, null);
+        if (hasBody) {
+            if (userFacingStream == null) {
+                userFacingStream = new UserFacingInputStream(bodyInputStream, null);
+            }
+            return userFacingStream;
+        } else {
+            return new ByteArrayInputStream(new byte[0]);
         }
-        return userFacingStream;
     }
 
     void drain() throws IOException {
@@ -132,11 +141,11 @@ class HttpBody {
     }
 
     private UserFacingInputStream setupDecompressionIfRequired() throws IOException {
-        InputStream streamToDrainOfData = null;
-        InputStream stream = bodyInputStream;
+        InputStream streamToDrainOfData;
+        InputStream stream;
         if (encoding != null && encoding.equals("gzip")) {
             // GZIPInputStream returns -1 before all bytes from input stream read
-            stream = new MarkAndResetInputStream(stream);
+            stream = new MarkAndResetInputStream(bodyInputStream);
             stream.mark(0);
             // authors of some sites forget to actually gzip the body while adding a header
             if (isGzip(stream)) {
@@ -150,7 +159,7 @@ class HttpBody {
             }
         } else if (encoding != null && encoding.equals("deflate")) {
             // DeflateInputStream returns -1 before all bytes from input stream read
-            stream = new MarkAndResetInputStream(stream);
+            stream = new MarkAndResetInputStream(bodyInputStream);
             stream.mark(0);
             boolean wrapped = isDeflatedStreamWrapped(stream);
             stream.reset();
@@ -159,10 +168,11 @@ class HttpBody {
         } else {
             InputStreamWrapperFactory streamFactory = getNonstandardStreamFactory(encoding);
             if (streamFactory != null) {
-                streamToDrainOfData = stream;
-                stream = streamFactory.wrap(stream);
+                streamToDrainOfData = bodyInputStream;
+                stream = streamFactory.wrap(bodyInputStream);
             } else {
                 streamToDrainOfData = null;
+                stream = bodyInputStream;
             }
         }
         return new UserFacingInputStream(stream, streamToDrainOfData);

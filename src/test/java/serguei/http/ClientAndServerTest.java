@@ -116,8 +116,8 @@ public class ClientAndServerTest {
     @Test
     public void shouldSendAndReceiveDeflatedDataWrapped() throws Exception {
         byte[] body = Utils.readFully(getClass().getResourceAsStream("/wrap-deflated.data"));
-        HttpResponseHeaders responseHeaders = new HttpResponseHeaders("HTTP/1.1 200 OK", "Content-Length: " + body.length,
-                "Content-Encoding: deflate");
+        HttpResponseHeaders responseHeaders = new HttpResponseHeaders("HTTP/1.1 200 OK",
+                "Content-Length: " + body.length, "Content-Encoding: deflate");
         server.setResponse(responseHeaders, body);
         HttpRequestHeaders headers = new HttpRequestHeaders("GET / HTTP/1.1", "Host: localhost");
 
@@ -130,8 +130,8 @@ public class ClientAndServerTest {
     @Test
     public void shouldSendAndReceiveDeflatedDataNotWrapped() throws Exception {
         byte[] body = Utils.readFully(getClass().getResourceAsStream("/nowrap-deflated.data"));
-        HttpResponseHeaders responseHeaders = new HttpResponseHeaders("HTTP/1.1 200 OK", "Content-Length: " + body.length,
-                "Content-Encoding: deflate");
+        HttpResponseHeaders responseHeaders = new HttpResponseHeaders("HTTP/1.1 200 OK",
+                "Content-Length: " + body.length, "Content-Encoding: deflate");
         server.setResponse(responseHeaders, body);
         HttpRequestHeaders headers = new HttpRequestHeaders("GET / HTTP/1.1", "Host: localhost");
 
@@ -276,7 +276,8 @@ public class ClientAndServerTest {
         HttpResponseHeaders responseHeaders = HttpResponseHeaders.ok();
         responseHeaders.setHeader("Content-Encoding", "gzip");
         server.setResponse(responseHeaders, responseBody.getBytes(BODY_CHARSET));
-        HttpRequestHeaders requestHeaders = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost", "Content-Encoding: gzip");
+        HttpRequestHeaders requestHeaders = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost",
+                "Content-Encoding: gzip");
 
         HttpResponse response = clientConnection.send(requestHeaders, requestBody);
 
@@ -320,9 +321,10 @@ public class ClientAndServerTest {
         byte[] responseBytes = responseBody.getBytes(BODY_CHARSET);
         byte[] encodedBytes = new byte[responseBytes.length];
         for (int i = 0; i < responseBytes.length; i++) {
-            encodedBytes[i] = (byte)(responseBytes[i] ^ 0xFF);
+            encodedBytes[i] = (byte) (responseBytes[i] ^ 0xFF);
         }
-        HttpResponseHeaders headers = new HttpResponseHeaders("HTTP/1.1 200 OK", "Content-Encoding: " + contentEncoding);
+        HttpResponseHeaders headers = new HttpResponseHeaders("HTTP/1.1 200 OK",
+                "Content-Encoding: " + contentEncoding);
 
         HttpResponse response;
         String actualResponseBody;
@@ -701,7 +703,8 @@ public class ClientAndServerTest {
         AtomicLong inputCounter = new AtomicLong();
         AtomicLong outputCounter = new AtomicLong();
         clientConnection.setInputStreamWrapperFactory((socket) -> new InputStreamCountingBytes(socket, inputCounter));
-        clientConnection.setOutputStreamWrapperFactory((socket) -> new OutputStreamCountingBytes(socket, outputCounter));
+        clientConnection
+                .setOutputStreamWrapperFactory((socket) -> new OutputStreamCountingBytes(socket, outputCounter));
         long connectionsBefore = server.getConnectionsCreated();
         server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
@@ -720,6 +723,25 @@ public class ClientAndServerTest {
         assertEquals(5561, outputCounter.get());
         // 5490 - body, 35 + 4 + 2 - headers
         assertEquals(5531, inputCounter.get());
+    }
+
+    @Test
+    public void shouldProcessZeroLengthZippedResponse() throws Exception {
+        HttpResponseHeaders responseHeaders = new HttpResponseHeaders("HTTP/1.1 200 OK", "Content-Length: 0",
+                "Content-Encoding: gzip");
+        server.setResponse(responseHeaders, new byte[0]);
+        HttpRequestHeaders requestHeaders = new HttpRequestHeaders("GET / HTTP/1.1", "Host: localhost");
+
+        HttpResponse response = clientConnection.send(requestHeaders, "");
+
+        assertEquals("http://localhost/", server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals("", server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertEquals("gzip", response.getHeader("Content-Encoding"));
+        assertFalse(response.isContentChunked());
+        InputStream inputStream = response.getBodyAsStream();
+        int read = inputStream.read();
+        assertEquals(-1, read);
     }
 
     private static String makeBody(String msg) {
@@ -810,7 +832,7 @@ public class ClientAndServerTest {
         public int read(byte[] buffer, int off, int len) throws IOException {
             int read = super.read(buffer, off, len);
             for (int i = 0; i < read; i++) {
-                buffer[i + off] = (byte)(buffer[i + off] ^ 0xFF);
+                buffer[i + off] = (byte) (buffer[i + off] ^ 0xFF);
             }
             return read;
         }
