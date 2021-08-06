@@ -47,8 +47,9 @@ public class HttpServer {
     private final HttpServerRequestHandler requestHandler;
     private final Map<Long, SocketRunner> connections = new ConcurrentHashMap<>();
     private final int numberOfPorts;
-    private int timeoutMils;
-
+    private int timeoutMs;
+    private final int timeoutBetweenRequestsMs;
+    private final int timeoutDuringTlsHandshakeMs;
     private HttpServerOnRequestHeadersProcess onRequestHeadersHandler;
     private HttpServerOnConnectProcess onConnectHandler;
     private TlsVersion[] enabledTlsProtocols;
@@ -107,7 +108,9 @@ public class HttpServer {
             sslSocketAddress = null;
         }
         this.numberOfPorts = portNo;
-        this.timeoutMils = options.getTimeoutMs();
+        this.timeoutMs = options.getTimeoutMs();
+        this.timeoutBetweenRequestsMs = options.getTimeoutBetweenRequestsMs();
+        this.timeoutDuringTlsHandshakeMs = options.getTimeoutDuringTlsHandshakeMs();
         this.defaultKeyStore = options.getDefaultKeyStore();
         this.tcpNoDelay = options.isTcpNoDelay();
         this.needClientAuthentication = options.isNeedClientAuthentication();
@@ -591,7 +594,7 @@ public class HttpServer {
      * @param timeoutMils - timeout in milliseconds
      */
     public void setTimeoutMils(int timeoutMils) {
-        this.timeoutMils = timeoutMils;
+        this.timeoutMs = timeoutMils;
     }
 
     /**
@@ -740,6 +743,7 @@ public class HttpServer {
         private final boolean ssl;
         private ConnectionContext connectionContext;
         private Socket socket;
+        private int requestCount;
         private volatile boolean finished = false;
 
         public SocketRunner(Socket socket, boolean ssl) throws IOException {
@@ -757,8 +761,8 @@ public class HttpServer {
             SslConnection sslConnection;
             try {
                 socket.setTcpNoDelay(tcpNoDelay);
-                socket.setSoTimeout(timeoutMils);
                 if (ssl) {
+                    socket.setSoTimeout(timeoutDuringTlsHandshakeMs);
                     sslConnection = setupSsl(socket);
                     if (sslConnection == null) {
                         connections.remove(connNo);
@@ -788,9 +792,11 @@ public class HttpServer {
                 connectionContext = new ConnectionContext(socket,
                         sslConnection != null ? sslConnection.clientHello : null);
                 while (!finished) {
+                    setIdleTimeout();
                     HttpRequest request;
                     try {
                         HttpRequestHeaders requestHeaders = new HttpRequestHeaders(inputStream);
+                        setRequestTimeout();
                         if (onRequestHeadersHandler != null) {
                             if (!onRequestHeadersHandler.process(connectionContext, requestHeaders,
                                     postponedCloseOutputStream)) {
@@ -818,6 +824,7 @@ public class HttpServer {
                     } catch (IOException e) {
                         finished = true;
                     }
+                    requestCount++;
                 }
                 if (connectionContext.getCloseAction() == ConnectionContext.CloseAction.RESET) {
                     connectionContext.getSocket().setSoLinger(true, 0);
@@ -873,6 +880,20 @@ public class HttpServer {
             result.socket = sslSocket;
             result.clientHello = clientHello;
             return result;
+        }
+
+        private void setIdleTimeout() throws SocketException {
+            if (requestCount == 0) {
+                socket.setSoTimeout(timeoutMs);
+            } else if (timeoutMs != timeoutBetweenRequestsMs) {
+                socket.setSoTimeout(timeoutBetweenRequestsMs);
+            }
+        }
+
+        private void setRequestTimeout() throws SocketException {
+            if (requestCount > 0 && timeoutMs != timeoutBetweenRequestsMs) {
+                socket.setSoTimeout(timeoutMs);
+            }
         }
     }
 

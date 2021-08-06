@@ -1,6 +1,9 @@
 package serguei.http;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,6 +18,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.junit.After;
 import org.junit.Test;
 
 import serguei.http.utils.Utils;
@@ -29,13 +33,21 @@ public class HttpServerTest {
 
     private final AtomicInteger started = new AtomicInteger(0);
     private final AtomicInteger stopped = new AtomicInteger(0);
+    private HttpServer server;
+
+    @After
+    public void clearUp() {
+        if (server != null) {
+            server.stopNow();
+        }
+    }
 
     @Test(timeout = 60000)
     public void shouldStartAndStopServer() throws Exception {
         int requestNumber = 2;
         CountDownLatch latch = new CountDownLatch(requestNumber);
         RequestHandler requestHandler = new RequestHandler(latch, 1000);
-        HttpServer server = new HttpServer(requestHandler, PORT);
+        server = new HttpServer(requestHandler, PORT);
         @SuppressWarnings("unchecked")
         Future<HttpResponse>[] responses = new Future[requestNumber];
 
@@ -60,7 +72,7 @@ public class HttpServerTest {
         int requestNumber = 2;
         CountDownLatch latch = new CountDownLatch(requestNumber);
         RequestHandler requestHandler = new RequestHandler(latch, 1000);
-        HttpServer server = new HttpServer(requestHandler, PORT);
+        server = new HttpServer(requestHandler, PORT);
         @SuppressWarnings("unchecked")
         Future<HttpResponse>[] responses = new Future[requestNumber];
 
@@ -85,7 +97,7 @@ public class HttpServerTest {
         int requestNumber = 2;
         CountDownLatch latch = new CountDownLatch(requestNumber);
         RequestHandler requestHandler = new RequestHandler(latch, 1000);
-        HttpServer server = new HttpServer(requestHandler, PORT, SSL_PORT, keyStorePath(), "password", "test01");
+        server = new HttpServer(requestHandler, PORT, SSL_PORT, keyStorePath(), "password", "test01");
         @SuppressWarnings("unchecked")
         Future<HttpResponse>[] responses = new Future[requestNumber];
 
@@ -113,7 +125,7 @@ public class HttpServerTest {
         KeyStore keyStore = KeyStore.getInstance("JKS");
         InputStream inputStream = this.getClass().getResourceAsStream("/test.jks");
         keyStore.load(inputStream, "password".toCharArray());
-        HttpServer server = new HttpServer(requestHandler, PORT, SSL_PORT, keyStore, "test01");
+        server = new HttpServer(requestHandler, PORT, SSL_PORT, keyStore, "test01");
         @SuppressWarnings("unchecked")
         Future<HttpResponse>[] responses = new Future[requestNumber];
 
@@ -136,21 +148,18 @@ public class HttpServerTest {
     @Test(timeout = 60000)
     public void shouldCloseConnection() throws Exception {
         HttpServerRequestHandler requestHandler = new ClosingConnectionRequestHandler();
-        HttpServer server = new HttpServer(requestHandler, PORT);
-        try {
-            server.start();
-            try (HttpClientConnection connection = new HttpClientConnection("localhost", PORT)) {
-                HttpResponse response = connection.send(HttpRequestHeaders.getRequest("http://localhost:" + PORT + "/"));
-                assertEquals(200, response.getStatusCode());
-                try {
-                    response = connection.send(HttpRequestHeaders.getRequest("http://localhost:" + PORT + "/"));
-                    fail("Connection was not closed");
-                } catch (IOException e) {
-                    // should close connection coursing the exception
-                }
+        server = new HttpServer(requestHandler, PORT);
+        server.start();
+        try (HttpClientConnection connection = new HttpClientConnection("localhost", PORT)) {
+            HttpResponse response = connection.send(HttpRequestHeaders.getRequest("http://localhost:" + PORT + "/"));
+            assertEquals(200, response.getStatusCode());
+
+            try {
+                response = connection.send(HttpRequestHeaders.getRequest("http://localhost:" + PORT + "/"));
+                fail("Connection was not closed");
+            } catch (IOException e) {
+                // should close connection coursing the exception
             }
-        } finally {
-            server.stop();
         }
     }
 
@@ -158,33 +167,28 @@ public class HttpServerTest {
     public void shouldCloseAllConnections() throws Exception {
         int requestNumber = 2;
         CountDownLatch latch = new CountDownLatch(requestNumber);
-        HttpServer server = new HttpServer(new RequestHandler(latch, 0), PORT);
-        try {
-            server.start();
+        server = new HttpServer(new RequestHandler(latch, 0), PORT);
+        server.start();
 
-            for (int i = 0; i < requestNumber; i++) {
-                threadPool.execute(new SendDataAndWaitProcess());
-            }
-            latch.await();
-
-            assertEquals(requestNumber, server.getConnectionNo());
-            server.closeAllConnection();
-
-            long start = System.currentTimeMillis();
-            while (server.getConnectionNo() > 0 && System.currentTimeMillis() - start < 5000) {
-                Thread.sleep(100);
-            }
-            assertEquals(0, server.getConnectionNo());
-
-        } finally {
-            server.stop();
+        for (int i = 0; i < requestNumber; i++) {
+            threadPool.execute(new SendDataAndWaitProcess());
         }
+        latch.await();
+
+        assertEquals(requestNumber, server.getConnectionNo());
+        server.closeAllConnection();
+
+        long start = System.currentTimeMillis();
+        while (server.getConnectionNo() > 0 && System.currentTimeMillis() - start < 5000) {
+            Thread.sleep(100);
+        }
+        assertEquals(0, server.getConnectionNo());
     }
 
     @Test(timeout = 60000)
     public void shouldThrottleRead() throws Exception {
         SimpleRequestHandler requestHandler = new SimpleRequestHandler();
-        HttpServer server = new HttpServer(requestHandler, PORT);
+        server = new HttpServer(requestHandler, PORT);
         server.setThrottlingDelay(300);
         HttpClientConnection client = new HttpClientConnection("localhost", PORT);
         try {
@@ -202,7 +206,6 @@ public class HttpServerTest {
             assertTrue("Time was " + (end - start) + " which is shorter then expected 5 secs", end - start > 3000);
         } finally {
             client.close();
-            server.stop();
         }
     }
 
@@ -234,7 +237,7 @@ public class HttpServerTest {
     public void shouldCallOnConnect() throws Exception {
         TestOnConnectProcess onConnectProcess = new TestOnConnectProcess(true);
         SimpleRequestHandler requestHandler = new SimpleRequestHandler();
-        HttpServer server = new HttpServer(requestHandler, PORT);
+        server = new HttpServer(requestHandler, PORT);
         server.setOnConnectHandler(onConnectProcess);
         HttpClientConnection client = new HttpClientConnection("localhost", PORT);
         try {
@@ -250,7 +253,6 @@ public class HttpServerTest {
             assertEquals(1, onConnectProcess.callCount.get());
         } finally {
             client.close();
-            server.stop();
         }
     }
 
@@ -258,10 +260,9 @@ public class HttpServerTest {
     public void shouldCallOnConnectThatDisconnects() throws Exception {
         TestOnConnectProcess onConnectProcess = new TestOnConnectProcess(false);
         SimpleRequestHandler requestHandler = new SimpleRequestHandler();
-        HttpServer server = new HttpServer(requestHandler, PORT);
+        server = new HttpServer(requestHandler, PORT);
         server.setOnConnectHandler(onConnectProcess);
-        HttpClientConnection client = new HttpClientConnection("localhost", PORT);
-        try {
+        try (HttpClientConnection client = new HttpClientConnection("localhost", PORT)) {
             server.start();
             byte[] body = Utils.buildDataArray(10000);
             byte[] headers = ("POST / HTTP/1.1\r\nHost: www.fitltd.com\r\nContent-Length: " + body.length + "\r\n\r\n")
@@ -272,9 +273,6 @@ public class HttpServerTest {
             fail("Expected exception");
         } catch (IOException e) {
             assertEquals(1, onConnectProcess.callCount.get());
-        } finally {
-            client.close();
-            server.stop();
         }
     }
 
@@ -283,11 +281,10 @@ public class HttpServerTest {
         String sni = "www.test.com";
         TestOnConnectProcess onConnectProcess = new TestOnConnectProcess(true);
         SimpleRequestHandler requestHandler = new SimpleRequestHandler();
-        HttpServer server = new HttpServer(requestHandler, PORT, SSL_PORT, keyStorePath(), "password", "test01");
+        server = new HttpServer(requestHandler, PORT, SSL_PORT, keyStorePath(), "password", "test01");
         server.setOnConnectHandler(onConnectProcess);
-        HttpClientConnection client = new HttpClientConnection("localhost", SSL_PORT);
-        try {
-            server.start();
+        server.start();
+        try (HttpClientConnection client = new HttpClientConnection("localhost", SSL_PORT)) {
             byte[] body = Utils.buildDataArray(10000);
             byte[] headers = ("POST / HTTP/1.1\r\nHost: www.fitltd.com\r\nContent-Length: " + body.length + "\r\n\r\n")
                     .getBytes("ASCII");
@@ -299,9 +296,31 @@ public class HttpServerTest {
             assertArrayEquals(body, requestHandler.getLatestRequestBody());
             assertEquals(1, onConnectProcess.callCount.get());
             assertEquals(sni, onConnectProcess.latestClientHello.getSniHostName());
-        } finally {
-            client.close();
-            server.stop();
+        }
+    }
+
+    @Test(timeout = 60000)
+    public void shouldSetShortTimeout() throws Exception {
+        HttpServerRequestHandler requestHandler = new SimpleRequestHandler();
+        ServerOptions options = new ServerOptions();
+        options.setTimeoutMs(200);
+        options.setTimeoutBetweenRequestsMs(2000);
+        options.setPort(PORT);
+        server = new HttpServer(requestHandler, options);
+        server.start();
+
+        try (HttpClientConnection client = new HttpClientConnection("localhost", PORT)) {
+            byte[] body = Utils.buildDataArray(10000);
+            byte[] headers = ("POST / HTTP/1.1\r\nHost: www.fitltd.com\r\nContent-Length: " + body.length + "\r\n\r\n")
+                    .getBytes("ASCII");
+            try {
+                client.connect();
+                Thread.sleep(300);
+                client.send(Utils.concat(headers, body));
+                fail("Exception expected");
+            } catch (IOException e) {
+                // expected due to connection timeout on server side
+            }
         }
     }
 
@@ -348,7 +367,6 @@ public class HttpServerTest {
             HttpResponseHeaders.ok().write(outputStream);
             connectionContext.closeConnection();
         }
-
     }
 
     private class SimpleRequestHandler implements HttpServerRequestHandler {
@@ -365,7 +383,6 @@ public class HttpServerTest {
         public byte[] getLatestRequestBody() {
             return requestBody;
         }
-
     }
 
     private class SendDataAndWaitProcess implements Runnable {
@@ -407,7 +424,8 @@ public class HttpServerTest {
         public HttpResponse call() {
             try (HttpClientConnection connection = new HttpClientConnection("localhost", SSL_PORT)) {
                 connection.startHandshake();
-                return connection.send(HttpRequestHeaders.postRequest("http://localhost:" + SSL_PORT + "/"), REQUEST_BODY);
+                return connection.send(HttpRequestHeaders.postRequest("http://localhost:" + SSL_PORT + "/"),
+                        REQUEST_BODY);
             } catch (IOException e) {
                 // we don't want to miss stack trace when things go wrong
                 e.printStackTrace();
@@ -470,7 +488,5 @@ public class HttpServerTest {
             callCount.incrementAndGet();
             return resultToReturn;
         }
-
     }
-
 }
