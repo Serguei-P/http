@@ -1,6 +1,8 @@
 package serguei.http;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 
@@ -23,7 +25,7 @@ public class HttpClientConnectionTest {
 
     @Test
     public void testHttp() throws Exception {
-        String hostName = "www.fitltd.com";
+        String hostName = "http.badssl.com";
         connection = new HttpClientConnection(hostName, 80);
 
         HttpRequestHeaders request = HttpRequestHeaders.getRequest("http://" + hostName + "/");
@@ -38,7 +40,7 @@ public class HttpClientConnectionTest {
 
     @Test
     public void testHttpWithGzip() throws Exception {
-        String hostName = "www.fitltd.com";
+        String hostName = "http.badssl.com";
         connection = new HttpClientConnection(hostName, 80);
 
         HttpRequestHeaders request = HttpRequestHeaders.getRequest("http://" + hostName + "/");
