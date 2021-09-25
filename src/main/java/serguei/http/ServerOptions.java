@@ -142,8 +142,8 @@ public class ServerOptions {
      * connection in the pool without any activity on it, i.e. while the connection
      * is idle).
      * 
-     * @param ttimeoutBetweenRequestsMs - timeout in milliseconds, default 60,000ms
-     *                                  = 1min
+     * @param timeoutBetweenRequestsMs - timeout in milliseconds, default 60,000ms =
+     *                                 1min
      * @return this
      */
     public ServerOptions setTimeoutBetweenRequestsMs(int timeoutBetweenRequestsMs) {
