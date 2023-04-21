@@ -255,6 +255,53 @@ public class HttpClientConnection implements Closeable {
      */
     public HttpResponse send(HttpRequestHeaders requestHeaders, InputStream body, BodyCompression compression)
             throws IOException {
+        ActiveRequestWithWritableBody activeRequest = startRequest(requestHeaders, compression);
+        byte[] buffer = new byte[BUFFER_SIZE];
+        int read;
+        while ((read = body.read(buffer)) != -1) {
+            activeRequest.write(buffer, 0, read);
+        }
+        return activeRequest.readResponse();
+    }
+
+
+    /**
+     * This starts a request with a request body to be written and waits for a response.
+     * It will create a connection if necessary.
+     *
+     * The body will be written using chunked transfer encoding as it is written into the returned instance of
+     * ActiveRequestWithWritableBody.
+     *
+     * This adds "Transfer-Encoding: chunked" header.
+     *
+     * @param requestHeaders
+     *            - request headers that will be sent to the server
+     * @return an instance of ActiveRequestWithWritableBody that can be used to finish the request processing
+     * @throws IOException
+     */
+    public ActiveRequestWithWritableBody startRequest(HttpRequestHeaders requestHeaders) throws IOException {
+        return startRequest(requestHeaders, BodyCompression.NONE);
+    }
+
+    /**
+     * This starts a request with a request body to be written and waits for a response.
+     * It will create a connection if necessary.
+     *
+     * The body will be written using chunked transfer encoding as it is written into the returned instance of
+     * ActiveRequestWithWritableBody.
+     *
+     * This adds "Transfer-Encoding: chunked" header and, if compression is specified, "Content-Encoding" header to
+     * requestHeaders before sending the request.
+     *
+     * @param requestHeaders
+     *            - request headers that will be sent to the server
+     * @param compression
+     *            - specifies if body needs to be compressed
+     * @return an instance of ActiveRequestWithWritableBody that can be used to finish the request processing
+     * @throws IOException
+     */
+    public ActiveRequestWithWritableBody startRequest(HttpRequestHeaders requestHeaders, BodyCompression compression)
+            throws IOException {
         connectIfNecessary();
         OutputStream bodyStream = new ChunkedOutputStream(outputStream, true);
         if (compression == BodyCompression.GZIP) {
@@ -266,13 +313,7 @@ public class HttpClientConnection implements Closeable {
         }
         requestHeaders.setHeader("Transfer-Encoding", "chunked");
         requestHeaders.write(outputStream);
-        byte[] buffer = new byte[BUFFER_SIZE];
-        int read;
-        while ((read = body.read(buffer)) != -1) {
-            bodyStream.write(buffer, 0, read);
-        }
-        bodyStream.close();
-        return new HttpResponse(inputStream);
+        return new ActiveRequestWithWritableBody(bodyStream, inputStream);
     }
 
     /**

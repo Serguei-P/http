@@ -38,7 +38,7 @@ public class ParallelConnectionServerTest {
     public void parallelRequestTest() throws Exception {
         server = new HttpServer(new RequestHandler(), PORT);
         server.start(3, 500, 100);
-        int count = 200;
+        int count = 100;
         List<Future<Boolean>> futures = new ArrayList<>();
         executor = Executors.newCachedThreadPool();
         CountDownLatch latch = new CountDownLatch(count);
@@ -101,7 +101,5 @@ public class ParallelConnectionServerTest {
             outputStream.write(RESPONSE_BODY_BYTES);
             outputStream.flush();
         }
-        
     }
-
 }

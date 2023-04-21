@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.SocketTimeoutException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -742,6 +743,27 @@ public class ClientAndServerTest {
         InputStream inputStream = response.getBodyAsStream();
         int read = inputStream.read();
         assertEquals(-1, read);
+    }
+
+    @Test
+    public void shouldStartRequestAndThenWriteBody() throws Exception {
+        long connectionsBefore = server.getConnectionsCreated();
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        ActiveRequestWithWritableBody request = clientConnection.startRequest(headers);
+        request.write(requestBody.getBytes(StandardCharsets.UTF_8),0, requestBody.length());
+        request.write(requestBody.getBytes(StandardCharsets.UTF_8),0, requestBody.length());
+        HttpResponse response = request.readResponse();
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals(requestBody + requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertNull(response.getHeader("Content-Encoding"));
+        assertEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
+        assertFalse(response.isContentChunked());
+        assertEquals(responseBody, response.readBodyAsString());
+        assertEquals(1, server.getConnectionsCreated() - connectionsBefore);
     }
 
     private static String makeBody(String msg) {
