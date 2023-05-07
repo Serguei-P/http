@@ -752,8 +752,31 @@ public class ClientAndServerTest {
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
 
         ActiveRequestWithWritableBody request = clientConnection.startRequest(headers);
+        int halfBuffer = requestBody.length() / 2;
+        request.write(requestBody.getBytes(StandardCharsets.UTF_8),0, halfBuffer);
+        request.write(requestBody.getBytes(StandardCharsets.UTF_8), halfBuffer, requestBody.length() - halfBuffer);
         request.write(requestBody.getBytes(StandardCharsets.UTF_8),0, requestBody.length());
-        request.write(requestBody.getBytes(StandardCharsets.UTF_8),0, requestBody.length());
+        HttpResponse response = request.readResponse();
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals(requestBody + requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertNull(response.getHeader("Content-Encoding"));
+        assertEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
+        assertFalse(response.isContentChunked());
+        assertEquals(responseBody, response.readBodyAsString());
+        assertEquals(1, server.getConnectionsCreated() - connectionsBefore);
+    }
+
+    @Test
+    public void shouldStartRequestAndThenWriteBodyFullBuffers() throws Exception {
+        long connectionsBefore = server.getConnectionsCreated();
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+
+        ActiveRequestWithWritableBody request = clientConnection.startRequest(headers);
+        request.write(requestBody.getBytes(StandardCharsets.UTF_8));
+        request.write(requestBody.getBytes(StandardCharsets.UTF_8));
         HttpResponse response = request.readResponse();
 
         assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
