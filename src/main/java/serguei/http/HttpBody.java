@@ -24,8 +24,7 @@ class HttpBody {
     private final String encoding;
     private InputStream userFacingStream;
 
-    HttpBody(InputStream inputStream, long contentLength, boolean chunked, String encoding, boolean allowUnknownBodyLength)
-            throws IOException {
+    HttpBody(InputStream inputStream, long contentLength, boolean chunked, String encoding, boolean allowUnknownBodyLength) {
         this.encoding = encoding;
         this.hasBody = contentLength > 0 || chunked || (allowUnknownBodyLength && contentLength < 0);
         if (chunked) {

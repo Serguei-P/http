@@ -13,10 +13,12 @@ public class ActiveRequestWithWritableBody {
 
     private final OutputStream bodyStream;
     private final InputStream inputStream;
+    private final String httpMethod;
 
-    ActiveRequestWithWritableBody(OutputStream bodyStream, InputStream inputStream) {
+    ActiveRequestWithWritableBody(OutputStream bodyStream, InputStream inputStream, String httpMethod) {
         this.bodyStream = bodyStream;
         this.inputStream = inputStream;
+        this.httpMethod = httpMethod;
     }
 
     /**
@@ -46,6 +48,6 @@ public class ActiveRequestWithWritableBody {
      */
     public HttpResponse readResponse() throws IOException {
         bodyStream.close();
-        return new HttpResponse(inputStream);
+        return new HttpResponse(inputStream, httpMethod);
     }
 }

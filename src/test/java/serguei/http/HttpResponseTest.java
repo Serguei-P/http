@@ -60,4 +60,15 @@ public class HttpResponseTest {
         assertEquals(Collections.emptyList(), headers);
     }
 
+    @Test
+    public void shouldProcessResponseForHead() throws IOException {
+        String responseData = "HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n";
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(responseData.getBytes());
+
+        HttpResponse response = new HttpResponse(inputStream, "HEAD");
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals("", response.readBodyAsString());
+        assertFalse(response.hasBody());
+    }
 }

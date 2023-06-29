@@ -789,6 +789,47 @@ public class ClientAndServerTest {
         assertEquals(1, server.getConnectionsCreated() - connectionsBefore);
     }
 
+    @Test
+    public void shouldSendAndReceiveHeadRequest() throws Exception {
+        String requestLine = "HEAD " + PATH + " HTTP/1.1";
+        long connectionsBefore = server.getConnectionsCreated();
+        server.setResponse(new HttpResponseHeaders("HTTP/1.1 200 OK", "Content-Length: 2000"), new byte[0]);
+        HttpRequestHeaders headers = new HttpRequestHeaders(requestLine, "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers);
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals("", server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertEquals(null, response.getHeader("Content-Encoding"));
+        assertEquals("2000", response.getHeader("Content-Length"));
+        assertEquals(0, response.readBodyAsBytes().length);
+        assertEquals("", response.readBodyAsString());
+        assertFalse(response.isContentChunked());
+        assertEquals(1, server.getConnectionsCreated() - connectionsBefore);
+    }
+
+    @Test
+    public void shouldSendAndReceiveHeadRequestAndGzip() throws Exception {
+        String requestLine = "HEAD " + PATH + " HTTP/1.1";
+        long connectionsBefore = server.getConnectionsCreated();
+        server.setResponse(new HttpResponseHeaders("HTTP/1.1 200 OK", "Content-Length: 2000", "Content-Encoding: gzip"), new byte[0]);
+        HttpRequestHeaders headers = new HttpRequestHeaders(requestLine, "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers);
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals("", server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertEquals("gzip", response.getHeader("Content-Encoding"));
+        assertEquals("2000", response.getHeader("Content-Length"));
+        assertEquals(0, response.readBodyAsBytes().length);
+        assertEquals("", response.readBodyAsString());
+        assertFalse(response.isContentChunked());
+        assertEquals(1, server.getConnectionsCreated() - connectionsBefore);
+    }
+
+
     private static String makeBody(String msg) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < 200; i++) {

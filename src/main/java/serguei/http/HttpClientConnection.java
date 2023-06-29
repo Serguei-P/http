@@ -100,6 +100,7 @@ public class HttpClientConnection implements Closeable {
      */
     public HttpResponse sendRequest(String requestLine, String... headers) throws IOException {
         connectIfNecessary();
+        String httpMethod = HttpRequestHeaders.getMethodFromRequestLine(requestLine);
         outputStream.write(requestLine.getBytes());
         outputStream.write(HttpHeaders.LINE_SEPARATOR_BYTES);
         for (String line : headers) {
@@ -108,7 +109,7 @@ public class HttpClientConnection implements Closeable {
         }
         outputStream.write(HttpHeaders.LINE_SEPARATOR_BYTES);
         outputStream.flush();
-        return new HttpResponse(inputStream);
+        return new HttpResponse(inputStream, httpMethod);
     }
 
     /**
@@ -213,7 +214,7 @@ public class HttpClientConnection implements Closeable {
             outputStream.write(body);
         }
         outputStream.flush();
-        return new HttpResponse(inputStream);
+        return new HttpResponse(inputStream, requestHeaders.getMethod());
     }
 
     /**
@@ -313,7 +314,7 @@ public class HttpClientConnection implements Closeable {
         }
         requestHeaders.setHeader("Transfer-Encoding", "chunked");
         requestHeaders.write(outputStream);
-        return new ActiveRequestWithWritableBody(bodyStream, inputStream);
+        return new ActiveRequestWithWritableBody(bodyStream, inputStream, requestHeaders.getMethod());
     }
 
     /**
@@ -326,10 +327,11 @@ public class HttpClientConnection implements Closeable {
      * @throws IOException
      */
     public HttpResponse send(byte[] data) throws IOException {
+        String httpMethod = HttpRequestHeaders.getMethodFromRequest(data);
         connectIfNecessary();
         outputStream.write(data);
         outputStream.flush();
-        return new HttpResponse(inputStream);
+        return new HttpResponse(inputStream, httpMethod);
     }
 
     /**

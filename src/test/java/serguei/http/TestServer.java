@@ -63,7 +63,7 @@ public class TestServer extends HttpServer {
                 throw new RuntimeException("Error compressing body", e);
             }
             responseBody = output.toByteArray();
-            headers.setHeader("Content-Length", Integer.toString(responseBody.length));
+            addContentLengthIfAbsent(headers, responseBody.length);
             headers.setHeader("Content-Encoding", "gzip");
         } else if (compression == BodyCompression.DEFLATE) {
             ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -76,11 +76,11 @@ public class TestServer extends HttpServer {
                 throw new RuntimeException("Error compressing body", e);
             }
             responseBody = output.toByteArray();
-            headers.setHeader("Content-Length", Integer.toString(responseBody.length));
+            addContentLengthIfAbsent(headers, responseBody.length);
             headers.setHeader("Content-Encoding", "deflate");
         } else {
             responseBody = body;
-            headers.setHeader("Content-Length", Integer.toString(body.length));
+            addContentLengthIfAbsent(headers, body.length);
         }
         requestHandler.setResponse(new Response(headers, responseBody));
     }
@@ -153,6 +153,12 @@ public class TestServer extends HttpServer {
             // should not happen
             e.printStackTrace();
             return null;
+        }
+    }
+
+    private void addContentLengthIfAbsent(HttpResponseHeaders headers, int value) {
+        if (headers.getHeader("Content-Length") == null) {
+            headers.setHeader("Content-Length", Integer.toString(value));
         }
     }
 

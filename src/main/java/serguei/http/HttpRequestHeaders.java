@@ -6,6 +6,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 /**
  * This represents request headers - combination of the the request line and the following headers as specified in
@@ -140,10 +142,27 @@ public final class HttpRequestHeaders extends HttpHeaders {
         return method + " " + path + " " + version + System.lineSeparator() + super.toString();
     }
 
-    private void parseRequestLine(String commandLine) throws HttpException {
-        String[] parts = commandLine.split(" ");
+    static String getMethodFromRequestLine(String requestLine) {
+        int pos = 0;
+        while (pos <= requestLine.length() && requestLine.charAt(pos) != ' ') {
+            pos++;
+        }
+        return requestLine.substring(0, pos);
+    }
+
+    static String getMethodFromRequest(byte[] data) {
+        int pos = 0;
+        while (pos <= data.length && data[pos] != ' ') {
+            pos++;
+        }
+        return new String(Arrays.copyOf(data, pos), StandardCharsets.UTF_8);
+
+    }
+
+    private void parseRequestLine(String requestLine) throws HttpException {
+        String[] parts = requestLine.split(" ");
         if (parts.length != 3) {
-            throw new HttpException("Wrong number of elements in command line: " + commandLine);
+            throw new HttpException("Wrong number of elements in command line: " + requestLine);
         }
         method = parts[0];
         path = parts[1];
