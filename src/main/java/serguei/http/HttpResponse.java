@@ -1,6 +1,5 @@
 package serguei.http;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
@@ -15,6 +14,7 @@ import java.util.List;
  */
 public class HttpResponse {
 
+    private static final HttpBody EMPTY_BODY = new HttpBody(new EmptyInputStream(), 0, false, null, false);
     private final HttpResponseHeaders headers;
     private final HttpBody body;
     private final long contentLength;
@@ -30,7 +30,7 @@ public class HttpResponse {
         HttpHeaders.BodyEncoding bodyEncoding = headers.getBodyEncoding();
         chunked = contentLength < 0 && bodyEncoding.isChunked();
         if (httpRequestMethod != null && httpRequestMethod.equals("HEAD")) {
-            body = new HttpBody(new ByteArrayInputStream(new byte[0]), 0, false, "", false);
+            body = EMPTY_BODY;
         } else {
             body = new HttpBody(inputStream, contentLength, chunked, bodyEncoding.geEncoding(), true);
         }

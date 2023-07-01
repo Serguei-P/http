@@ -89,7 +89,7 @@ public class HostnameChecker {
         return false;
     }
 
-    private boolean verifyAgainstSubject(String host, String cn) throws SSLException {
+    private boolean verifyAgainstSubject(String host, String cn) {
         String normalizedHost = host.toLowerCase();
         String normalizedCn = cn.toLowerCase();
         return matchHost(normalizedHost, normalizedCn);

@@ -57,6 +57,4 @@ public class Http {
     static int getMaxHeaderLen() {
         return maxHeaderLen;
     }
-
-
 }
