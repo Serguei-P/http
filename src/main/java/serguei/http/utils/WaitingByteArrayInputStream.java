@@ -54,5 +54,4 @@ public class WaitingByteArrayInputStream extends ByteArrayInputStream {
         count = buf.length;
         this.notifyAll();
     }
-
 }

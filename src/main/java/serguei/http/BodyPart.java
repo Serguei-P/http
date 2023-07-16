@@ -1,7 +1,5 @@
 package serguei.http;
 
-import java.io.UnsupportedEncodingException;
-
 public class BodyPart {
 
     private final HttpHeaders headers;
@@ -29,12 +27,6 @@ public class BodyPart {
     }
 
     public String getContentAsString() {
-        try {
-            return new String(body, HttpBody.BODY_CODEPAGE);
-        } catch (UnsupportedEncodingException e) {
-            // should not happen
-            throw new RuntimeException("Encoding error, " + HttpBody.BODY_CODEPAGE, e);
-        }
+        return new String(body, HttpBody.BODY_CHARSET);
     }
-
 }

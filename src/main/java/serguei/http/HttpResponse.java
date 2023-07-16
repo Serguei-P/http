@@ -1,5 +1,7 @@
 package serguei.http;
 
+import serguei.http.utils.EmptyInputStream;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;

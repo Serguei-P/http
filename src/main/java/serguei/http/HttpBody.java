@@ -5,7 +5,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
@@ -15,7 +16,8 @@ import serguei.http.utils.Utils;
 
 class HttpBody {
 
-    static final String BODY_CODEPAGE = "UTF-8";
+    static final Charset BODY_CHARSET = StandardCharsets.UTF_8;
+    static final String BODY_CODEPAGE = BODY_CHARSET.name();
     private static final int BUFFER_SIZE = 1024 * 4;
 
     private final InputStream bodyInputStream;
@@ -44,7 +46,7 @@ class HttpBody {
 
     String readAsString() throws IOException {
         byte[] buffer = readAsBytes();
-        return new String(buffer, BODY_CODEPAGE);
+        return new String(buffer, BODY_CHARSET);
     }
 
     byte[] readAsBytes() throws IOException {
@@ -92,19 +94,11 @@ class HttpBody {
     }
 
     static byte[] stringAsBytes(String value) {
-        try {
-            return value.getBytes(BODY_CODEPAGE);
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException("charset " + BODY_CODEPAGE + " is not supported", e);
-        }
+        return value.getBytes(BODY_CHARSET);
     }
 
     static String bytesAsString(byte[] value) {
-        try {
-            return new String(value, BODY_CODEPAGE);
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException("charset " + BODY_CODEPAGE + " is not supported", e);
-        }
+        return new String(value, BODY_CHARSET);
     }
 
     private byte[] readStream(InputStream stream) throws IOException {
@@ -187,5 +181,4 @@ class HttpBody {
         int info = b1 >> 4 & 0xF;
         return method == 8 && info <= 7 && (b1 << 8 | b2) % 31 == 0;
     }
-
 }

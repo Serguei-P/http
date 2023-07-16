@@ -159,7 +159,7 @@ public class HttpClientConnection implements Closeable {
     public HttpResponse send(HttpRequestHeaders requestHeaders, String body, BodyCompression compression) throws IOException {
         byte[] bodyAsBytes;
         if (body != null) {
-            bodyAsBytes = body.getBytes(HttpBody.BODY_CODEPAGE);
+            bodyAsBytes = body.getBytes(HttpBody.BODY_CHARSET);
         } else {
             bodyAsBytes = null;
         }

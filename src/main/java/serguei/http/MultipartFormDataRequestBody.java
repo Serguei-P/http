@@ -1,16 +1,22 @@
 package serguei.http;
 
-import java.io.UnsupportedEncodingException;
+import serguei.http.utils.InputStreamProvider;
+import serguei.http.utils.MultipartInputStream;
+import serguei.http.utils.Utils;
+
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import static serguei.http.HttpBody.BODY_CHARSET;
+
 public class MultipartFormDataRequestBody {
 
-    private final byte[] END = "--".getBytes();
+    private static final byte[] END = ("--" + HttpHeaders.LINE_SEPARATOR).getBytes(BODY_CHARSET) ;
 
     private final byte[] border;
 
-    private final List<byte[]> dataList = new ArrayList<>();
+    private final List<InputStreamHolder> dataList = new ArrayList<>();
 
     public MultipartFormDataRequestBody(String border) {
         this.border = ("--" + border).getBytes();
@@ -25,37 +31,49 @@ public class MultipartFormDataRequestBody {
     }
 
     public void add(String data, String name, String fileName, String contentType) {
-        try {
-            add(data.getBytes(HttpBody.BODY_CODEPAGE), name, fileName, contentType);
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException("String to bytes conversion error", e);
-        }
+        add(data.getBytes(BODY_CHARSET), name, fileName, contentType);
     }
 
     public void add(byte[] data, String name, String fileName, String contentType) {
-        dataList.add(this.border);
-        dataList.add(HttpHeaders.LINE_SEPARATOR_BYTES);
-        dataList.add(buildHeaders(name, fileName, contentType));
-        dataList.add(data);
-        dataList.add(HttpHeaders.LINE_SEPARATOR_BYTES);
+        add(new InputStreamHolder(data), name, fileName, contentType);
     }
 
-    public byte[] getBody() {
+    public void add(InputStreamProvider inputStreamProvider, String name, String fileName, String contentType) {
+        add(new InputStreamHolder(inputStreamProvider), name, fileName, contentType);
+    }
+
+    private void add(InputStreamHolder inputStreamHolder, String name, String fileName, String contentType) {
+        dataList.add(new InputStreamHolder(this.border));
+        dataList.add(new InputStreamHolder(HttpHeaders.LINE_SEPARATOR_BYTES));
+        dataList.add(new InputStreamHolder(buildHeaders(name, fileName, contentType)));
+        dataList.add(inputStreamHolder);
+        dataList.add(new InputStreamHolder(HttpHeaders.LINE_SEPARATOR_BYTES));
+    }
+
+    public byte[] getBody() throws IOException {
         int len = 0;
-        for (byte[] data : dataList) {
-            len += data.length;
+        for (InputStreamHolder data : dataList) {
+            len += data.getData().length;
         }
         len += border.length;
         len += END.length;
-        len += HttpHeaders.LINE_SEPARATOR_BYTES.length;
         ResultBuilder result = new ResultBuilder(len);
-        for (byte[] data : dataList) {
-            result.add(data);
+        for (InputStreamHolder data : dataList) {
+            result.add(data.getData());
         }
         result.add(border);
         result.add(END);
-        result.add(HttpHeaders.LINE_SEPARATOR_BYTES);
         return result.result;
+    }
+
+    public InputStream getBodyAsStream() throws IOException {
+        List<InputStreamProvider> streams = new ArrayList<>(dataList.size() + 1);
+        for (InputStreamHolder data : dataList) {
+            streams.add(data.getInputStreamProvider());
+        }
+        streams.add(() -> new ByteArrayInputStream(border));
+        streams.add(() -> new ByteArrayInputStream(END));
+        return new MultipartInputStream(streams);
     }
 
     private byte[] buildHeaders(String name, String fileName, String contentType) {
@@ -74,7 +92,7 @@ public class MultipartFormDataRequestBody {
             builder.append(HttpHeaders.LINE_SEPARATOR);
         }
         builder.append(HttpHeaders.LINE_SEPARATOR);
-        return builder.toString().getBytes();
+        return builder.toString().getBytes(BODY_CHARSET);
     }
 
     private static class ResultBuilder {
@@ -89,6 +107,37 @@ public class MultipartFormDataRequestBody {
         private void add(byte[] data) {
             System.arraycopy(data, 0, result, pos, data.length);
             pos += data.length;
+        }
+    }
+
+    private static class InputStreamHolder {
+
+        private InputStreamProvider inputStreamProvider;
+        private byte[] data;
+
+        private InputStreamHolder(InputStreamProvider inputStreamProvider) {
+            this.inputStreamProvider = inputStreamProvider;
+        }
+
+        private InputStreamHolder(byte[] data) {
+            this.data = data;
+        }
+
+        public byte[] getData() throws IOException {
+            if (data == null) {
+                try (InputStream inputStream = inputStreamProvider.getStream()) {
+                    data = Utils.toByteArray(inputStream);
+                }
+            }
+            return data;
+        }
+
+        public InputStreamProvider getInputStreamProvider() {
+            if (inputStreamProvider != null) {
+                return inputStreamProvider;
+            } else {
+                return () -> new ByteArrayInputStream(data);
+            }
         }
     }
 }
