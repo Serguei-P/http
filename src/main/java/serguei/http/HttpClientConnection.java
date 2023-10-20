@@ -4,34 +4,20 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
-import java.security.KeyManagementException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
 
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.TrustManagerFactory;
-import javax.net.ssl.X509TrustManager;
 
 import serguei.http.utils.Utils;
 
@@ -45,16 +31,13 @@ public class HttpClientConnection implements Closeable {
 
     private static final int BUFFER_SIZE = 8192;
 
-    private static SSLContext noHostValidatingContext;
-    private static SSLContext hostValidatingContext;
-
     private final InetSocketAddress serverAddress;
     private Socket socket;
     private InputStream inputStream;
     private OutputStream outputStream;
     private InputStreamWrapperFactory inputStreamWrapperFactory;
     private OutputStreamWrapperFactory outputStreamWrapperFactory;
-    private X509Certificate[] tlsCertificates;
+    private ClientSslContext clientSslContext;
     private TlsVersion[] enabledTlsProtocols;
     private String[] enabledCipherSuites;
     private TlsVersion negotiatedTlsProtocol;
@@ -364,7 +347,7 @@ public class HttpClientConnection implements Closeable {
      * @throws IOException
      */
     public void startHandshake() throws IOException {
-        startHandshake(serverAddress.getHostString(), getNoHostValidatingContext(), false);
+        startHandshake(serverAddress.getHostString(), ClientSslContextFactory.getNoHostValidatingContext(), false);
     }
 
     /**
@@ -377,7 +360,7 @@ public class HttpClientConnection implements Closeable {
      * @throws IOException
      */
     public void startHandshake(String hostName) throws IOException {
-        startHandshake(hostName, getNoHostValidatingContext(), false);
+        startHandshake(hostName, ClientSslContextFactory.getNoHostValidatingContext(), false);
     }
 
     /**
@@ -397,7 +380,8 @@ public class HttpClientConnection implements Closeable {
      */
     public void startHandshakeWithClientAuth(String hostName, String keyStorePath, String keyStorePassword,
             String certificatePassword) throws IOException {
-        SSLContext sslContext = createSslContext(false, keyStorePath, keyStorePassword, certificatePassword);
+        ClientSslContext sslContext = ClientSslContextFactory.createClientAuthenticatingSslContext(false, keyStorePath,
+                keyStorePassword, certificatePassword);
         startHandshake(hostName, sslContext, false);
     }
 
@@ -410,20 +394,34 @@ public class HttpClientConnection implements Closeable {
      * @throws IOException
      */
     public void startHandshakeAndValidate() throws IOException {
-        startHandshake(serverAddress.getHostString(), getHostValidatingContext(), true);
+        startHandshake(serverAddress.getHostString(), ClientSslContextFactory.getHostValidatingContext(), true);
     }
 
     /**
      * Start TLS connection validating certificates received from the server using default trust manager. A connection
      * will be created if required.
-     * 
+     *
      * @param hostName
      *            - host name to be sent in SNI in ClientHello. This is needed for the server to choose a correct
      *            certificate.
      * @throws IOException
      */
     public void startHandshakeAndValidate(String hostName) throws IOException {
-        startHandshake(hostName, getHostValidatingContext(), true);
+        startHandshake(hostName, ClientSslContextFactory.getHostValidatingContext(), true);
+    }
+
+    /**
+     * Start TLS connection with validation as per provided context.
+     * A connection will be created if required.
+     *
+     * @param hostName
+     *            - host name to be sent in SNI in ClientHello. This is needed for the server to choose a correct
+     *            certificate.
+     * @param clientSslContext - sslContext for TLS handshake
+     * @throws IOException
+     */
+    public void startHandshake(String hostname, ClientSslContext clientSslContext) throws IOException {
+        startHandshake(hostname, clientSslContext, true);
     }
 
     /**
@@ -443,7 +441,8 @@ public class HttpClientConnection implements Closeable {
      */
     public void startHandshakeWithClientAuthAndValidate(String hostName, String keyStorePath, String keyStorePassword,
             String certificatePassword) throws IOException {
-        SSLContext sslContext = createSslContext(true, keyStorePath, keyStorePassword, certificatePassword);
+        ClientSslContext sslContext = ClientSslContextFactory.createClientAuthenticatingSslContext(keyStorePath,
+                keyStorePassword, certificatePassword);
         startHandshake(hostName, sslContext, true);
     }
 
@@ -455,7 +454,8 @@ public class HttpClientConnection implements Closeable {
         this.outputStreamWrapperFactory = outputStreamWrapperFactory;
     }
 
-    private void startHandshake(String hostname, SSLContext sslContext, boolean checkHostname) throws IOException {
+    private void startHandshake(String hostname, ClientSslContext sslContext, boolean checkHostname) throws IOException {
+        clientSslContext = sslContext;
         connectIfNecessary();
         SSLSocketFactory socketFactory = sslContext.getSocketFactory();
         if (inputStreamWrapperFactory != null || outputStreamWrapperFactory != null) {
@@ -473,17 +473,13 @@ public class HttpClientConnection implements Closeable {
         this.inputStream = sslSocket.getInputStream();
         this.outputStream = sslSocket.getOutputStream();
         SSLSession session = sslSocket.getSession();
-        Certificate[] certificates = session.getPeerCertificates();
-        tlsCertificates = new X509Certificate[certificates.length];
-        for (int i = 0; i < certificates.length; i++) {
-            tlsCertificates[i] = (X509Certificate)certificates[i];
-        }
+        clientSslContext.setTlsCertificates(session.getPeerCertificates());
         negotiatedTlsProtocol = TlsVersion.fromJdkString(session.getProtocol());
         negotiatedCipher = session.getCipherSuite();
         tlsSessionId = session.getId();
         if (checkHostname) {
             HostnameChecker hostnameChecker = new HostnameChecker();
-            if (!hostnameChecker.check(hostname, tlsCertificates[0])) {
+            if (!hostnameChecker.check(hostname, clientSslContext.getTlsCertificates()[0])) {
                 throw new SSLException("Hostname " + hostname + " does not match certificate");
             }
         }
@@ -499,7 +495,7 @@ public class HttpClientConnection implements Closeable {
         socket = null;
         inputStream = null;
         outputStream = null;
-        tlsCertificates = null;
+        clientSslContext = null;
         negotiatedTlsProtocol = null;
         negotiatedCipher = null;
         tlsSessionId = null;
@@ -523,7 +519,7 @@ public class HttpClientConnection implements Closeable {
      * @return Certificates received from the server during TLS handshake or null if no TLS connection was established.
      */
     public X509Certificate[] getTlsCertificates() {
-        return tlsCertificates;
+        return clientSslContext != null ? clientSslContext.getTlsCertificates() : new X509Certificate[0];
     }
 
     /**
@@ -632,12 +628,11 @@ public class HttpClientConnection implements Closeable {
     }
 
     /**
-     * Clear SslContext. This will clear all cached SSL sessions.
+     * Clear SslContext. This will clear all cached SSL sessions with standard SSL context.
      */
     public static void clearSslContexts() {
         synchronized (HttpClientConnection.class) {
-            noHostValidatingContext = null;
-            hostValidatingContext = null;
+            ClientSslContextFactory.clearSslContexts();
         }
     }
 
@@ -655,76 +650,6 @@ public class HttpClientConnection implements Closeable {
         newSocket.setTcpNoDelay(tcpNoDelay);
         newSocket.connect(serverAddress, connectTimeoutMs);
         return newSocket;
-    }
-
-    private SSLContext createSslContext(boolean validateCertificates, String keyStorePath, String keyStorePassword,
-            String certificatePassword) {
-        SSLContext sslContext;
-        try {
-            KeyManager[] keyManagers;
-            if (keyStorePath != null) {
-                keyManagers = createKeyManagers(keyStorePath, keyStorePassword, certificatePassword);
-            } else {
-                keyManagers = null;
-            }
-            X509TrustManager trustManager = new TrustManagerWrapper(validateCertificates ? getDefaultTrustManager() : null);
-            sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(keyManagers, new TrustManager[]{trustManager}, null);
-        } catch (NoSuchAlgorithmException | KeyManagementException | KeyStoreException | UnrecoverableKeyException
-                | CertificateException | IOException e) {
-            throw new RuntimeException(e);
-        }
-        return sslContext;
-    }
-
-    private X509TrustManager getDefaultTrustManager() throws KeyStoreException, NoSuchAlgorithmException {
-        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-        trustManagerFactory.init((KeyStore)null);
-        for (TrustManager trustManager : trustManagerFactory.getTrustManagers()) {
-            if (trustManager instanceof X509TrustManager) {
-                return (X509TrustManager)trustManager;
-            }
-        }
-        return null;
-    }
-
-    private KeyManager[] createKeyManagers(String keyStorePath, String keyStorePassword, String certificatePassword)
-            throws UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
-        KeyStore keyStore = KeyStore.getInstance("JKS");
-        keyStore.load(new FileInputStream(keyStorePath), keyStorePassword.toCharArray());
-        String algorithm = KeyManagerFactory.getDefaultAlgorithm();
-        KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(algorithm);
-        keyManagerFactory.init(keyStore, certificatePassword.toCharArray());
-        return keyManagerFactory.getKeyManagers();
-    }
-
-    private class TrustManagerWrapper implements X509TrustManager {
-
-        private final X509TrustManager trustManager;
-
-        private TrustManagerWrapper(X509TrustManager trustManager) {
-            this.trustManager = trustManager;
-        }
-
-        @Override
-        public X509Certificate[] getAcceptedIssuers() {
-            return trustManager != null ? trustManager.getAcceptedIssuers() : null;
-        }
-
-        @Override
-        public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-            if (trustManager != null) {
-                trustManager.checkServerTrusted(chain, authType);
-            }
-        }
-
-        @Override
-        public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-            tlsCertificates = chain;
-            if (trustManager != null) {
-                trustManager.checkClientTrusted(chain, authType);
-            }
-        }
     }
 
     private byte[] gzip(byte[] data) throws IOException {
@@ -757,33 +682,4 @@ public class HttpClientConnection implements Closeable {
             this.outputStream = new BufferedOutputStream(socket.getOutputStream(), BUFFER_SIZE);
         }
     }
-
-    private SSLContext getNoHostValidatingContext() {
-        SSLContext result = noHostValidatingContext;
-        if (result == null) {
-            synchronized (HttpClientConnection.class) {
-                if (noHostValidatingContext == null) {
-                    noHostValidatingContext = createSslContext(false, null, null, null);
-                }
-                return noHostValidatingContext;
-            }
-        } else {
-            return result;
-        }
-    }
-
-    private SSLContext getHostValidatingContext() {
-        SSLContext result = hostValidatingContext;
-        if (result == null) {
-            synchronized (HttpClientConnection.class) {
-                if (hostValidatingContext == null) {
-                    hostValidatingContext = createSslContext(true, null, null, null);
-                }
-                return hostValidatingContext;
-            }
-        } else {
-            return result;
-        }
-    }
-
 }

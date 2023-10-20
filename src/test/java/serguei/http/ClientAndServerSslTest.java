@@ -2,7 +2,6 @@ package serguei.http;
 
 import static org.junit.Assert.*;
 
-import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -20,28 +19,33 @@ public class ClientAndServerSslTest {
     private static final String BODY_CHARSET = "UTF-8";
     private static final String PATH = "/test/file.txt";
     private static final String REQUEST_LINE = "POST " + PATH + " HTTP/1.1";
+    private static final String KEYSTORE_PASS = "password";
+    private static final String CERTIFICATE_PASS = "test01";
+    private static final String TRUSTSTORE_PASS = "password";
 
     private String requestBody = makeBody("client");
     private String responseBody = makeBody("server");
 
-    private TestServer server;
+    private TestServer server = new TestServer();
     private HttpClientConnection clientConnection;
 
     @Before
-    public void setup() throws Exception {
-        server = new TestServer();
+    public void setup() {
         clientConnection = new HttpClientConnection(HOST, server.getSslPort());
     }
 
     @After
     public void clear() {
-        clientConnection.close();
+        if (clientConnection != null) {
+            clientConnection.close();
+        }
         server.stop();
         HttpClientConnection.clearSslContexts();
     }
 
     @Test
     public void shouldSendAndReceiveFromServer() throws Exception {
+        server.start();
         server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
 
@@ -62,6 +66,7 @@ public class ClientAndServerSslTest {
 
     @Test
     public void shouldSendAndReceiveFromServerWhichOnlySupportsTls10() throws Exception {
+        server.start();
         server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
         server.setTlsProtocol(TlsVersion.TLSv10);
         clientConnection.setTlsProtocol(TlsVersion.TLSv10, TlsVersion.TLSv11, TlsVersion.TLSv12);
@@ -77,6 +82,7 @@ public class ClientAndServerSslTest {
     @Test
     public void shouldSendSniToServer() throws Exception {
         String sni = "www.fitltd.com";
+        server.start();
         server.setResponse(HttpResponseHeaders.ok(), new byte[0]);
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
 
@@ -89,6 +95,7 @@ public class ClientAndServerSslTest {
 
     @Test
     public void shouldSendNoSniToServerWhenNotSpecified() throws Exception {
+        server.start();
         server.setResponse(HttpResponseHeaders.ok(), new byte[0]);
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
 
@@ -103,6 +110,7 @@ public class ClientAndServerSslTest {
     public void shouldFailWhenServerIsSetToBreakOnSni() throws Exception {
         // Java, unlike OpenSSL, fails when the unrecognized_name warning received
         String sni = "www.fitltd.com";
+        server.start();
         server.shouldWarnWhenSniNotMatching(true);
 
         clientConnection.startHandshake(sni);
@@ -110,6 +118,7 @@ public class ClientAndServerSslTest {
 
     @Test
     public void shouldNotFailWhenServerIsSetToBreakOnSniAndNoSni() throws Exception {
+        server.start();
         server.shouldWarnWhenSniNotMatching(true);
 
         clientConnection.startHandshake("");
@@ -117,6 +126,7 @@ public class ClientAndServerSslTest {
 
     @Test(expected = SSLHandshakeException.class)
     public void shouldFailWhenServerRequiresSniAndAbsent() throws Exception {
+        server.start();
         server.shouldFailWhenNoSni(true);
 
         clientConnection.startHandshake("");
@@ -125,6 +135,7 @@ public class ClientAndServerSslTest {
     @Test
     public void shouldNotFailWhenServerRequiresSniAndPresent() throws Exception {
         String sni = "www.fitltd.com";
+        server.start();
         server.shouldFailWhenNoSni(true);
 
         clientConnection.startHandshake(sni);
@@ -133,11 +144,12 @@ public class ClientAndServerSslTest {
     @Test
     public void shouldRequestClientAuthentication() throws Exception {
         String sni = "www.fitltd.com";
+        server.start(null, clientKeyStorePath());
         server.setNeedClientAuthentication(true);
         server.setResponse(HttpResponseHeaders.ok(), new byte[0]);
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
 
-        clientConnection.startHandshakeWithClientAuth(sni, keyStorePath(), "password", "test01");
+        clientConnection.startHandshakeWithClientAuth(sni, clientKeyStorePath(), KEYSTORE_PASS, CERTIFICATE_PASS);
         HttpResponse response = clientConnection.send(headers, requestBody);
 
         assertEquals(200, response.getStatusCode());
@@ -148,11 +160,12 @@ public class ClientAndServerSslTest {
     @Test
     public void shouldFailWhenClientAuthenticationPassedButServerCertificateNotValidated() throws Exception {
         String sni = "www.fitltd.com";
+        server.start();
         server.setNeedClientAuthentication(true);
         server.setResponse(HttpResponseHeaders.ok(), new byte[0]);
 
         try {
-            clientConnection.startHandshakeWithClientAuthAndValidate(sni, keyStorePath(), "password", "test01");
+            clientConnection.startHandshakeWithClientAuthAndValidate(sni, clientKeyStorePath(), KEYSTORE_PASS, CERTIFICATE_PASS);
             fail("Expected exception");
         } catch (SSLHandshakeException e) {
             // expected
@@ -162,6 +175,7 @@ public class ClientAndServerSslTest {
     @Test
     public void shouldFailWhenClientDidNotProvideAuthenticationWhenRequested() throws Exception {
         String sni = "www.fitltd.com";
+        server.start();
         server.setNeedClientAuthentication(true);
         server.setResponse(HttpResponseHeaders.ok(), new byte[0]);
 
@@ -177,13 +191,12 @@ public class ClientAndServerSslTest {
     public void shouldRequestClientAuthenticationWithUserDefinedTrustManager() throws Exception {
         String sni = "www.fitltd.com";
         TestTrustManager trustManager = new TestTrustManager();
-        server.stop();
-        server = new TestServer(trustManager);
+        server.start(trustManager, keyStorePath());
         server.setNeedClientAuthentication(true);
         server.setResponse(HttpResponseHeaders.ok(), new byte[0]);
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
 
-        clientConnection.startHandshakeWithClientAuth(sni, keyStorePath(), "password", "test01");
+        clientConnection.startHandshakeWithClientAuth(sni, clientKeyStorePath(), KEYSTORE_PASS, CERTIFICATE_PASS);
         HttpResponse response = clientConnection.send(headers, requestBody);
 
         assertEquals(200, response.getStatusCode());
@@ -195,6 +208,7 @@ public class ClientAndServerSslTest {
 
     @Test
     public void shouldReturnSessionId() throws Exception {
+        server.start();
         server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
 
@@ -212,6 +226,7 @@ public class ClientAndServerSslTest {
     @Test
     public void shouldReturnSessionIdFromClientHello() throws Exception {
         String sniName = "www.mimecast.com";
+        server.start();
         server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
 
@@ -250,6 +265,7 @@ public class ClientAndServerSslTest {
     @Test
     public void shouldClearSslContext() throws Exception {
         String sniName = "www.mimecast.com";
+        server.start();
         server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
 
@@ -278,6 +294,7 @@ public class ClientAndServerSslTest {
 
     @Test
     public void shouldNotReuseSessionIfDifferentSniSpecified() throws Exception {
+        server.start();
         server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
 
@@ -305,6 +322,7 @@ public class ClientAndServerSslTest {
 
     @Test
     public void shouldSendAndReceiveFromServerCountingBytes() throws Exception {
+        server.start();
         AtomicLong inputCounter = new AtomicLong();
         AtomicLong outputCounter = new AtomicLong();
         clientConnection.setInputStreamWrapperFactory((socket) -> new InputStreamCountingBytes(socket, inputCounter));
@@ -331,6 +349,29 @@ public class ClientAndServerSslTest {
         assertTrue("Was: " + inputCounter.get() + " should be more than plain data length", inputCounter.get() > 5490);
     }
 
+    @Test
+    public void shouldSendAndReceiveFromServerValidatingCertificate() throws Exception {
+        server.start();
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
+        ClientSslContext sslContext = ClientSslContextFactory.createSslContextWithCustomTruststore(trustStorePath(),
+                TRUSTSTORE_PASS);
+
+        clientConnection.startHandshake("serguei.net", sslContext);
+        HttpResponse response = clientConnection.send(headers, requestBody);
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertTrue(server.getLatestConnectionContext().isSsl());
+        assertNotNull(server.getLatestConnectionContext().getNegotiatedTlsProtocol());
+        assertTrue(server.getLatestConnectionContext().getNegotiatedCipher().length() > 0);
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(200, response.getStatusCode());
+        assertNull(response.getHeader("Content-Encoding"));
+        assertEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
+        assertFalse(response.isContentChunked());
+        assertEquals(responseBody, response.readBodyAsString());
+    }
+
     private static String makeBody(String msg) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < 200; i++) {
@@ -341,6 +382,14 @@ public class ClientAndServerSslTest {
     }
 
     private static String keyStorePath() {
+        return TestServer.class.getResource("/server-keystore.jks").getFile();
+    }
+
+    private static String trustStorePath() {
+        return TestServer.class.getResource("/client-truststore.jks").getFile();
+    }
+
+    private static String clientKeyStorePath() {
         return TestServer.class.getResource("/test.jks").getFile();
     }
 
@@ -350,12 +399,12 @@ public class ClientAndServerSslTest {
         private X509Certificate[] serverCertificates;
 
         @Override
-        public void checkClientTrusted(X509Certificate[] certificates, String authType) throws CertificateException {
+        public void checkClientTrusted(X509Certificate[] certificates, String authType) {
             this.clientCertificates = certificates;
         }
 
         @Override
-        public void checkServerTrusted(X509Certificate[] certificates, String authType) throws CertificateException {
+        public void checkServerTrusted(X509Certificate[] certificates, String authType) {
             this.serverCertificates = certificates;
         }
 
@@ -363,6 +412,5 @@ public class ClientAndServerSslTest {
         public X509Certificate[] getAcceptedIssuers() {
             return new X509Certificate[0];
         }
-
     }
 }
