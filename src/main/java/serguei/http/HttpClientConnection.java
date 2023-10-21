@@ -714,7 +714,7 @@ public class HttpClientConnection implements Closeable {
         @Override
         public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
             if (trustManager != null) {
-                trustManager.checkClientTrusted(chain, authType);
+                trustManager.checkServerTrusted(chain, authType);
             }
         }
 

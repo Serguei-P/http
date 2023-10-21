@@ -68,6 +68,18 @@ public class HttpClientConnectionTest {
         assertTrue(body.toUpperCase().contains("</HTML>"));
     }
 
+    @Test
+    public void shouldConnectToGoogle() throws Exception {
+        String hostName = "google.co.uk";
+        connection = new HttpClientConnection(hostName, 443);
+
+        connection.startHandshakeAndValidate(hostName);
+        HttpRequestHeaders request = HttpRequestHeaders.getRequest("https://" + hostName + "/");
+        HttpResponse response = connection.send(request);
+
+        assertEquals(301, response.getStatusCode());
+    }
+
     @Test(expected = SSLHandshakeException.class)
     public void shouldFailOnSelfSignedCertificate() throws Exception {
         String hostName = "self-signed.badssl.com";
