@@ -123,7 +123,7 @@ public class HttpServerTest {
         CountDownLatch latch = new CountDownLatch(requestNumber);
         RequestHandler requestHandler = new RequestHandler(latch, 1000);
         KeyStore keyStore = KeyStore.getInstance("JKS");
-        InputStream inputStream = this.getClass().getResourceAsStream("/test.jks");
+        InputStream inputStream = this.getClass().getResourceAsStream("/server-keystore.jks");
         keyStore.load(inputStream, "password".toCharArray());
         server = new HttpServer(requestHandler, PORT, SSL_PORT, keyStore, "test01");
         @SuppressWarnings("unchecked")
@@ -462,7 +462,7 @@ public class HttpServerTest {
     }
 
     private String keyStorePath() {
-        return getClass().getResource("/test.jks").getFile();
+        return getClass().getResource("/server-keystore.jks").getFile();
     }
 
     private void assertCanMakeSimpleRequest() throws IOException {

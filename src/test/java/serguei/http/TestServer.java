@@ -9,31 +9,42 @@ import java.util.zip.GZIPOutputStream;
 
 import javax.net.ssl.TrustManager;
 
-public class TestServer extends HttpServer {
+public class TestServer {
 
     private static final int PORT = 8080;
     private static final int SSL_PORT = 8443;
     private static final String BODY_CODEPAGE = "UTF-8";
 
-    private final TestRequestHandler requestHandler;
+    private final TestRequestHandler requestHandler = new TestRequestHandler();
 
-    public TestServer() throws IOException {
-        this(null);
+    private HttpServer httpServer;
+
+    public TestServer() {
     }
 
-    public TestServer(TrustManager clientAuthTrustManager) throws IOException {
-        super(new TestRequestHandler(), PORT, SSL_PORT, keyStorePath(), "password", "test01", clientAuthTrustManager);
-        requestHandler = (TestRequestHandler)getRequestHandler();
-        start();
+    public void start() throws IOException {
+        start(null, defaultStorePath());
+    }
+
+    public void stop() {
+        if (httpServer != null) {
+            httpServer.stop();
+            httpServer = null;
+        }
+    }
+
+    public void start(TrustManager clientAuthTrustManager, String keyStorePath) throws IOException {
+        httpServer = new HttpServer(requestHandler, PORT, SSL_PORT, keyStorePath, "password", "test01", clientAuthTrustManager);
+        httpServer.start();
         long startTime = System.currentTimeMillis();
-        while (!isRunning() && System.currentTimeMillis() - startTime < 1000) {
+        while (!httpServer.isRunning() && System.currentTimeMillis() - startTime < 1000) {
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
                 // nothing to do
             }
         }
-        if (!isRunning()) {
+        if (!httpServer.isRunning()) {
             throw new IOException("Server did not start on " + PORT + " and " + SSL_PORT);
         }
     }
@@ -156,6 +167,30 @@ public class TestServer extends HttpServer {
         }
     }
 
+    public void setOnRequestHeadersHandler(HttpServerOnRequestHeadersProcess onRequestHeadersHandler) {
+        httpServer.setOnRequestHeadersHandler(onRequestHeadersHandler);
+    }
+
+    public long getConnectionsCreated() {
+        return httpServer.getConnectionsCreated();
+    }
+
+    public void setTlsProtocol(TlsVersion... enabledTlsProtocols) {
+        httpServer.setTlsProtocol(enabledTlsProtocols);
+    }
+
+    public void shouldWarnWhenSniNotMatching(boolean warnWhenSniNotMatching) {
+        httpServer.shouldWarnWhenSniNotMatching(warnWhenSniNotMatching);
+    }
+
+    public void shouldFailWhenNoSni(boolean shouldFail) {
+        httpServer.shouldFailWhenNoSni(shouldFail);
+    }
+
+    public void setNeedClientAuthentication(boolean needClientAuthentication) {
+        httpServer.setNeedClientAuthentication(needClientAuthentication);
+    }
+
     private void addContentLengthIfAbsent(HttpResponseHeaders headers, int value) {
         if (headers.getHeader("Content-Length") == null) {
             headers.setHeader("Content-Length", Integer.toString(value));
@@ -235,8 +270,7 @@ public class TestServer extends HttpServer {
 
     }
 
-    private static String keyStorePath() {
-        return TestServer.class.getResource("/test.jks").getFile();
+    private static String defaultStorePath() {
+        return TestServer.class.getResource("/server-keystore.jks").getFile();
     }
-
 }

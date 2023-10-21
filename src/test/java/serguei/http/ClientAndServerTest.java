@@ -37,9 +37,10 @@ public class ClientAndServerTest {
     @Before
     public void setup() throws Exception {
         server = new TestServer();
+        server.start();
+        server.setOnRequestHeadersHandler(null);
         clientConnection = new HttpClientConnection(HOST, server.getPort());
         clientConnection.setTimeoutMillis(6000);
-        server.setOnRequestHeadersHandler(null);
     }
 
     @After
