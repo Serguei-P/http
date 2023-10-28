@@ -414,7 +414,7 @@ public class HttpClientConnection implements Closeable {
      * Start TLS connection with validation as per provided context.
      * A connection will be created if required.
      *
-     * @param hostName
+     * @param hostname
      *            - host name to be sent in SNI in ClientHello. This is needed for the server to choose a correct
      *            certificate.
      * @param clientSslContext - sslContext for TLS handshake
