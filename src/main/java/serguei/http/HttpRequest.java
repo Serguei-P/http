@@ -1,5 +1,7 @@
 package serguei.http;
 
+import serguei.http.utils.EmptyInputStream;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -14,6 +16,8 @@ import java.util.List;
  *
  */
 public class HttpRequest {
+
+    private static final HttpBody EMPTY_BODY = new HttpBody(new EmptyInputStream(), 0, false, null, false);
 
     private final HttpRequestHeaders headers;
     private final HttpBody body;
@@ -37,7 +41,7 @@ public class HttpRequest {
         } else {
             contentLength = 0;
             chunked = false;
-            body = null;
+            body = EMPTY_BODY;
         }
     }
 
@@ -127,11 +131,7 @@ public class HttpRequest {
      * @throws IOException
      */
     public String readBodyAsString() throws IOException {
-        if (body != null) {
-            return body.readAsString();
-        } else {
-            return "";
-        }
+        return body.readAsString();
     }
 
     /**
@@ -140,11 +140,7 @@ public class HttpRequest {
      * @throws IOException
      */
     public byte[] readBodyAsBytes() throws IOException {
-        if (body != null) {
-            return body.readAsBytes();
-        } else {
-            return new byte[0];
-        }
+        return body.readAsBytes();
     }
 
     /**
@@ -161,11 +157,7 @@ public class HttpRequest {
             MultipartBodyParser multipartBodyParser = new MultipartBodyParser(body.getBodyInputStream(), boundary);
             return new RequestValues(multipartBodyParser);
         } else {
-            if (body != null) {
-                return new RequestValues(body.readAsString());
-            } else {
-                return new RequestValues("");
-            }
+            return new RequestValues(body.readAsString());
         }
     }
 
@@ -205,22 +197,14 @@ public class HttpRequest {
      * @return true if response has a body
      */
     public boolean hasBody() {
-        if (body != null) {
-            return body.hasBody();
-        } else {
-            return false;
-        }
+        return body.hasBody();
     }
 
     /**
      * @return true if request has a body and the body is compressed
      */
     public boolean isBodyCompressed() {
-        if (body != null) {
-            return body.isCompressed();
-        } else {
-            return false;
-        }
+        return body.isCompressed();
     }
 
     /**
@@ -245,5 +229,4 @@ public class HttpRequest {
     public String toString() {
         return headers.toString();
     }
-
 }

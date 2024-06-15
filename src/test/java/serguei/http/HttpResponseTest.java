@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.junit.Test;
+import serguei.http.utils.Utils;
 
 public class HttpResponseTest {
 
@@ -70,5 +71,27 @@ public class HttpResponseTest {
         assertEquals(200, response.getStatusCode());
         assertEquals("", response.readBodyAsString());
         assertFalse(response.hasBody());
+    }
+
+    @Test
+    public void shouldReturnEmptyBodyInputStreamWhenGetRequest() throws IOException {
+        String responseData = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(responseData.getBytes());
+        HttpResponse response = new HttpResponse(inputStream);
+
+        byte[] data = Utils.readFully(response.getBodyAsStream());
+
+        assertEquals(0, data.length);
+    }
+
+    @Test
+    public void shouldReturnEmptyBodyOriginalInputStreamWhenGetRequest() throws IOException {
+        String responseData = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(responseData.getBytes());
+        HttpRequest response = new HttpRequest(inputStream);
+
+        byte[] data = Utils.readFully(response.getBodyAsOriginalStream());
+
+        assertEquals(0, data.length);
     }
 }

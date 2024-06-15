@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.junit.Test;
+import serguei.http.utils.Utils;
 
 public class HttpRequestTest {
 
@@ -43,9 +44,9 @@ public class HttpRequestTest {
     public void shouldReturnHeadersWhenPresent() throws IOException {
         String requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nHeader1: test1\r\nHeader1: test2\r\n\r\n";
         ByteArrayInputStream inputStream = new ByteArrayInputStream(requestData.getBytes());
-        HttpRequest response = new HttpRequest(inputStream);
+        HttpRequest request = new HttpRequest(inputStream);
 
-        List<String> headers = response.getHeaders("Header1");
+        List<String> headers = request.getHeaders("Header1");
 
         assertEquals(Arrays.asList("test1", "test2"), headers);
     }
@@ -54,11 +55,32 @@ public class HttpRequestTest {
     public void shouldReturnEmptyHeaderListWhenMissing() throws IOException {
         String requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nHeader1: test1\r\nHeader1: test2\r\n\r\n";
         ByteArrayInputStream inputStream = new ByteArrayInputStream(requestData.getBytes());
-        HttpRequest response = new HttpRequest(inputStream);
+        HttpRequest request = new HttpRequest(inputStream);
 
-        List<String> headers = response.getHeaders("Not-Present");
+        List<String> headers = request.getHeaders("Not-Present");
 
         assertEquals(Collections.emptyList(), headers);
     }
 
+    @Test
+    public void shouldReturnEmptyBodyInputStreamWhenGetRequest() throws IOException {
+        String requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nHeader1: test1\r\nHeader1: test2\r\n\r\n";
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(requestData.getBytes());
+        HttpRequest request = new HttpRequest(inputStream);
+
+        byte[] data = Utils.readFully(request.getBodyAsStream());
+
+        assertEquals(0, data.length);
+    }
+
+    @Test
+    public void shouldReturnEmptyBodyOriginalInputStreamWhenGetRequest() throws IOException {
+        String requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nHeader1: test1\r\nHeader1: test2\r\n\r\n";
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(requestData.getBytes());
+        HttpRequest request = new HttpRequest(inputStream);
+
+        byte[] data = Utils.readFully(request.getBodyAsOriginalStream());
+
+        assertEquals(0, data.length);
+    }
 }

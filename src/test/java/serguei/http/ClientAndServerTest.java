@@ -409,7 +409,7 @@ public class ClientAndServerTest {
         HttpResponse response = clientConnection.send(headers, requestBody);
         String body;
         try (InputStream inputStream = response.getBodyAsStream()) {
-            body = readFromStreamByBuffer(response.getBodyAsStream());
+            body = readFromStreamByBuffer(inputStream);
         }
 
         assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
@@ -425,7 +425,7 @@ public class ClientAndServerTest {
 
         HttpResponse response = clientConnection.send(headers, requestBody);
         try (InputStream inputStream = response.getBodyAsStream()) {
-            String body = readFromStreamByBuffer(response.getBodyAsStream());
+            String body = readFromStreamByBuffer(inputStream);
             assertEquals(requestBody, server.getLatestRequestBodyAsString());
             assertEquals(200, response.getStatusCode());
             assertEquals(responseBody, body);
@@ -433,7 +433,7 @@ public class ClientAndServerTest {
 
         response = clientConnection.send(headers, requestBody);
         try (InputStream inputStream = response.getBodyAsStream()) {
-            String body = readFromStreamByBuffer(response.getBodyAsStream());
+            String body = readFromStreamByBuffer(inputStream);
             assertEquals(requestBody, server.getLatestRequestBodyAsString());
             assertEquals(200, response.getStatusCode());
             assertEquals(responseBody, body);
@@ -562,6 +562,24 @@ public class ClientAndServerTest {
         assertEquals(requestBody, server.getLatestRequestBodyAsString());
         assertEquals(200, response.getStatusCode());
         assertEquals(responseBody, body);
+    }
+
+    @Test
+    public void shouldReadResponseStreamWhenStreamIsEmpty() throws IOException {
+        server.setResponse(HttpResponseHeaders.ok(), new byte[0], BodyCompression.NONE);
+        HttpRequestHeaders headers = new HttpRequestHeaders("GET " + PATH + " HTTP/1.1", "Host: localhost");
+
+        HttpResponse response = clientConnection.send(headers);
+        String body;
+        try (InputStream inputStream = response.getBodyAsStream()) {
+            body = readFromStreamByBuffer(inputStream);
+        }
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        String requestBody = server.getLatestRequestBodyAsString();
+        assertEquals("", requestBody);
+        assertEquals(200, response.getStatusCode());
+        assertEquals("", body);
     }
 
     @Test
