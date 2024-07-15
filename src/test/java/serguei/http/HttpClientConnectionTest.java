@@ -5,6 +5,17 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
@@ -13,6 +24,8 @@ import org.junit.After;
 import org.junit.Test;
 
 public class HttpClientConnectionTest {
+
+    private ExecutorService executor = Executors.newCachedThreadPool();
 
     private HttpClientConnection connection;
 
@@ -78,6 +91,11 @@ public class HttpClientConnectionTest {
         HttpResponse response = connection.send(request);
 
         assertEquals(301, response.getStatusCode());
+
+        X509Certificate[] certificates = connection.getTlsCertificates();
+        for (X509Certificate cert : certificates) {
+            System.out.println(cert.getSubjectX500Principal());
+        }
     }
 
     @Test(expected = SSLHandshakeException.class)
@@ -221,5 +239,57 @@ public class HttpClientConnectionTest {
         long end = System.currentTimeMillis();
 
         assertTrue("Time taken is " + (end - start) + " which is too long", end - start < 1200);
+    }
+
+    @Test
+    public void multiThreadingTls() throws InterruptedException, ExecutionException, TimeoutException {
+        String[] tcgmsList = { "CN=secure.tcgms.net", "CN=R11, O=Let's Encrypt, C=US" };
+        String[] googleList = { "CN=*.google.com", "CN=WR2, O=Google Trust Services, C=US",
+                "CN=GTS Root R1, O=Google Trust Services LLC, C=US" };
+        List<Future<Boolean>> futureList = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            Future<Boolean> future = executor.submit(() -> makeConnection("tcgms.net", Arrays.asList(tcgmsList)));
+            futureList.add(future);
+            future = executor.submit(() -> makeConnection("google.com", Arrays.asList(googleList)));
+            futureList.add(future);
+        }
+        for (Future<Boolean> future : futureList) {
+            boolean result = future.get(5000, TimeUnit.MILLISECONDS);
+            assertTrue(result);
+        }
+    }
+
+    private boolean makeConnection(String hostName, List<String> expected) {
+        try (HttpClientConnection connection = new HttpClientConnection(hostName, 443)) {
+            connection.startHandshake(hostName);
+            HttpRequestHeaders request = HttpRequestHeaders.getRequest("https://" + hostName + "/");
+            HttpResponse response = connection.send(request);
+            assertEquals(301, response.getStatusCode());
+            List<String> actual = new ArrayList<>();
+            X509Certificate[] certificates = connection.getTlsCertificates();
+            for (X509Certificate cert : certificates) {
+                actual.add(cert.getSubjectX500Principal().getName());
+            }
+            assertEquals(removeWhitespace(expected), removeWhitespace(actual));
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private List<String> removeWhitespace(List<String> data) {
+        return data.stream().map(value -> removeWhitespace(value)).collect(Collectors.toList());
+    }
+
+    private String removeWhitespace(String line) {
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < line.length(); i++) {
+            char ch = line.charAt(i);
+            if (!Character.isWhitespace(ch)) {
+                result.append(ch);
+            }
+        }
+        return result.toString();
     }
 }

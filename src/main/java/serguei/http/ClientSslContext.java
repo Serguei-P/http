@@ -8,7 +8,6 @@ import java.security.cert.X509Certificate;
 public class ClientSslContext {
     private final SSLContext sslContext;
     private final TrustManagerWrapper trustManagerWrapper;
-    private X509Certificate[] tlsCertificates;
 
     public ClientSslContext(SSLContext sslContext, TrustManagerWrapper trustManagerWrapper) {
         this.sslContext = sslContext;
@@ -17,17 +16,5 @@ public class ClientSslContext {
 
     SSLSocketFactory getSocketFactory() {
         return sslContext.getSocketFactory();
-    }
-
-    X509Certificate[] getTlsCertificates() {
-        return tlsCertificates;
-    }
-
-    void setTlsCertificates(Certificate[] certificates) {
-        X509Certificate[] tlsCertificates = new X509Certificate[certificates.length];
-        for (int i = 0; i < certificates.length; i++) {
-            tlsCertificates[i] = (X509Certificate) certificates[i];
-        }
-        this.tlsCertificates = tlsCertificates;
     }
 }

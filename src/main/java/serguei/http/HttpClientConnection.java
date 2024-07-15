@@ -10,6 +10,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
@@ -38,6 +39,7 @@ public class HttpClientConnection implements Closeable {
     private InputStreamWrapperFactory inputStreamWrapperFactory;
     private OutputStreamWrapperFactory outputStreamWrapperFactory;
     private ClientSslContext clientSslContext;
+    private X509Certificate[] tlsCertificates;
     private TlsVersion[] enabledTlsProtocols;
     private String[] enabledCipherSuites;
     private TlsVersion negotiatedTlsProtocol;
@@ -473,13 +475,13 @@ public class HttpClientConnection implements Closeable {
         this.inputStream = sslSocket.getInputStream();
         this.outputStream = sslSocket.getOutputStream();
         SSLSession session = sslSocket.getSession();
-        clientSslContext.setTlsCertificates(session.getPeerCertificates());
+        setTlsCertificates(session.getPeerCertificates());
         negotiatedTlsProtocol = TlsVersion.fromJdkString(session.getProtocol());
         negotiatedCipher = session.getCipherSuite();
         tlsSessionId = session.getId();
         if (checkHostname) {
             HostnameChecker hostnameChecker = new HostnameChecker();
-            if (!hostnameChecker.check(hostname, clientSslContext.getTlsCertificates()[0])) {
+            if (!hostnameChecker.check(hostname, getTlsCertificates()[0])) {
                 throw new SSLException("Hostname " + hostname + " does not match certificate");
             }
         }
@@ -519,7 +521,7 @@ public class HttpClientConnection implements Closeable {
      * @return Certificates received from the server during TLS handshake or null if no TLS connection was established.
      */
     public X509Certificate[] getTlsCertificates() {
-        return clientSslContext != null ? clientSslContext.getTlsCertificates() : new X509Certificate[0];
+        return tlsCertificates != null ? tlsCertificates : new X509Certificate[0];
     }
 
     /**
@@ -681,5 +683,13 @@ public class HttpClientConnection implements Closeable {
         } else {
             this.outputStream = new BufferedOutputStream(socket.getOutputStream(), BUFFER_SIZE);
         }
+    }
+
+    void setTlsCertificates(Certificate[] certificates) {
+        X509Certificate[] tlsCertificates = new X509Certificate[certificates.length];
+        for (int i = 0; i < certificates.length; i++) {
+            tlsCertificates[i] = (X509Certificate) certificates[i];
+        }
+        this.tlsCertificates = tlsCertificates;
     }
 }
