@@ -3,7 +3,10 @@ package serguei.http;
 import java.io.IOException;
 import java.io.InputStream;
 
-class MultipartBodyParser {
+/**
+ * This allows to parse multipart form request body
+ */
+public class MultipartBodyParser {
 
     private final InputStream inputStream;
     private final String border;
@@ -11,12 +14,17 @@ class MultipartBodyParser {
 
     private boolean firstBorderRead;
 
-    MultipartBodyParser(InputStream inputStream, String border) {
+    public MultipartBodyParser(InputStream inputStream, String border) {
         this.inputStream = inputStream;
         this.border = border;
         this.reader = new UpToBorderStreamReader(inputStream, ("--" + border).getBytes());
     }
 
+    /**
+     * This reads the next part of the multi-part request body
+     * @return BodyPart or null if no more parts left
+     * @throws IOException
+     */
     public BodyPart readNextBodyPart() throws IOException {
         if (!firstBorderRead) {
             reader.read();

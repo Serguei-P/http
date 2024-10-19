@@ -5,7 +5,7 @@ public class BodyPart {
     private final HttpHeaders headers;
     private final byte[] body;
 
-    public BodyPart(HttpHeaders headers, byte[] body) {
+    BodyPart(HttpHeaders headers, byte[] body) {
         this.headers = headers;
         this.body = body;
     }
