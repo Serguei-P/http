@@ -125,13 +125,13 @@ public class HttpResponse {
     }
 
     /**
-     * This returns the body of the response before decompression is done to the stream (please note that un-chunking
-     * still takes place)
+     * This returns the body of the response before decompression is done to the stream (please take into account that
+     * un-chunking still takes place)
      * 
      * Please note it is the user needs to close this stream if connection is to be reused
      * 
-     * Please also note that use of getBodyAsString() and getBodyAsOriginalStream() are incompatible. The first call
-     * decides if it is original or decompressed stream
+     * Please also note that use of getBodyAsString() and getBodyAsOriginalStream() on the same response are
+     * incompatible. The first call decides if it is original or decompressed stream
      */
     public InputStream getBodyAsOriginalStream() {
         return body.getOriginalBodyInputStream();

@@ -25,7 +25,7 @@ public final class HttpResponseHeaders extends HttpHeaders {
      * This creates an instance of HttpResponseHeaders
      * 
      * @param statusLine
-     *            - status line, e.g. "GET / HTTP/1."
+     *            - status line, e.g. "HTTP/1.1 200 OK"
      * @param headers
      *            - headers in the form "Content-Length: 100"
      * @throws HttpException

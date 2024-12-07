@@ -31,7 +31,7 @@ public final class HttpRequestHeaders extends HttpHeaders {
      * This creates an instance of HttpRequestHeaders
      * 
      * @param requestLine
-     *            - request line, e.g. "GET / HTTP/1."
+     *            - request line, e.g. "GET / HTTP/1.1"
      * @param headers
      *            - headers in the form "Host: www.google.co.uk"
      * @throws HttpException
