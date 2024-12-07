@@ -72,23 +72,23 @@ public class HttpRequestHeadersTest {
 
     @Test
     public void shouldAllowOnlyCommandLine() throws Exception {
-        HttpRequestHeaders request = new HttpRequestHeaders("GET http://www.fitltd.com/test.jsp HTTP/1.1");
+        HttpRequestHeaders request = new HttpRequestHeaders("GET http://www.fitltd.com/test.jsp HTTP/1.0");
 
         assertEquals("GET", request.getMethod());
         assertEquals(new URL("http://www.fitltd.com/test.jsp"), request.getUrl());
-        assertEquals("HTTP/1.1", request.getVersion());
+        assertEquals("HTTP/1.0", request.getVersion());
         assertNull(request.getHeader("Host"));
         assertEquals("www.fitltd.com", request.getHost());
     }
 
     @Test
     public void shouldAllowDuplicateHeaders() throws Exception {
-        HttpRequestHeaders request = new HttpRequestHeaders("GET http://www.fitltd.com/test.jsp HTTP/1.1", "host: www.fitltd.com",
+        HttpRequestHeaders request = new HttpRequestHeaders("GET http://www.fitltd.com/test.jsp HTTP/1.0", "host: www.fitltd.com",
                 "header: test1", "header: test2");
 
         assertEquals("GET", request.getMethod());
         assertEquals(new URL("http://www.fitltd.com/test.jsp"), request.getUrl());
-        assertEquals("HTTP/1.1", request.getVersion());
+        assertEquals("HTTP/1.0", request.getVersion());
         assertEquals("www.fitltd.com", request.getHeader("Host"));
         assertEquals("www.fitltd.com", request.getHost());
         assertEquals("test1", request.getHeader("header"));

@@ -17,14 +17,23 @@ public class HttpRequestTest {
     public void shouldParseRequest() throws IOException {
         String requestBody = "This is a request";
         int bodyLen = requestBody.getBytes().length;
-        String requestData = "POST / HTTP/1.1\r\nHost: localhost\r\nContent-Length: " + bodyLen + "\r\n\r\n" + requestBody
-                + "extra data";
+        String requestData = "POST /test?param=1 HTTP/1.1\r\nHost: localhost:8080\r\nContent-Length: " + bodyLen + "\r\n\r\n" +
+                requestBody + "extra data";
         ByteArrayInputStream inputStream = new ByteArrayInputStream(requestData.getBytes());
 
         HttpRequest request = new HttpRequest(inputStream);
 
-        assertEquals("localhost", request.getHeader("Host"));
+        assertEquals("localhost:8080", request.getHeader("Host"));
+        assertEquals("localhost:8080", request.getHost());
+        assertEquals("/test?param=1", request.getPath());
+        assertEquals(request.getUrl().getHost(), "localhost");
+        assertEquals("/test", request.getUrl().getPath());
+        assertEquals("param=1", request.getUrl().getQuery());
+        assertEquals(8080, request.getUrl().getPort());
+        assertEquals("http", request.getUrl().getProtocol());
+        assertEquals(bodyLen, request.getContentLength());
         assertEquals(requestBody, request.readBodyAsString());
+        assertFalse(request.isContentChunked());
         assertTrue(request.hasBody());
     }
 
@@ -36,6 +45,12 @@ public class HttpRequestTest {
         HttpRequest request = new HttpRequest(inputStream);
 
         assertEquals("localhost", request.getHeader("Host"));
+        assertEquals("localhost", request.getHost());
+        assertEquals("/", request.getPath());
+        assertEquals(request.getUrl().getHost(), "localhost");
+        assertEquals("/", request.getUrl().getPath());
+        assertEquals(-1, request.getUrl().getPort());
+        assertEquals("http", request.getUrl().getProtocol());
         assertEquals("", request.readBodyAsString());
         assertFalse(request.hasBody());
     }

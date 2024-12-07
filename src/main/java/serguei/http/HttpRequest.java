@@ -53,6 +53,13 @@ public class HttpRequest {
     }
 
     /**
+     * This returns path from HTTP header
+     */
+    public String getPath() {
+        return headers.getPath();
+    }
+
+    /**
      * @return Request url (build from a request line and, if it is missing host name, from Host header)
      */
     public URL getUrl() {

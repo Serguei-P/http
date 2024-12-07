@@ -193,11 +193,23 @@ public final class HttpRequestHeaders extends HttpHeaders {
                 path = "";
             }
         }
-        if (host == null || host.length() == 0) {
+        if (host == null) {
             throw new HttpException("No host found in request headers");
         }
+        int index = host.lastIndexOf(':');
+        int port;
+        if (index >= 0) {
+            port = parseInt(host.substring(index + 1));
+            host = host.substring(0, index);
+        } else {
+            port = -1;
+        }
         try {
-            return new URL(protocol, host, path);
+            if (port >= 0) {
+                return new URL(protocol, host, port, path);
+            } else {
+                return new URL(protocol, host, path);
+            }
         } catch (MalformedURLException e) {
             throw new HttpException("Cannot create url for protocol: " + protocol + ", host: " + host + ", path: " + path);
         }
@@ -231,4 +243,11 @@ public final class HttpRequestHeaders extends HttpHeaders {
         return new HttpRequestHeaders("POST " + url + " HTTP/1.1", "Host: " + host);
     }
 
+    private int parseInt(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
 }

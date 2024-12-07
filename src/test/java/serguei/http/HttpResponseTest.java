@@ -88,7 +88,7 @@ public class HttpResponseTest {
     public void shouldReturnEmptyBodyOriginalInputStreamWhenGetRequest() throws IOException {
         String responseData = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
         ByteArrayInputStream inputStream = new ByteArrayInputStream(responseData.getBytes());
-        HttpRequest response = new HttpRequest(inputStream);
+        HttpResponse response = new HttpResponse(inputStream);
 
         byte[] data = Utils.readFully(response.getBodyAsOriginalStream());
 
