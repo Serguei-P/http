@@ -779,11 +779,52 @@ public class ClientAndServerTest {
 
         assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
         assertEquals(requestBody + requestBody, server.getLatestRequestBodyAsString());
+        assertEquals("chunked", server.getLatestRequestHeaders().getHeader("Transfer-Encoding"));
+        assertNull(server.getLatestRequestHeaders().getHeader("Content-Length"));
         assertEquals(200, response.getStatusCode());
         assertNull(response.getHeader("Content-Encoding"));
         assertEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
         assertFalse(response.isContentChunked());
         assertEquals(responseBody, response.readBodyAsString());
+
+        // and check that connection is still viable
+        response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(1, server.getConnectionsCreated() - connectionsBefore);
+    }
+
+    @Test
+    public void shouldStartRequestAndThenWriteBodyWhenContentLengthPresent() throws Exception {
+        long connectionsBefore = server.getConnectionsCreated();
+        server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
+        byte[] requestBodyBytes = requestBody.getBytes(StandardCharsets.UTF_8);
+        HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost",
+                "Content-Length:" + requestBodyBytes.length * 2);
+
+        ActiveRequestWithWritableBody request = clientConnection.startRequest(headers);
+        int halfBuffer = requestBody.length() / 2;
+        request.write(requestBodyBytes,0, halfBuffer);
+        request.write(requestBodyBytes, halfBuffer, requestBody.length() - halfBuffer);
+        request.write(requestBodyBytes,0, requestBody.length());
+        HttpResponse response = request.readResponse();
+
+        assertEquals("http://localhost" + PATH, server.getLatestRequestHeaders().getUrl().toString());
+        assertEquals(200, response.getStatusCode());
+        assertEquals(requestBody + requestBody, server.getLatestRequestBodyAsString());
+        assertEquals(Integer.toString(requestBodyBytes.length * 2), server.getLatestRequestHeaders().getHeader("Content-Length"));
+        assertNull(response.getHeader("Content-Encoding"));
+        assertEquals(responseBody.getBytes(BODY_CHARSET).length, response.getContentLength());
+        assertFalse(response.isContentChunked());
+        assertEquals(responseBody, response.readBodyAsString());
+        assertEquals(1, server.getConnectionsCreated() - connectionsBefore);
+
+        // and check that connection is still viable
+        response = clientConnection.send(headers, requestBody);
+
+        assertEquals(200, response.getStatusCode());
+        assertEquals(requestBody, server.getLatestRequestBodyAsString());
         assertEquals(1, server.getConnectionsCreated() - connectionsBefore);
     }
 
@@ -847,7 +888,6 @@ public class ClientAndServerTest {
         assertFalse(response.isContentChunked());
         assertEquals(1, server.getConnectionsCreated() - connectionsBefore);
     }
-
 
     private static String makeBody(String msg) {
         StringBuilder builder = new StringBuilder();

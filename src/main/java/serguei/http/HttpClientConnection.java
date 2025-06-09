@@ -289,7 +289,10 @@ public class HttpClientConnection implements Closeable {
     public ActiveRequestWithWritableBody startRequest(HttpRequestHeaders requestHeaders, BodyCompression compression)
             throws IOException {
         connectIfNecessary();
-        OutputStream bodyStream = new ChunkedOutputStream(outputStream, true);
+        boolean knownLength = requestHeaders.getHeader("Content-Length") != null;
+        OutputStream bodyStream = knownLength ?
+                new NonCloseableOutputStream(outputStream) :
+                new ChunkedOutputStream(outputStream, true);
         if (compression == BodyCompression.GZIP) {
             requestHeaders.setHeader("Content-Encoding", "gzip");
             bodyStream = new GZIPOutputStream(bodyStream);
@@ -297,7 +300,9 @@ public class HttpClientConnection implements Closeable {
             requestHeaders.setHeader("Content-Encoding", "deflate");
             bodyStream = new DeflaterOutputStream(bodyStream);
         }
-        requestHeaders.setHeader("Transfer-Encoding", "chunked");
+        if (!knownLength) {
+            requestHeaders.setHeader("Transfer-Encoding", "chunked");
+        }
         requestHeaders.write(outputStream);
         return new ActiveRequestWithWritableBody(bodyStream, inputStream, requestHeaders.getMethod());
     }

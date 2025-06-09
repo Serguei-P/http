@@ -25,7 +25,7 @@ import org.junit.Test;
 
 public class HttpClientConnectionTest {
 
-    private ExecutorService executor = Executors.newCachedThreadPool();
+    private final ExecutorService executor = Executors.newCachedThreadPool();
 
     private HttpClientConnection connection;
 
@@ -243,7 +243,7 @@ public class HttpClientConnectionTest {
 
     @Test
     public void multiThreadingTls() throws InterruptedException, ExecutionException, TimeoutException {
-        String[] tcgmsList = { "CN=secure.tcgms.net", "CN=R10, O=Let's Encrypt, C=US" };
+        String[] tcgmsList = { "CN=secure.tcgms.net", "CN=R11, O=Let's Encrypt, C=US" };
         String[] googleList = { "CN=*.google.com", "CN=WR2, O=Google Trust Services, C=US",
                 "CN=GTS Root R1, O=Google Trust Services LLC, C=US" };
         List<Future<Boolean>> futureList = new ArrayList<>();
