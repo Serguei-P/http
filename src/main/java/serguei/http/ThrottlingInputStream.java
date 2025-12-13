@@ -44,6 +44,7 @@ public class ThrottlingInputStream extends FilterInputStream {
         try {
             Thread.sleep(timeoutMils);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             // nothing can be done
         }
     }

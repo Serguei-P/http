@@ -243,12 +243,12 @@ public class HttpClientConnectionTest {
 
     @Test
     public void multiThreadingTls() throws InterruptedException, ExecutionException, TimeoutException {
-        String[] tcgmsList = { "CN=secure.tcgms.net", "CN=R11, O=Let's Encrypt, C=US" };
+        String[] tcgmsList = { "CN=secure.tcgms.net", "CN=R12, O=Let's Encrypt, C=US" };
         String[] googleList = { "CN=*.google.com", "CN=WR2, O=Google Trust Services, C=US",
                 "CN=GTS Root R1, O=Google Trust Services LLC, C=US" };
         List<Future<Boolean>> futureList = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
-            Future<Boolean> future = executor.submit(() -> makeConnection("tcgms.net", Arrays.asList(tcgmsList)));
+                Future<Boolean> future = executor.submit(() -> makeConnection("tcgms.net", Arrays.asList(tcgmsList)));
             futureList.add(future);
             future = executor.submit(() -> makeConnection("google.com", Arrays.asList(googleList)));
             futureList.add(future);

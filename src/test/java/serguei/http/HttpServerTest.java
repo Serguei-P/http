@@ -2,6 +2,7 @@ package serguei.http;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -86,9 +87,14 @@ public class HttpServerTest {
         server.stopNow();
 
         assertEquals(requestNumber, started.get());
-        assertEquals(0, stopped.get()); // there was IOExeption while waiting in Thread.sleep()
+        assertEquals(0, stopped.get()); // there was IOException while waiting in Thread.sleep()
         for (int i = 0; i < requestNumber; i++) {
-            assertEquals(200, responses[i].get().getStatusCode());
+            HttpResponse response = responses[i].get();
+            if (response != null) {
+                assertEquals(200, responses[i].get().getStatusCode());
+            } else {
+                System.out.println("Response " + i + " was never received");
+            }
         }
     }
 

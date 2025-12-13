@@ -101,7 +101,7 @@ public class HttpServer {
         } else {
             this.socketAddress = null;
         }
-        if (options.getPort() > 0) {
+        if (options.getSslPort() > 0) {
             this.sslSocketAddress = new InetSocketAddress(inetAddress, options.getSslPort());
             portNo++;
         } else {
@@ -420,6 +420,7 @@ public class HttpServer {
                 try {
                     Thread.sleep(200);
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     break;
                 }
             }
@@ -897,7 +898,7 @@ public class HttpServer {
         }
     }
 
-    private class PostponedCloseOutputStream extends OutputStream {
+    private static class PostponedCloseOutputStream extends OutputStream {
 
         private final OutputStream output;
         private boolean toClose = false;
