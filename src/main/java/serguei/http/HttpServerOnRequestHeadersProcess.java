@@ -19,6 +19,6 @@ public interface HttpServerOnRequestHeadersProcess {
      *             - thrown when connection is closed or the request does not follow HTTP standards
      * @return true if continue processing, false if not
      */
-    public boolean process(ConnectionContext connectionContext, HttpRequestHeaders requestHeaders, OutputStream outputStream)
+    boolean process(ConnectionContext connectionContext, HttpRequestHeaders requestHeaders, OutputStream outputStream)
             throws IOException;
 }

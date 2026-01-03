@@ -137,7 +137,7 @@ public final class HttpResponseHeaders extends HttpHeaders {
         this.reason = reason;
     }
 
-    private final void parseResponseLine(String line) throws HttpException {
+    private void parseResponseLine(String line) throws HttpException {
         int versionEndPos = line.indexOf(' ');
         if (versionEndPos > 0) {
             version = line.substring(0, versionEndPos);

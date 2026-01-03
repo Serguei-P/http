@@ -38,7 +38,6 @@ public class HttpClientConnection implements Closeable {
     private OutputStream outputStream;
     private InputStreamWrapperFactory inputStreamWrapperFactory;
     private OutputStreamWrapperFactory outputStreamWrapperFactory;
-    private ClientSslContext clientSslContext;
     private X509Certificate[] tlsCertificates;
     private TlsVersion[] enabledTlsProtocols;
     private String[] enabledCipherSuites;
@@ -462,7 +461,6 @@ public class HttpClientConnection implements Closeable {
     }
 
     private void startHandshake(String hostname, ClientSslContext sslContext, boolean checkHostname) throws IOException {
-        clientSslContext = sslContext;
         connectIfNecessary();
         SSLSocketFactory socketFactory = sslContext.getSocketFactory();
         if (inputStreamWrapperFactory != null || outputStreamWrapperFactory != null) {
@@ -502,7 +500,6 @@ public class HttpClientConnection implements Closeable {
         socket = null;
         inputStream = null;
         outputStream = null;
-        clientSslContext = null;
         negotiatedTlsProtocol = null;
         negotiatedCipher = null;
         tlsSessionId = null;

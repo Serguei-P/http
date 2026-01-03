@@ -12,10 +12,10 @@ import serguei.http.utils.Utils;
 
 public class ChunkedOutputStreamTest {
 
-    private byte[] OUTPUT_DATA = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10};
-    private byte[] EXPECTED = {'a', '\r', '\n', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, '\r', '\n', 'a', '\r', '\n', -1, -2,
+    private final byte[] OUTPUT_DATA = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10};
+    private final byte[] EXPECTED = {'a', '\r', '\n', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, '\r', '\n', 'a', '\r', '\n', -1, -2,
             -3, -4, -5, -6, -7, -8, -9, -10, '\r', '\n', '0', '\r', '\n', '\r', '\n'};
-    private byte[] EXPECTED_ONE_CHUNK = {'1', '4', '\r', '\n', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -1, -2,
+    private final byte[] EXPECTED_ONE_CHUNK = {'1', '4', '\r', '\n', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -1, -2,
             -3, -4, -5, -6, -7, -8, -9, -10, '\r', '\n', '0', '\r', '\n', '\r', '\n'};
 
     @Test

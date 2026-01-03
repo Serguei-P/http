@@ -28,8 +28,8 @@ public class ClientAndServerTest {
     private static final String REQUEST_LINE = "POST " + PATH + " HTTP/1.1";
     private static final String EOL = "\r\n";
 
-    private String requestBody = makeBody("client");
-    private String responseBody = makeBody("server");
+    private final String requestBody = makeBody("client");
+    private final String responseBody = makeBody("server");
 
     private TestServer server;
     private HttpClientConnection clientConnection;

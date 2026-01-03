@@ -23,8 +23,8 @@ import serguei.http.utils.Utils;
 
 public class HostnameChecker {
 
-    private static int DNS_ALT_NAME = 2;
-    private static int IP_ALT_NAME = 7;
+    private static final int DNS_ALT_NAME = 2;
+    private static final int IP_ALT_NAME = 7;
 
     public boolean check(String host, X509Certificate cert) throws SSLException {
         List<AltSubjectName> subjectAlternativeNameList = getSubjectAlternativeNames(cert);

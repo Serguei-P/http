@@ -54,7 +54,7 @@ public class HttpServer {
     private HttpServerOnConnectProcess onConnectHandler;
     private TlsVersion[] enabledTlsProtocols;
     private String[] enabledCipherSuites;
-    private List<ServerSocketRunner> serverSocketRunners = new ArrayList<>();
+    private final List<ServerSocketRunner> serverSocketRunners = new ArrayList<>();
     private volatile boolean isStopped;
     private AtomicLong connectionNo = new AtomicLong(0);
     private KeyStoreData defaultKeyStore;
@@ -367,7 +367,7 @@ public class HttpServer {
      *                     have authority to find to it).
      */
     public void start(int attempts, int timeoutMillis, int backlog) throws IOException {
-        if (serverSocketRunners.size() > 0) {
+        if (!serverSocketRunners.isEmpty()) {
             throw new IllegalStateException("Server is already running");
         }
         isStopped = false;

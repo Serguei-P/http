@@ -15,7 +15,7 @@ class SocketWrapper extends Socket {
     private final InputStream inputStream;
     private final OutputStream outputStream;
 
-    SocketWrapper(Socket socket, InputStream inputStream, OutputStream outputStream) throws IOException {
+    SocketWrapper(Socket socket, InputStream inputStream, OutputStream outputStream) {
         this.socket = socket;
         this.inputStream = inputStream;
         this.outputStream = outputStream;
@@ -217,12 +217,12 @@ class SocketWrapper extends Socket {
     }
 
     @Override
-    public InputStream getInputStream() throws IOException {
+    public InputStream getInputStream() {
         return inputStream;
     }
 
     @Override
-    public OutputStream getOutputStream() throws IOException {
+    public OutputStream getOutputStream() {
         return outputStream;
     }
 

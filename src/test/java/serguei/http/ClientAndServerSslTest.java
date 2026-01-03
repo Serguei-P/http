@@ -23,10 +23,10 @@ public class ClientAndServerSslTest {
     private static final String CERTIFICATE_PASS = "test01";
     private static final String TRUSTSTORE_PASS = "password";
 
-    private String requestBody = makeBody("client");
-    private String responseBody = makeBody("server");
+    private final String requestBody = makeBody("client");
+    private final String responseBody = makeBody("server");
 
-    private TestServer server = new TestServer();
+    private final TestServer server = new TestServer();
     private HttpClientConnection clientConnection;
 
     @Before

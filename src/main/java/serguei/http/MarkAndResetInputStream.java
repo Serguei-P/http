@@ -50,7 +50,7 @@ class MarkAndResetInputStream extends FilterInputStream {
     }
 
     @Override
-    public int read(byte b[], int off, int len) throws IOException {
+    public int read(byte[] b, int off, int len) throws IOException {
         if (marked) {
             int result = in.read(b, off, len);
             if (result > 0) {

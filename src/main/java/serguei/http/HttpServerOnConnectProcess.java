@@ -14,5 +14,5 @@ public interface HttpServerOnConnectProcess {
      * @return true if we would like to continue with this connection and false if we want to close it, there is no need
      *         to close the socket if returning false
      */
-    public boolean process(Socket socket, ClientHello clientHello);
+    boolean process(Socket socket, ClientHello clientHello);
 }

@@ -7,7 +7,6 @@ import java.security.cert.X509Certificate;
 class TrustManagerWrapper implements X509TrustManager {
 
     private final X509TrustManager trustManager;
-    private X509Certificate[] tlsCertificates;
 
     TrustManagerWrapper(X509TrustManager trustManager) {
         this.trustManager = trustManager;
@@ -27,7 +26,6 @@ class TrustManagerWrapper implements X509TrustManager {
 
     @Override
     public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-        tlsCertificates = chain;
         if (trustManager != null) {
             trustManager.checkClientTrusted(chain, authType);
         }

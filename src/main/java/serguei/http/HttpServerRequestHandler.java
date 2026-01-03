@@ -24,7 +24,7 @@ public interface HttpServerRequestHandler {
      * @throws IOException
      *             - thrown when connection is closed or the request does not follow HTTP standards
      */
-    public void process(ConnectionContext connectionContext, HttpRequest request, OutputStream outputStream)
+    void process(ConnectionContext connectionContext, HttpRequest request, OutputStream outputStream)
             throws IOException;
 
 }

@@ -5,5 +5,5 @@ import java.io.OutputStream;
 
 public interface OutputStreamWrapperFactory {
 
-    public OutputStream wrap(OutputStream outputStream) throws IOException;
+    OutputStream wrap(OutputStream outputStream) throws IOException;
 }

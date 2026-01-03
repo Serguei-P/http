@@ -9,7 +9,7 @@ class ChunkedInputStream extends InputStream {
 
     private int leftInChunk = 0;
     private int chunkCount = 0;
-    private Trailer trailer = new Trailer();
+    private final Trailer trailer = new Trailer();
     private boolean endOfStream = false;
 
     ChunkedInputStream(InputStream inputStream) {
