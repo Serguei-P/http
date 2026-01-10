@@ -2,7 +2,9 @@ package serguei.http;
 
 import static org.junit.Assert.*;
 
+import java.io.IOException;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.net.ssl.SSLHandshakeException;
@@ -65,18 +67,33 @@ public class ClientAndServerSslTest {
     }
 
     @Test
-    public void shouldSendAndReceiveFromServerWhichOnlySupportsTls10() throws Exception {
+    public void shouldSendAndReceiveFromServerWhichOnlySupportsLowerTLSProtocols() throws Exception {
+        TlsVersion versionToUse;
+        TlsVersion[] versionsOnServer;
+        if (getJvmVersion() == 8) {
+            // I keep an old version of 1.8 that still supports TLSv10 for testing
+            versionToUse = TlsVersion.TLSv10;
+            versionsOnServer = new TlsVersion[3];
+            versionsOnServer[0] = TlsVersion.TLSv10;
+            versionsOnServer[1] = TlsVersion.TLSv11;
+            versionsOnServer[2] = TlsVersion.TLSv12;
+        } else {
+            versionToUse = TlsVersion.TLSv12;
+            versionsOnServer = new TlsVersion[2];
+            versionsOnServer[0] = TlsVersion.TLSv12;
+            versionsOnServer[1] = TlsVersion.TLSv13;
+        }
         server.start();
         server.setResponse(HttpResponseHeaders.ok(), responseBody.getBytes(BODY_CHARSET), BodyCompression.NONE);
-        server.setTlsProtocol(TlsVersion.TLSv10);
-        clientConnection.setTlsProtocol(TlsVersion.TLSv10, TlsVersion.TLSv11, TlsVersion.TLSv12);
+        server.setTlsProtocol(versionToUse);
+        clientConnection.setTlsProtocol(versionsOnServer);
         HttpRequestHeaders headers = new HttpRequestHeaders(REQUEST_LINE, "Host: localhost");
 
         clientConnection.startHandshake();
         HttpResponse response = clientConnection.send(headers, requestBody);
 
         assertEquals(200, response.getStatusCode());
-        assertEquals(TlsVersion.TLSv10, clientConnection.getNegotiatedTlsProtocol());
+        assertEquals(versionToUse, clientConnection.getNegotiatedTlsProtocol());
     }
 
     @Test
@@ -106,14 +123,17 @@ public class ClientAndServerSslTest {
         assertEquals("", server.getLatestConnectionContext().getSni());
     }
 
-    @Test(expected = SSLProtocolException.class)
     public void shouldFailWhenServerIsSetToBreakOnSni() throws Exception {
         // Java, unlike OpenSSL, fails when the unrecognized_name warning received
         String sni = "www.fitltd.com";
         server.start();
         server.shouldWarnWhenSniNotMatching(true);
 
-        clientConnection.startHandshake(sni);
+        try {
+            clientConnection.startHandshake(sni);
+        } catch (IOException e) {
+            assertSSLHandshakeException(e, "unrecongnized_name");
+        }
     }
 
     @Test
@@ -180,7 +200,12 @@ public class ClientAndServerSslTest {
         server.setResponse(HttpResponseHeaders.ok(), new byte[0]);
 
         try {
+            // In Java 1.8 the exception used to be thrown on startHandshake(), in current version of Java
+            // the exception is thrown when a first data exchange run after starting handshake
             clientConnection.startHandshake(sni);
+            if (getJvmVersion() > 8) {
+                clientConnection.send(new HttpRequestHeaders("GET / HTTP/1.1", "Host: " + sni));
+            }
             fail("Exception expected");
         } catch (SSLHandshakeException e) {
             assertTrue(e.getMessage().contains("bad_certificate"));
@@ -412,5 +437,31 @@ public class ClientAndServerSslTest {
         public X509Certificate[] getAcceptedIssuers() {
             return new X509Certificate[0];
         }
+    }
+
+    private static int getJvmVersion() {
+        String version = System.getProperty("java.version");
+        if(version.startsWith("1.")) {
+            version = version.substring(2, 3);
+        } else {
+            int dot = version.indexOf(".");
+            if (dot != -1) {
+                version = version.substring(0, dot);
+            }
+        }
+        return Integer.parseInt(version);
+    }
+
+    private void assertSSLHandshakeException(Exception e, String msg) {
+        Throwable current = e;
+        while (current != null) {
+            if (current instanceof SSLHandshakeException) {
+                assertTrue(msg + " not found in " + current.getMessage(), current.getMessage().contains(msg));
+                return;
+            }
+            current = current.getCause();
+        }
+        e.printStackTrace();
+        fail("Expected SSLHandshakeException but was " + e.getClass().getName());
     }
 }
